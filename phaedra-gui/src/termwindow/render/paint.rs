@@ -1,5 +1,6 @@
 use crate::termwindow::TermWindowNotif;
 use crate::execute_render::execute_frame;
+use crate::render_command::RenderCommand;
 use config::observers::*;
 use ::window::bitmaps::atlas::OutOfTextureSpace;
 use ::window::WindowOps;
@@ -193,6 +194,13 @@ impl crate::TermWindow {
         self.ui_items.clear();
 
         if self.config.gpu().use_algebraic_render {
+            let modal = self.get_modal();
+            let modal_elements = if let Some(ref modal) = modal {
+                Some(modal.computed_element(self)?)
+            } else {
+                None
+            };
+
             let panes = self.get_panes_to_render();
             let focused = self.focused.is_some();
             for pos in &panes {
@@ -205,7 +213,59 @@ impl crate::TermWindow {
                 }
             }
 
-            let frame = self.describe_frame()?;
+            let mut frame = self.describe_frame()?;
+
+            if let Some(ref elements) = modal_elements {
+                for computed in elements.iter() {
+                    let ui_items = computed.ui_items();
+                    let commands = self.describe_element(computed, None)?;
+                    frame.chrome.modal.extend(commands);
+                    frame.ui_items.extend(ui_items.iter().cloned());
+                    frame.chrome.modal_ui_items.extend(ui_items);
+                }
+            }
+
+            if !self.window_background.is_empty()
+                && matches!(self.allow_images, AllowImage::Yes | AllowImage::Scale(_))
+            {
+                let bg_color = self.palette().background.to_linear();
+                let top = panes
+                    .iter()
+                    .find(|p| p.is_active)
+                    .map(|p| match self.get_viewport(p.pane.pane_id()) {
+                        Some(top) => top,
+                        None => p.pane.get_dimensions().physical_top,
+                    })
+                    .unwrap_or(0);
+
+                let loaded_any = self
+                    .render_backgrounds(bg_color, top)
+                    .context("render_backgrounds")?;
+
+                if !loaded_any {
+                    let background = if panes.len() == 1 {
+                        panes[0].pane.palette().background
+                    } else {
+                        self.palette().background
+                    }
+                    .to_linear()
+                    .mul_alpha(1.0);
+
+                    frame.background = vec![RenderCommand::FillRect {
+                        layer: 0,
+                        zindex: 0,
+                        rect: euclid::rect(
+                            0.0,
+                            0.0,
+                            self.dimensions.pixel_width as f32,
+                            self.dimensions.pixel_height as f32,
+                        ),
+                        color: background,
+                        hsv: None,
+                    }];
+                }
+            }
+
             let pixel_dims = (
                 self.dimensions.pixel_width as f32,
                 self.dimensions.pixel_height as f32,
