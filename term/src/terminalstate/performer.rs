@@ -139,8 +139,8 @@ impl<'a> Performer<'a> {
                 // We got a zero-width grapheme.
 
                 // Relevant reading:
-                // <https://github.com/wezterm/wezterm/issues/1422>
-                // <https://github.com/wezterm/wezterm/issues/6637>
+                // <https://github.com/PaleRoses/phaedra/issues/1422>
+                // <https://github.com/PaleRoses/phaedra/issues/6637>
                 // <https://github.com/harfbuzz/harfbuzz/issues/4279>
                 // <https://www.unicode.org/faq/unsup_char.html#2>
                 //
@@ -242,7 +242,7 @@ impl<'a> Performer<'a> {
     /// in a mode where all printable output is accumulated for the title.
     /// To combat this, we pop_tmux_title_state when we're obviously moving
     /// to different escape sequence parsing states.
-    /// <https://github.com/wezterm/wezterm/issues/2442>
+    /// <https://github.com/PaleRoses/phaedra/issues/2442>
     fn pop_tmux_title_state(&mut self) {
         if let Some(title) = self.accumulating_title.take() {
             log::debug!("ST never received for pending tmux title escape sequence: {title:?}");
@@ -457,7 +457,7 @@ impl<'a> Performer<'a> {
             }
             ControlCode::RI => self.c1_reverse_index(),
 
-            // wezterm only supports UTF-8, so does not support the
+            // phaedra only supports UTF-8, so does not support the
             // DEC National Replacement Character Sets.  However, it does
             // support the DEC Special Graphics character set used by
             // numerous ncurses applications.  DEC Special Graphics can be
@@ -496,7 +496,7 @@ impl<'a> Performer<'a> {
             CSI::Cursor(phaedra_escape_parser::csi::Cursor::Left(n)) => {
                 // We treat CUB (Cursor::Left) the same as Backspace as
                 // that is what xterm does.
-                // <https://github.com/wezterm/wezterm/issues/1273>
+                // <https://github.com/PaleRoses/phaedra/issues/1273>
                 for _ in 0..n {
                     self.control(ControlCode::Backspace);
                 }

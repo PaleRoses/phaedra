@@ -1,7 +1,7 @@
 [package]
 name = "config"
 version = "0.1.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2018"
 publish = false
 
@@ -45,6 +45,3 @@ phaedra-term = { workspace = true, features=["use_serde"] }
 
 [target."cfg(unix)".dependencies]
 nix = {workspace=true, features=["resource"]}
-
-[target."cfg(windows)".dependencies]
-winapi = { workspace=true, features = ["winuser"]}

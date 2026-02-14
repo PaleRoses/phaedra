@@ -121,7 +121,7 @@ impl SelectorState {
         let mut labels_iter = labels.into_iter();
 
         let config = configuration();
-        let colors = &config.resolved_palette;
+        let colors = &config.color_config.resolved_palette;
         let input_selector_label_fg = colors.input_selector_label_fg;
         let input_selector_label_bg = colors.input_selector_label_bg;
 
@@ -421,7 +421,7 @@ pub fn selector(
     let event_name = match *args.action {
         KeyAssignment::EmitEvent(ref id) => id.to_string(),
         _ => {
-            anyhow::bail!("InputSelector requires action to be defined by wezterm.action_callback")
+            anyhow::bail!("InputSelector requires action to be defined by phaedra.action_callback")
         }
     };
     let mut state = SelectorState {

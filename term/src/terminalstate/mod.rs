@@ -628,7 +628,7 @@ impl TerminalState {
     /// OSC 1 is used to set the "icon title", which some terminal
     /// emulators interpret as a shorter title string for use when
     /// showing the tab title.
-    /// Here in wezterm the terminalstate is isolated from other
+    /// Here in phaedra the terminalstate is isolated from other
     /// tabs; we process escape sequences without knowledge of other
     /// tabs, so we maintain both title strings here.
     /// The gui layer doesn't currently have a concept of what the
@@ -1573,17 +1573,17 @@ impl TerminalState {
             Mode::SetDecPrivateMode(DecPrivateMode::Code(
                 DecPrivateModeCode::SynchronizedOutput,
             )) => {
-                // This is handled in wezterm's mux
+                // This is handled in phaedra's mux
             }
             Mode::ResetDecPrivateMode(DecPrivateMode::Code(
                 DecPrivateModeCode::SynchronizedOutput,
             )) => {
-                // This is handled in wezterm's mux
+                // This is handled in phaedra's mux
             }
             Mode::QueryDecPrivateMode(DecPrivateMode::Code(
                 DecPrivateModeCode::SynchronizedOutput,
             )) => {
-                // This is handled in wezterm's mux; if we get here, then it isn't enabled,
+                // This is handled in phaedra's mux; if we get here, then it isn't enabled,
                 // so we always report false
                 self.decqrm_response(mode, true, false);
             }
@@ -2009,10 +2009,10 @@ impl TerminalState {
         }
 
         // Treat uninitialized cells as spaces.
-        // The concept of uninitialized cells in wezterm is not the same as that on VT520 or that
+        // The concept of uninitialized cells in phaedra is not the same as that on VT520 or that
         // on xterm, so, to prevent a lot of noise in esctest, treat them as spaces, at least when
         // asking for the checksum of a single cell (which is what esctest does).
-        // See: https://github.com/wezterm/wezterm/pull/4565
+        // See: https://github.com/PaleRoses/phaedra/pull/4565
         if checksum == 0 {
             32u16
         } else {
@@ -2207,7 +2207,7 @@ impl TerminalState {
                     // the logic for updating the cursor position, it causes regressions
                     // in the test suite.
                     // So this is here for now until a better solution is found.
-                    // <https://github.com/wezterm/wezterm/issues/3548>
+                    // <https://github.com/PaleRoses/phaedra/issues/3548>
                     EraseInLine::EraseToEndOfLine => cx + if self.wrap_next { 1 } else { 0 }..cols,
                     EraseInLine::EraseToStartOfLine => 0..cx + 1,
                     EraseInLine::EraseLine => 0..cols,

@@ -21,47 +21,67 @@ use phaedra_dynamic::{FromDynamic, FromDynamicOptions, ToDynamic, UnknownFieldAc
 use phaedra_term::UnicodeVersion;
 
 mod background;
-mod bell;
+pub mod bell;
 mod cell;
 mod color;
 mod config;
+pub mod domain_config;
+pub mod cursor;
 mod daemon;
 mod exec_domain;
 mod font;
+pub mod font_config;
 mod frontend;
 pub mod keyassignment;
+pub mod key_input_config;
 mod keys;
+pub mod launch_config;
 pub mod lua;
 pub mod meta;
+pub mod mouse_config;
+pub mod color_config;
 mod scheme_data;
-mod serial;
+pub mod scroll;
 mod ssh;
+pub mod tab_bar;
 mod terminal;
+pub mod text_config;
 mod tls;
 mod units;
+pub mod update_check;
 mod unix;
 mod version;
 pub mod window;
-mod wsl;
+pub mod window_config;
 
 pub use crate::config::*;
 pub use background::*;
 pub use bell::*;
 pub use cell::*;
+pub use color_config::ColorConfig;
 pub use color::*;
 pub use daemon::*;
+pub use domain_config::DomainConfig;
+pub use cursor::CursorConfig;
 pub use exec_domain::*;
 pub use font::*;
+pub use font_config::FontConfig;
 pub use frontend::*;
+pub use key_input_config::KeyInputConfig;
 pub use keys::*;
-pub use serial::*;
+pub use launch_config::LaunchConfig;
+pub use mouse_config::MouseConfig;
+pub use scroll::ScrollConfig;
 pub use ssh::*;
+pub use tab_bar::TabBarConfig;
 pub use terminal::*;
+pub use text_config::TextConfig;
 pub use tls::*;
 pub use units::*;
+pub use update_check::UpdateConfig;
 pub use unix::*;
 pub use version::*;
-pub use wsl::*;
+pub use window_config::WindowConfig;
 
 type ErrorCallback = fn(&str);
 
@@ -595,7 +615,7 @@ impl ConfigInner {
                 // But avoid watching the home dir itself, so that we
                 // don't keep reloading every time something in the
                 // home dir changes!
-                // <https://github.com/wezterm/wezterm/issues/1895>
+                // <https://github.com/PaleRoses/phaedra/issues/1895>
                 if parent != &*HOME_DIR {
                     watch_paths.push(parent.to_path_buf());
                 }
@@ -657,28 +677,30 @@ impl ConfigInner {
 
     fn overridden(&mut self, overrides: &phaedra_dynamic::Value) -> Result<ConfigHandle, Error> {
         let config = Config::load_with_overrides(overrides);
-        Ok(ConfigHandle {
-            config: Arc::new(config.config?),
-            generation: self.generation,
-        })
+        let config = Arc::new(config.config?);
+        Ok(ConfigHandle::from_arc(config, self.generation))
     }
 
     fn use_test(&mut self) {
         let mut config = Config::default_config();
-        config.font_locator = FontLocatorSelection::ConfigDirsOnly;
+        config.font_config.font_locator = FontLocatorSelection::ConfigDirsOnly;
         let exe_name = std::env::current_exe().unwrap();
         let exe_dir = exe_name.parent().unwrap();
-        config.font_dirs.push(exe_dir.join("../../../assets/fonts"));
+        config
+            .font_config
+            .font_dirs
+            .push(exe_dir.join("../../../assets/fonts"));
         // If we're building for a specific target, the dir
         // level is one deeper.
         #[cfg(target_os = "macos")]
         config
+            .font_config
             .font_dirs
             .push(exe_dir.join("../../../../assets/fonts"));
         // Specify the same DPI used on non-mac systems so
         // that we have consistent values regardless of the
         // operating system that we're running tests on
-        config.dpi.replace(96.0);
+        config.font_config.dpi.replace(96.0);
         self.config = Arc::new(config);
         self.error.take();
         self.generation += 1;
@@ -699,10 +721,7 @@ impl Configuration {
     /// Returns the effective configuration.
     pub fn get(&self) -> ConfigHandle {
         let inner = self.inner.lock().unwrap();
-        ConfigHandle {
-            config: Arc::clone(&inner.config),
-            generation: inner.generation,
-        }
+        ConfigHandle::from_arc(Arc::clone(&inner.config), inner.generation)
     }
 
     /// Subscribe to config reload events
@@ -778,11 +797,110 @@ impl Configuration {
 
 #[derive(Clone, Debug)]
 pub struct ConfigHandle {
+    pub visual_bell: VisualBell,
+    pub audible_bell: AudibleBell,
+    pub check_for_updates: bool,
+    pub check_for_updates_interval_seconds: u64,
+    pub scrollback_lines: usize,
+    pub enable_scroll_bar: bool,
+    pub min_scroll_bar_height: Dimension,
+    pub scroll_to_bottom_on_input: bool,
+    pub alternate_buffer_wheel_scroll_speed: u8,
+    pub cursor_thickness: Option<Dimension>,
+    pub cursor_blink_rate: u64,
+    pub cursor_blink_ease_in: EasingFunction,
+    pub cursor_blink_ease_out: EasingFunction,
+    pub default_cursor_style: DefaultCursorStyle,
+    pub force_reverse_video_cursor: bool,
+    pub reverse_video_cursor_min_contrast: f32,
+    pub xcursor_theme: Option<String>,
+    pub xcursor_size: Option<u32>,
+    pub tab_bar_style: TabBarStyle,
+    pub enable_tab_bar: bool,
+    pub use_fancy_tab_bar: bool,
+    pub tab_bar_at_bottom: bool,
+    pub mouse_wheel_scrolls_tabs: bool,
+    pub show_tab_index_in_tab_bar: bool,
+    pub show_tabs_in_tab_bar: bool,
+    pub show_new_tab_button_in_tab_bar: bool,
+    pub show_close_tab_button_in_tabs: bool,
+    pub tab_and_split_indices_are_zero_based: bool,
+    pub tab_max_width: usize,
+    pub hide_tab_bar_if_only_one_tab: bool,
+    pub switch_to_last_active_tab_when_closing_tab: bool,
+    pub mouse_bindings: Vec<Mouse>,
+    pub disable_default_mouse_bindings: bool,
+    pub bypass_mouse_reporting_modifiers: phaedra_input_types::Modifiers,
+    pub selection_word_boundary: String,
+    pub quick_select_patterns: Vec<String>,
+    pub quick_select_alphabet: String,
+    pub quick_select_remove_styling: bool,
+    pub disable_default_quick_select_patterns: bool,
+    pub hide_mouse_cursor_when_typing: bool,
+    pub swallow_mouse_click_on_pane_focus: bool,
+    pub swallow_mouse_click_on_window_focus: bool,
+    pub pane_focus_follows_mouse: bool,
+    pub quote_dropped_files: DroppedFileQuoting,
     config: Arc<Config>,
     generation: usize,
 }
 
 impl ConfigHandle {
+    fn from_arc(config: Arc<Config>, generation: usize) -> Self {
+        Self {
+            visual_bell: config.bell.visual_bell.clone(),
+            audible_bell: config.bell.audible_bell.clone(),
+            check_for_updates: config.update_check.check_for_updates,
+            check_for_updates_interval_seconds: config
+                .update_check
+                .check_for_updates_interval_seconds,
+            scrollback_lines: config.scroll.scrollback_lines,
+            enable_scroll_bar: config.scroll.enable_scroll_bar,
+            min_scroll_bar_height: config.scroll.min_scroll_bar_height,
+            scroll_to_bottom_on_input: config.scroll.scroll_to_bottom_on_input,
+            alternate_buffer_wheel_scroll_speed: config.scroll.alternate_buffer_wheel_scroll_speed,
+            cursor_thickness: config.cursor.cursor_thickness,
+            cursor_blink_rate: config.cursor.cursor_blink_rate,
+            cursor_blink_ease_in: config.cursor.cursor_blink_ease_in,
+            cursor_blink_ease_out: config.cursor.cursor_blink_ease_out,
+            default_cursor_style: config.cursor.default_cursor_style,
+            force_reverse_video_cursor: config.cursor.force_reverse_video_cursor,
+            reverse_video_cursor_min_contrast: config.cursor.reverse_video_cursor_min_contrast,
+            xcursor_theme: config.cursor.xcursor_theme.clone(),
+            xcursor_size: config.cursor.xcursor_size,
+            tab_bar_style: config.tab_bar.tab_bar_style.clone(),
+            enable_tab_bar: config.tab_bar.enable_tab_bar,
+            use_fancy_tab_bar: config.tab_bar.use_fancy_tab_bar,
+            tab_bar_at_bottom: config.tab_bar.tab_bar_at_bottom,
+            mouse_wheel_scrolls_tabs: config.tab_bar.mouse_wheel_scrolls_tabs,
+            show_tab_index_in_tab_bar: config.tab_bar.show_tab_index_in_tab_bar,
+            show_tabs_in_tab_bar: config.tab_bar.show_tabs_in_tab_bar,
+            show_new_tab_button_in_tab_bar: config.tab_bar.show_new_tab_button_in_tab_bar,
+            show_close_tab_button_in_tabs: config.tab_bar.show_close_tab_button_in_tabs,
+            tab_and_split_indices_are_zero_based: config.tab_bar.tab_and_split_indices_are_zero_based,
+            tab_max_width: config.tab_bar.tab_max_width,
+            hide_tab_bar_if_only_one_tab: config.tab_bar.hide_tab_bar_if_only_one_tab,
+            switch_to_last_active_tab_when_closing_tab: config
+                .tab_bar
+                .switch_to_last_active_tab_when_closing_tab,
+            mouse_bindings: config.mouse.mouse_bindings.clone(),
+            disable_default_mouse_bindings: config.mouse.disable_default_mouse_bindings,
+            bypass_mouse_reporting_modifiers: config.mouse.bypass_mouse_reporting_modifiers,
+            selection_word_boundary: config.mouse.selection_word_boundary.clone(),
+            quick_select_patterns: config.mouse.quick_select_patterns.clone(),
+            quick_select_alphabet: config.mouse.quick_select_alphabet.clone(),
+            quick_select_remove_styling: config.mouse.quick_select_remove_styling,
+            disable_default_quick_select_patterns: config.mouse.disable_default_quick_select_patterns,
+            hide_mouse_cursor_when_typing: config.mouse.hide_mouse_cursor_when_typing,
+            swallow_mouse_click_on_pane_focus: config.mouse.swallow_mouse_click_on_pane_focus,
+            swallow_mouse_click_on_window_focus: config.mouse.swallow_mouse_click_on_window_focus,
+            pane_focus_follows_mouse: config.mouse.pane_focus_follows_mouse,
+            quote_dropped_files: config.mouse.quote_dropped_files,
+            config,
+            generation,
+        }
+    }
+
     /// Returns the generation number for the configuration,
     /// allowing consuming code to know whether the config
     /// has been reloading since they last derived some
@@ -792,17 +910,14 @@ impl ConfigHandle {
     }
 
     pub fn default_config() -> Self {
-        Self {
-            config: Arc::new(Config::default_config()),
-            generation: 0,
-        }
+        Self::from_arc(Arc::new(Config::default_config()), 0)
     }
 
     pub fn unicode_version(&self) -> UnicodeVersion {
         UnicodeVersion {
-            version: self.config.unicode_version,
-            ambiguous_are_wide: self.config.treat_east_asian_ambiguous_width_as_wide,
-            cell_widths: CellWidth::compile_to_map(self.config.cell_widths.clone()),
+            version: self.config.text.unicode_version,
+            ambiguous_are_wide: self.config.text.treat_east_asian_ambiguous_width_as_wide,
+            cell_widths: CellWidth::compile_to_map(self.config.text.cell_widths.clone()),
         }
     }
 }

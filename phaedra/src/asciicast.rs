@@ -61,7 +61,7 @@ pub struct Header {
 impl Header {
     fn new(config: &ConfigHandle, size: PtySize, prog: &[&OsStr]) -> Self {
         let mut env = HashMap::new();
-        env.insert("TERM".to_string(), config.term.to_string());
+        env.insert("TERM".to_string(), config.launch.term.to_string());
         env.insert(
             "PHAEDRA_VERSION".to_string(),
             config::phaedra_version().to_string(),
@@ -77,7 +77,7 @@ impl Header {
             env.insert("LANG".to_string(), lang);
         }
 
-        let palette: ColorPalette = config.resolved_palette.clone().into();
+        let palette: ColorPalette = config.color_config.resolved_palette.clone().into();
         let ansi_colors: Vec<String> = palette.colors.0[0..16]
             .iter()
             .map(|c| c.to_rgb_string())
@@ -338,7 +338,7 @@ enum Message {
 #[derive(Debug, Parser, Clone)]
 pub struct RecordCommand {
     /// Start in the specified directory, instead of
-    /// the default_cwd defined by your wezterm configuration
+    /// the default_cwd defined by your phaedra configuration
     #[arg(long)]
     cwd: Option<std::path::PathBuf>,
 
@@ -348,7 +348,7 @@ pub struct RecordCommand {
     outfile: Option<std::path::PathBuf>,
 
     /// Start prog instead of the default_prog defined by your
-    /// wezterm configuration
+    /// phaedra configuration
     #[arg(value_parser)]
     prog: Vec<OsString>,
 }
@@ -392,8 +392,8 @@ impl RecordCommand {
             } else {
                 Some(prog)
             },
-            config.default_prog.as_ref(),
-            self.cwd.as_ref().or(config.default_cwd.as_ref()),
+            config.launch.default_prog.as_ref(),
+            self.cwd.as_ref().or(config.launch.default_cwd.as_ref()),
         )?;
 
         let mut child = pair.slave.spawn_command(cmd)?;

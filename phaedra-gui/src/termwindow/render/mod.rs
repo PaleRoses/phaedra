@@ -352,14 +352,14 @@ impl crate::TermWindow {
 
         let padding_left = self
             .config
-            .window_padding
+            .window_config.window_padding
             .left
             .evaluate_as_pixels(h_context);
-        let padding_right = self.config.window_padding.right;
-        let padding_top = self.config.window_padding.top.evaluate_as_pixels(v_context);
+        let padding_right = self.config.window_config.window_padding.right;
+        let padding_top = self.config.window_config.window_padding.top.evaluate_as_pixels(v_context);
         let padding_bottom = self
             .config
-            .window_padding
+            .window_config.window_padding
             .bottom
             .evaluate_as_pixels(v_context);
 
@@ -380,12 +380,12 @@ impl crate::TermWindow {
             } else {
                 0.
             };
-        let left_gap = match self.config.window_content_alignment.horizontal {
+        let left_gap = match self.config.window_config.window_content_alignment.horizontal {
             HorizontalWindowContentAlignment::Left => 0.,
             HorizontalWindowContentAlignment::Center => (horizontal_gap / 2.).round(),
             HorizontalWindowContentAlignment::Right => horizontal_gap,
         };
-        let top_gap = match self.config.window_content_alignment.vertical {
+        let top_gap = match self.config.window_config.window_content_alignment.vertical {
             VerticalWindowContentAlignment::Top => 0.,
             VerticalWindowContentAlignment::Center => (vertical_gap / 2.).round(),
             VerticalWindowContentAlignment::Bottom => vertical_gap,
@@ -521,7 +521,7 @@ impl crate::TermWindow {
     }
 
     fn ensure_min_contrast(&self, fg_color: LinearRgba, bg_color: LinearRgba) -> LinearRgba {
-        match self.config.text_min_contrast_ratio {
+        match self.config.text.text_min_contrast_ratio {
             Some(ratio) => fg_color
                 .ensure_contrast_ratio(&bg_color, ratio)
                 .unwrap_or(fg_color),
@@ -548,7 +548,7 @@ impl crate::TermWindow {
                 // and the the target color
                 let bg_color_alt = params
                     .config
-                    .resolved_palette
+                    .color_config.resolved_palette
                     .visual_bell
                     .map(|c| c.to_linear())
                     .unwrap_or(fg_color);
@@ -581,7 +581,7 @@ impl crate::TermWindow {
 
                 let color = params
                     .config
-                    .resolved_palette
+                    .color_config.resolved_palette
                     .compose_cursor
                     .map(|c| c.to_linear())
                     .unwrap_or(bg_color);
@@ -740,7 +740,7 @@ impl crate::TermWindow {
         let mut glyphs = Vec::with_capacity(infos.len());
         let mut iter = infos.iter().peekable();
         while let Some(info) = iter.next() {
-            if self.config.custom_block_glyphs {
+            if self.config.text.custom_block_glyphs {
                 if info.only_char.and_then(BlockKey::from_char).is_some() {
                     // Don't bother rendering the glyph from the font, as it can
                     // have incorrect advance metrics.
@@ -920,7 +920,7 @@ fn resolve_fg_color_attr(
             }
         }
         phaedra_term::color::ColorAttribute::PaletteIndex(idx)
-            if idx < 8 && config.bold_brightens_ansi_colors != BoldBrightening::No =>
+            if idx < 8 && config.color_config.bold_brightens_ansi_colors != BoldBrightening::No =>
         {
             // For compatibility purposes, switch to a brighter version
             // of one of the standard ANSI colors when Bold is enabled.

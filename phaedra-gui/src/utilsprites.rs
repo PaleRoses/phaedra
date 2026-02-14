@@ -73,8 +73,8 @@ impl RenderMetrics {
             .default_font_metrics()
             .context("failed to get font metrics!?")?;
 
-        let line_height = fonts.config().line_height;
-        let cell_width = fonts.config().cell_width;
+        let line_height = fonts.config().text.line_height;
+        let cell_width = fonts.config().text.cell_width;
 
         let (cell_height, cell_width) = (
             (metrics.cell_height.get() * line_height).ceil() as usize,
@@ -86,7 +86,7 @@ impl RenderMetrics {
         let line_height_y_adjust = (cell_height as f64 - metrics.cell_height.get().ceil()) / 2.;
 
         let config = fonts.config();
-        let underline_height = match &config.underline_thickness {
+        let underline_height = match &config.text.underline_thickness {
             None => metrics.underline_thickness.get().round().max(1.) as isize,
             Some(d) => d
                 .evaluate_as_pixels(DimensionContext {
@@ -97,7 +97,7 @@ impl RenderMetrics {
                 .max(1.) as isize,
         };
 
-        let underline_position = match &config.underline_position {
+        let underline_position = match &config.text.underline_position {
             None => metrics.underline_position.get(),
             Some(d) => d.evaluate_as_pixels(DimensionContext {
                 dpi: fonts.get_dpi() as f32,
@@ -110,7 +110,7 @@ impl RenderMetrics {
             - line_height_y_adjust) as isize;
         let descender_plus_two =
             (2 * underline_height + descender_row).min(cell_height as isize - underline_height);
-        let strike_row = match &config.strikethrough_position {
+        let strike_row = match &config.text.strikethrough_position {
             None => {
                 ((cell_height as f64 + (metrics.descender.get() - underline_position)) / 2.)
                     as isize

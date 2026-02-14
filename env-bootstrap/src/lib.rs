@@ -82,8 +82,8 @@ pub fn fixup_appimage() {
         }
 
         /// Our config stuff exports these env vars to help portable apps locate
-        /// the correct environment when it is launched via wezterm.
-        /// However, if we are using the system wezterm to spawn a portable
+        /// the correct environment when it is launched via phaedra.
+        /// However, if we are using the system phaedra to spawn a portable
         /// AppImage then we want these to not take effect.
         fn clean_phaedra_config_env() {
             std::env::remove_var("PHAEDRA_CONFIG_FILE");
@@ -225,12 +225,12 @@ pub fn bootstrap() {
     register_lua_modules();
 
     // Remove this env var to avoid weirdness with some vim configurations.
-    // wezterm never sets WINDOWID and we don't want to inherit it from a
+    // phaedra never sets WINDOWID and we don't want to inherit it from a
     // parent process.
     std::env::remove_var("WINDOWID");
     // Avoid vte shell integration kicking in if someone started
-    // wezterm or the mux server from inside gnome terminal.
-    // <https://github.com/wezterm/wezterm/issues/2237>
+    // phaedra or the mux server from inside gnome terminal.
+    // <https://github.com/PaleRoses/phaedra/issues/2237>
     std::env::remove_var("VTE_VERSION");
 
     // Sice folks don't like to reboot or sign out if they `chsh`,

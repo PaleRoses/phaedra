@@ -5,12 +5,14 @@ use super::VisibleRowIndex;
 #[cfg(feature = "use_serde")]
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
+#[cfg(feature = "dynamic")]
 use phaedra_dynamic::{FromDynamic, ToDynamic};
 
 pub use termwiz::input::{KeyCode, Modifiers as KeyModifiers};
 
 #[cfg_attr(feature = "use_serde", derive(Deserialize, Serialize))]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, FromDynamic, ToDynamic)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub enum MouseButton {
     Left,
     Middle,

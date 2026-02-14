@@ -56,7 +56,7 @@ pub fn show_line_prompt_overlay(
     let name = match *args.action {
         KeyAssignment::EmitEvent(id) => id,
         _ => anyhow::bail!(
-            "PromptInputLine requires action to be defined by wezterm.action_callback"
+            "PromptInputLine requires action to be defined by phaedra.action_callback"
         ),
     };
 

@@ -27,9 +27,9 @@ impl InputMap {
 
         let mut keys = config.key_bindings();
 
-        let leader = config.leader.as_ref().map(|leader| {
+        let leader = config.key_input.leader.as_ref().map(|leader| {
             (
-                leader.key.key.resolve(config.key_map_preference).clone(),
+                leader.key.key.resolve(config.key_input.key_map_preference).clone(),
                 leader.key.mods,
                 Duration::from_millis(leader.timeout_milliseconds),
             )
@@ -47,7 +47,7 @@ impl InputMap {
 
         use KeyAssignment::*;
 
-        if !config.disable_default_key_bindings {
+        if !config.key_input.disable_default_key_bindings {
             for (mods, code, action) in CommandDef::default_key_assignments(config) {
                 // If the user configures {key='p', mods='CTRL|SHIFT'} that gets
                 // normalized into {key='P', mods='CTRL'} in Config::key_bindings(),
@@ -62,7 +62,7 @@ impl InputMap {
                 //
                 // Our default set of assignments deliberately and explicitly emits
                 // variations on SHIFT as a workaround for an issue with
-                // normalization under X11: <https://github.com/wezterm/wezterm/issues/1906>.
+                // normalization under X11: <https://github.com/PaleRoses/phaedra/issues/1906>.
                 // Until that is resolved, we need to keep emitting both variants.
                 //
                 // In order for the DisableDefaultAssignment behavior to work with the
@@ -72,7 +72,7 @@ impl InputMap {
                 // a match, skip this key.  Otherwise register the non-normalized
                 // version from default_key_assignments().
                 //
-                // See: <https://github.com/wezterm/wezterm/issues/3262>
+                // See: <https://github.com/PaleRoses/phaedra/issues/3262>
                 let (disable_code, disable_mods) = code.normalize_shift(mods);
                 if keys
                     .default
@@ -464,8 +464,8 @@ impl InputMap {
     }
 
     pub fn dump_config(&self, key_table: Option<&str>) {
-        println!("local wezterm = require 'wezterm'");
-        println!("local act = wezterm.action");
+        println!("local phaedra = require 'phaedra'");
+        println!("local act = phaedra.action");
         println!();
         println!("return {{");
 

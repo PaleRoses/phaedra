@@ -275,7 +275,7 @@ impl SchemeSet {
             }
         }
 
-        // Resolve wezterm version information for this scheme
+        // Resolve phaedra version information for this scheme
         let json = candidate.to_json_value().expect("scheme to be json compat");
         let ident =
             serde_json::to_string(json.get("colors").unwrap()).expect("colors to be json compat");
@@ -414,7 +414,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     schemeses
         .sync_toml(
-            "https://github.com/hardhackerlabs/theme-wezterm",
+            "https://github.com/hardhackerlabs/theme-phaedra",
             "master",
             "",
         )

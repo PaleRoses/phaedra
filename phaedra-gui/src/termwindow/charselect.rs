@@ -203,7 +203,7 @@ fn build_aliases() -> Vec<Alias> {
         }
     }
 
-    for (name, value) in crate::unicode_names::NAMES {
+    for (name, value) in phaedra_unicode_data::NAMES {
         push(
             &mut aliases,
             Alias {
@@ -276,7 +276,7 @@ fn compute_matches(selection: &str, aliases: &[Alias], group: CharSelectGroup) -
         let numeric_selection = if selection.chars().all(|c| c.is_ascii_hexdigit()) {
             // Make this uppercase so that eg: `e1` matches `U+E1` rather
             // than HENTAIGANA LETTER E-1.
-            // <https://github.com/wezterm/wezterm/issues/2581#issuecomment-1267662040>
+            // <https://github.com/PaleRoses/phaedra/issues/2581#issuecomment-1267662040>
             Some(format!("U+{}", selection.to_ascii_uppercase()))
         } else if selection.starts_with("U+") {
             Some(selection.to_string())
@@ -424,7 +424,7 @@ impl CharSelector {
         .colors(ElementColors {
             border: BorderColor::default(),
             bg: LinearRgba::TRANSPARENT.into(),
-            text: term_window.config.char_select_fg_color.to_linear().into(),
+            text: term_window.config.color_config.char_select_fg_color.to_linear().into(),
         })
         .display(DisplayType::Block)];
 
@@ -438,13 +438,13 @@ impl CharSelector {
         {
             let (bg, text) = if display_idx == selected_row {
                 (
-                    term_window.config.char_select_fg_color.to_linear().into(),
-                    term_window.config.char_select_bg_color.to_linear().into(),
+                    term_window.config.color_config.char_select_fg_color.to_linear().into(),
+                    term_window.config.color_config.char_select_bg_color.to_linear().into(),
                 )
             } else {
                 (
                     LinearRgba::TRANSPARENT.into(),
-                    term_window.config.char_select_fg_color.to_linear().into(),
+                    term_window.config.color_config.char_select_fg_color.to_linear().into(),
                 )
             };
             elements.push(
@@ -475,10 +475,10 @@ impl CharSelector {
         let element = Element::new(&font, ElementContent::Children(elements))
             .colors(ElementColors {
                 border: BorderColor::new(
-                    term_window.config.char_select_bg_color.to_linear().into(),
+                    term_window.config.color_config.char_select_bg_color.to_linear().into(),
                 ),
-                bg: term_window.config.char_select_bg_color.to_linear().into(),
-                text: term_window.config.char_select_fg_color.to_linear().into(),
+                bg: term_window.config.color_config.char_select_bg_color.to_linear().into(),
+                text: term_window.config.color_config.char_select_fg_color.to_linear().into(),
             })
             .margin(BoxDimension {
                 left: Dimension::Cells(1.25),

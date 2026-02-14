@@ -1,7 +1,7 @@
 [package]
 name = "phaedra-mux-server"
 version = "0.1.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2018"
 resolver = "2"
 publish = false
@@ -26,10 +26,3 @@ phaedra-blob-leases = {workspace=true, features=["simple_tempdir"]}
 phaedra-mux-server-impl.workspace = true
 phaedra-gui-subcommands.workspace = true
 phaedra-term.workspace = true
-
-[target."cfg(windows)".dependencies]
-winapi = { workspace=true, features = [ "winuser" ]}
-
-[target.'cfg(windows)'.build-dependencies]
-embed-resource.workspace = true
-cc.workspace = true

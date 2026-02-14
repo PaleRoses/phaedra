@@ -1,5 +1,5 @@
 [package]
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 name = "phaedra-term"
 version = "0.1.0"
 edition = "2018"
@@ -11,6 +11,8 @@ keywords = ["terminal", "emulator", "vte"]
 readme = "README.md"
 
 [features]
+default = ["dynamic"]
+dynamic = ["dep:phaedra-dynamic"]
 use_serde = ["termwiz/use_serde", "phaedra-cell/use_serde", "phaedra-escape-parser/use_serde", "phaedra-surface/use_serde"]
 
 [dependencies]
@@ -33,7 +35,7 @@ terminfo.workspace = true
 unicode-normalization.workspace = true
 url.workspace = true
 phaedra-bidi.workspace = true
-phaedra-dynamic = {workspace = true, features=["std"]}
+phaedra-dynamic = {workspace = true, features=["std"], optional = true}
 phaedra-cell = {workspace = true, features=["std", "use_image"]}
 phaedra-escape-parser = {workspace = true, features=["std", "use_image"]}
 phaedra-surface = {workspace = true, features=["std", "appdata", "use_image"]}

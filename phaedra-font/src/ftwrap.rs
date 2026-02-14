@@ -63,7 +63,7 @@ pub fn compute_load_flags_from_config(
     let config = configuration();
 
     let load_flags = freetype_load_flags
-        .or(config.freetype_load_flags)
+        .or(config.font_config.freetype_load_flags)
         .unwrap_or_else(|| match dpi {
             Some(dpi) if dpi >= 100 => FreeTypeLoadFlags::default_hidpi(),
             _ => FreeTypeLoadFlags::default(),
@@ -81,12 +81,15 @@ pub fn compute_load_flags_from_config(
         }
     }
 
-    let load_target = target_to_render(freetype_load_target.unwrap_or(config.freetype_load_target));
+    let load_target = target_to_render(
+        freetype_load_target.unwrap_or(config.font_config.freetype_load_target),
+    );
     let render = target_to_render(
         freetype_render_target.unwrap_or(
             config
+                .font_config
                 .freetype_render_target
-                .unwrap_or(config.freetype_load_target),
+                .unwrap_or(config.font_config.freetype_load_target),
         ),
     );
 
@@ -534,7 +537,7 @@ impl Face {
                 // returns (8.0, 0.0) when the selected bitmap strike is (4, 14).
                 // 4 pixels is too thin for this font, so we take the max of the
                 // known dimensions to produce the size.
-                // <https://github.com/wezterm/wezterm/issues/1165>
+                // <https://github.com/PaleRoses/phaedra/issues/1165>
                 let m = self.cell_metrics();
                 let height = f64::from(best.height).max(m.height);
                 SelectedFontSize {
@@ -1157,7 +1160,7 @@ impl Library {
         let mut lib = Library { lib };
 
         let config = configuration();
-        if let Some(vers) = config.freetype_interpreter_version {
+        if let Some(vers) = config.font_config.freetype_interpreter_version {
             let interpreter_version: FT_UInt = vers;
             unsafe {
                 FT_Property_Set(
@@ -1170,7 +1173,7 @@ impl Library {
         }
 
         {
-            let no_long_names: FT_Bool = if config.freetype_pcf_long_family_names {
+            let no_long_names: FT_Bool = if config.font_config.freetype_pcf_long_family_names {
                 0
             } else {
                 1

@@ -12,7 +12,7 @@ pub mod sessionhandler;
 
 fn client_domains(config: &config::ConfigHandle) -> Vec<ClientDomainConfig> {
     let mut domains = vec![];
-    for unix_dom in &config.unix_domains {
+    for unix_dom in &config.domain.unix_domains {
         domains.push(ClientDomainConfig::Unix(unix_dom.clone()));
     }
 
@@ -22,7 +22,7 @@ fn client_domains(config: &config::ConfigHandle) -> Vec<ClientDomainConfig> {
         }
     }
 
-    for tls_client in &config.tls_clients {
+    for tls_client in &config.domain.tls_clients {
         domains.push(ClientDomainConfig::Tls(tls_client.clone()));
     }
     domains
@@ -61,16 +61,7 @@ fn update_mux_domains_impl(config: &ConfigHandle, is_standalone_mux: bool) -> an
         mux.add_domain(&domain);
     }
 
-    for wsl_dom in config.wsl_domains() {
-        if mux.get_domain_by_name(&wsl_dom.name).is_some() {
-            continue;
-        }
-
-        let domain: Arc<dyn Domain> = Arc::new(LocalDomain::new_wsl(wsl_dom.clone())?);
-        mux.add_domain(&domain);
-    }
-
-    for exec_dom in &config.exec_domains {
+    for exec_dom in &config.domain.exec_domains {
         if mux.get_domain_by_name(&exec_dom.name).is_some() {
             continue;
         }
@@ -79,17 +70,8 @@ fn update_mux_domains_impl(config: &ConfigHandle, is_standalone_mux: bool) -> an
         mux.add_domain(&domain);
     }
 
-    for serial in &config.serial_ports {
-        if mux.get_domain_by_name(&serial.name).is_some() {
-            continue;
-        }
-
-        let domain: Arc<dyn Domain> = Arc::new(LocalDomain::new_serial_domain(serial.clone())?);
-        mux.add_domain(&domain);
-    }
-
     if is_standalone_mux {
-        if let Some(name) = &config.default_mux_server_domain {
+        if let Some(name) = &config.domain.default_mux_server_domain {
             if let Some(dom) = mux.get_domain_by_name(name) {
                 if dom.is::<ClientDomain>() {
                     anyhow::bail!("default_mux_server_domain cannot be set to a client domain!");
@@ -98,7 +80,7 @@ fn update_mux_domains_impl(config: &ConfigHandle, is_standalone_mux: bool) -> an
             }
         }
     } else {
-        if let Some(name) = &config.default_domain {
+        if let Some(name) = &config.domain.default_domain {
             if let Some(dom) = mux.get_domain_by_name(name) {
                 mux.set_default_domain(&dom);
             }

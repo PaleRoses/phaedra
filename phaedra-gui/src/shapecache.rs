@@ -197,18 +197,18 @@ mod test {
         let config = config::configuration();
 
         let mut config: config::Config = (*config).clone();
-        config.font = TextStyle {
+        config.font_config.font = TextStyle {
             font: vec![FontAttributes::new("Fira Code")],
             foreground: None,
         };
-        config.font_rules.clear();
+        config.font_config.font_rules.clear();
         config.compute_extra_defaults(None);
         config::use_this_configuration(config.clone());
 
         let fonts = Rc::new(
             FontConfiguration::new(
                 None,
-                config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
+                config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
             )
             .unwrap(),
         );
@@ -272,7 +272,7 @@ mod test {
                     FontConfiguration::new(
                         None,
                         config::configuration()
-                            .dpi
+                            .font_config.dpi
                             .unwrap_or_else(|| ::window::default_dpi())
                             as usize,
                     )
@@ -317,7 +317,7 @@ mod test {
         let fonts = Rc::new(
             FontConfiguration::new(
                 None,
-                config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
+                config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
             )
             .unwrap(),
         );

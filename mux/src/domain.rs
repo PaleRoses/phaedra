@@ -13,12 +13,11 @@ use crate::Mux;
 use anyhow::{bail, Context, Error};
 use async_trait::async_trait;
 use config::keyassignment::{SpawnCommand, SpawnTabDomain};
-use config::{configuration, ExecDomain, SerialDomain, ValueOrFunc, WslDomain};
+use config::{configuration, ExecDomain, ValueOrFunc};
 use downcast_rs::{impl_downcast, Downcast};
 use parking_lot::Mutex;
 use portable_pty::{native_pty_system, CommandBuilder, ExitStatus, MasterPty, PtySize, PtySystem};
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -212,17 +211,10 @@ impl LocalDomain {
 
     fn resolve_exec_domain(&self) -> Option<ExecDomain> {
         config::configuration()
+            .domain
             .exec_domains
             .iter()
             .find(|ed| ed.name == self.name)
-            .cloned()
-    }
-
-    fn resolve_wsl_domain(&self) -> Option<WslDomain> {
-        config::configuration()
-            .wsl_domains()
-            .iter()
-            .find(|d| d.name == self.name)
             .cloned()
     }
 
@@ -235,22 +227,8 @@ impl LocalDomain {
         }
     }
 
-    pub fn new_wsl(wsl: WslDomain) -> Result<Self, Error> {
-        Self::new(&wsl.name)
-    }
-
     pub fn new_exec_domain(exec_domain: ExecDomain) -> anyhow::Result<Self> {
         Self::new(&exec_domain.name)
-    }
-
-    pub fn new_serial_domain(serial_domain: SerialDomain) -> anyhow::Result<Self> {
-        let port = serial_domain.port.as_ref().unwrap_or(&serial_domain.name);
-        let mut serial = portable_pty::serial::SerialTty::new(&port);
-        if let Some(baud) = serial_domain.baud {
-            serial.set_baud_rate(baud as u32);
-        }
-        let pty_system = Box::new(serial);
-        Ok(Self::with_pty_system(&serial_domain.name, pty_system))
     }
 
     #[cfg(unix)]
@@ -268,49 +246,7 @@ impl LocalDomain {
     }
 
     async fn fixup_command(&self, cmd: &mut CommandBuilder) -> anyhow::Result<()> {
-        if let Some(wsl) = self.resolve_wsl_domain() {
-            let mut args: Vec<OsString> = cmd.get_argv().clone();
-
-            if args.is_empty() {
-                if let Some(def_prog) = &wsl.default_prog {
-                    for arg in def_prog {
-                        args.push(arg.into());
-                    }
-                }
-            }
-
-            let mut argv: Vec<OsString> = vec![
-                "wsl.exe".into(),
-                "--distribution".into(),
-                wsl.distribution
-                    .as_deref()
-                    .unwrap_or(wsl.name.as_str())
-                    .into(),
-            ];
-
-            if let Some(cwd) = cmd.get_cwd() {
-                argv.push("--cd".into());
-                argv.push(cwd.into());
-            }
-
-            if let Some(user) = &wsl.username {
-                argv.push("--user".into());
-                argv.push(user.into());
-            }
-
-            if !args.is_empty() {
-                argv.push("--exec".into());
-                for arg in args {
-                    argv.push(arg);
-                }
-            }
-
-            // TODO: process env list and update WLSENV so that they
-            // get passed through
-
-            cmd.clear_cwd();
-            *cmd.get_argv_mut() = argv;
-        } else if let Some(ed) = self.resolve_exec_domain() {
+        if let Some(ed) = self.resolve_exec_domain() {
             let mut args = vec![];
             let mut set_environment_variables = HashMap::new();
             for arg in cmd.get_argv() {
@@ -454,24 +390,14 @@ impl LocalDomain {
     ) -> anyhow::Result<CommandBuilder> {
         let config = configuration();
 
-        let wsl = self.resolve_wsl_domain();
-        let default_prog = wsl
-            .as_ref()
-            .map(|wsl| wsl.default_prog.as_ref())
-            .unwrap_or(config.default_prog.as_ref());
+        let default_prog = config.launch.default_prog.as_ref();
 
         let mut cmd = match command {
             Some(mut cmd) => {
-                config.apply_cmd_defaults(&mut cmd, default_prog, config.default_cwd.as_ref());
+                config.apply_cmd_defaults(&mut cmd, default_prog, config.launch.default_cwd.as_ref());
                 cmd
             }
-            None => config.build_prog(
-                None,
-                default_prog,
-                wsl.as_ref()
-                    .map(|wsl| wsl.default_cwd.as_ref())
-                    .unwrap_or(config.default_cwd.as_ref()),
-            )?,
+            None => config.build_prog(None, default_prog, config.launch.default_cwd.as_ref())?,
         };
         if let Some(dir) = command_dir {
             cmd.cwd(dir);
@@ -567,11 +493,6 @@ impl portable_pty::Child for FailedProcessSpawn {
     }
 
     fn process_id(&self) -> Option<u32> {
-        None
-    }
-
-    #[cfg(windows)]
-    fn as_raw_handle(&self) -> Option<std::os::windows::io::RawHandle> {
         None
     }
 }
@@ -707,8 +628,6 @@ impl Domain for LocalDomain {
                 }
                 _ => self.name.to_string(),
             }
-        } else if let Some(wsl) = self.resolve_wsl_domain() {
-            wsl.distribution.unwrap_or_else(|| self.name.to_string())
         } else {
             self.name.to_string()
         }

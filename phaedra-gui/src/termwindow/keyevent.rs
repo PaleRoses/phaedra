@@ -291,7 +291,7 @@ impl super::TermWindow {
                 raw_modifiers | leader_mod,
                 only_key_bindings,
             ) {
-                if self.config.debug_key_events {
+                if self.config.key_input.debug_key_events {
                     log::info!(
                         "{}{:?} {:?} -> perform {:?}",
                         match table_name {
@@ -345,16 +345,16 @@ impl super::TermWindow {
             let bypass_compose =
                     // Left ALT and they disabled compose
                     (raw_modifiers.contains(Modifiers::LEFT_ALT)
-                    && !config.send_composed_key_when_left_alt_is_pressed)
+                    && !config.key_input.send_composed_key_when_left_alt_is_pressed)
                     // Right ALT and they disabled compose
                     || (raw_modifiers.contains(Modifiers::RIGHT_ALT)
-                        && !config.send_composed_key_when_right_alt_is_pressed)
+                        && !config.key_input.send_composed_key_when_right_alt_is_pressed)
                     // Generic ALT and they disabled generic compose
                     || (!raw_modifiers.contains(Modifiers::RIGHT_ALT)
                         && !raw_modifiers.contains(Modifiers::LEFT_ALT)
                         && raw_modifiers.contains(Modifiers::ALT)
-                        && !(config.send_composed_key_when_left_alt_is_pressed
-                             || config.send_composed_key_when_right_alt_is_pressed));
+                        && !(config.key_input.send_composed_key_when_left_alt_is_pressed
+                             || config.key_input.send_composed_key_when_right_alt_is_pressed));
 
             if bypass_compose {
                 if let Key::Code(term_key) = self.win_key_code_to_termwiz_key_code(keycode) {
@@ -363,7 +363,7 @@ impl super::TermWindow {
                     let mut did_encode = false;
                     if let Some(key_event) = key_event {
                         if let Some(encoded) = self.encode_win32_input(&pane, &key_event) {
-                            if self.config.debug_key_events {
+                            if self.config.key_input.debug_key_events {
                                 log::info!("win32: Encoded input as {:?}", encoded);
                             }
                             pane.writer()
@@ -372,7 +372,7 @@ impl super::TermWindow {
                                 .ok();
                             did_encode = true;
                         } else if let Some(encoded) = self.encode_kitty_input(&pane, &key_event) {
-                            if self.config.debug_key_events {
+                            if self.config.key_input.debug_key_events {
                                 log::info!("kitty: Encoded input as {:?}", encoded);
                             }
                             pane.writer()
@@ -383,7 +383,7 @@ impl super::TermWindow {
                         }
                     };
                     if !did_encode {
-                        if self.config.debug_key_events {
+                        if self.config.key_input.debug_key_events {
                             log::info!(
                                 "{:?} {:?} -> send to pane {:?} {:?}",
                                 keycode,
@@ -438,7 +438,7 @@ impl super::TermWindow {
             (false, Modifiers::NONE)
         };
 
-        if self.config.debug_key_events {
+        if self.config.key_input.debug_key_events {
             log::info!(
                 "key_event {:?} {}",
                 key,
@@ -612,7 +612,7 @@ impl super::TermWindow {
             (false, Modifiers::NONE)
         };
 
-        if self.config.debug_key_events {
+        if self.config.key_input.debug_key_events {
             log::info!(
                 "key_event {:?} {}",
                 window_key,
@@ -672,21 +672,21 @@ impl super::TermWindow {
                 }
 
                 let res = if let Some(encoded) = self.encode_win32_input(&pane, &window_key) {
-                    if self.config.debug_key_events {
+                    if self.config.key_input.debug_key_events {
                         log::info!("win32: Encoded input as {:?}", encoded);
                     }
                     pane.writer()
                         .write_all(encoded.as_bytes())
                         .context("sending win32-input-mode encoded data")
                 } else if let Some(encoded) = self.encode_kitty_input(&pane, &window_key) {
-                    if self.config.debug_key_events {
+                    if self.config.key_input.debug_key_events {
                         log::info!("kitty: Encoded input as {:?}", encoded);
                     }
                     pane.writer()
                         .write_all(encoded.as_bytes())
                         .context("sending kitty encoded data")
                 } else {
-                    if self.config.debug_key_events {
+                    if self.config.key_input.debug_key_events {
                         log::info!(
                             "send to pane {} key={:?} mods={:?}",
                             if window_key.key_is_down { "DOWN" } else { "UP" },
@@ -732,7 +732,7 @@ impl super::TermWindow {
                     return;
                 }
                 self.key_table_state.did_process_key();
-                if self.config.debug_key_events {
+                if self.config.key_input.debug_key_events {
                     log::info!("send to pane string={:?}", s);
                 }
                 pane.writer().write_all(s.as_bytes()).ok();
@@ -752,14 +752,14 @@ impl super::TermWindow {
             WK::Char('\r') => KC::Enter,
             WK::Char('\t') => KC::Tab,
             WK::Char('\u{08}') => {
-                if self.config.swap_backspace_and_delete {
+                if self.config.key_input.swap_backspace_and_delete {
                     KC::Delete
                 } else {
                     KC::Backspace
                 }
             }
             WK::Char('\u{7f}') => {
-                if self.config.swap_backspace_and_delete {
+                if self.config.key_input.swap_backspace_and_delete {
                     KC::Backspace
                 } else {
                     KC::Delete

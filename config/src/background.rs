@@ -1,4 +1,4 @@
-use crate::{default_one_point_oh, Config, Dimension, HsbTransform, PixelUnit, RgbaColor};
+use crate::{default_one_point_oh, Dimension, HsbTransform, PixelUnit, RgbaColor};
 use luahelper::impl_lua_conversion_dynamic;
 use termwiz::color::SrgbaTuple;
 use phaedra_dynamic::{FromDynamic, FromDynamicOptions, ToDynamic, Value};
@@ -96,40 +96,6 @@ pub struct BackgroundLayer {
 
     #[dynamic(default)]
     pub height: BackgroundSize,
-}
-
-impl BackgroundLayer {
-    pub fn with_legacy(cfg: &Config) -> Option<Self> {
-        let source = if let Some(gradient) = &cfg.window_background_gradient {
-            BackgroundSource::Gradient(gradient.clone())
-        } else if let Some(path) = &cfg.window_background_image {
-            BackgroundSource::File(ImageFileSourceWrap {
-                inner: ImageFileSource {
-                    path: path.to_string_lossy().to_string(),
-                    speed: 1.0,
-                },
-            })
-        } else {
-            return None;
-        };
-        Some(BackgroundLayer {
-            source,
-            opacity: cfg.window_background_opacity,
-            hsb: cfg.window_background_image_hsb.unwrap_or_default(),
-            origin: Default::default(),
-            attachment: Default::default(),
-            repeat_x: Default::default(),
-            repeat_y: Default::default(),
-            repeat_x_size: None,
-            repeat_y_size: None,
-            vertical_align: Default::default(),
-            horizontal_align: Default::default(),
-            vertical_offset: None,
-            horizontal_offset: None,
-            width: BackgroundSize::Dimension(Dimension::Percent(1.)),
-            height: BackgroundSize::Dimension(Dimension::Percent(1.)),
-        })
-    }
 }
 
 /// <https://developer.mozilla.org/en-US/docs/Web/CSS/background-size>

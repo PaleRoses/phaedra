@@ -25,7 +25,7 @@ impl crate::TermWindow {
                     1,
                     euclid::rect(0.0, 0.0, width, border_top),
                     self.config
-                        .window_frame
+                        .window_config.window_frame
                         .border_top_color
                         .map(|c| c.to_linear())
                         .unwrap_or(border_dimensions.color),
@@ -39,7 +39,7 @@ impl crate::TermWindow {
                     1,
                     euclid::rect(0.0, 0.0, border_left, height),
                     self.config
-                        .window_frame
+                        .window_config.window_frame
                         .border_left_color
                         .map(|c| c.to_linear())
                         .unwrap_or(border_dimensions.color),
@@ -53,7 +53,7 @@ impl crate::TermWindow {
                     1,
                     euclid::rect(0.0, height - border_bottom, width, height),
                     self.config
-                        .window_frame
+                        .window_config.window_frame
                         .border_bottom_color
                         .map(|c| c.to_linear())
                         .unwrap_or(border_dimensions.color),
@@ -67,7 +67,7 @@ impl crate::TermWindow {
                     1,
                     euclid::rect(width - border_right, 0.0, border_right, height),
                     self.config
-                        .window_frame
+                        .window_config.window_frame
                         .border_right_color
                         .map(|c| c.to_linear())
                         .unwrap_or(border_dimensions.color),
@@ -91,7 +91,7 @@ impl crate::TermWindow {
 
         border.left += ULength::new(
             config
-                .window_frame
+                .window_config.window_frame
                 .border_left_width
                 .evaluate_as_pixels(DimensionContext {
                     dpi: dimensions.dpi as f32,
@@ -102,7 +102,7 @@ impl crate::TermWindow {
         );
         border.right += ULength::new(
             config
-                .window_frame
+                .window_config.window_frame
                 .border_right_width
                 .evaluate_as_pixels(DimensionContext {
                     dpi: dimensions.dpi as f32,
@@ -113,7 +113,7 @@ impl crate::TermWindow {
         );
         border.top += ULength::new(
             config
-                .window_frame
+                .window_config.window_frame
                 .border_top_height
                 .evaluate_as_pixels(DimensionContext {
                     dpi: dimensions.dpi as f32,
@@ -124,7 +124,7 @@ impl crate::TermWindow {
         );
         border.bottom += ULength::new(
             config
-                .window_frame
+                .window_config.window_frame
                 .border_bottom_height
                 .evaluate_as_pixels(DimensionContext {
                     dpi: dimensions.dpi as f32,

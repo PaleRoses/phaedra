@@ -6,7 +6,7 @@ use futures::FutureExt;
 use mux::{Mux, MuxNotification};
 use smol::prelude::*;
 use smol::Async;
-use phaedra_uds::UnixStream;
+use std::os::unix::net::UnixStream;
 
 #[cfg(unix)]
 pub trait AsRawDesc: std::os::unix::io::AsRawFd + std::os::fd::AsFd {}

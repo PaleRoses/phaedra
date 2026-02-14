@@ -1,7 +1,7 @@
 [package]
 name = "phaedra-client"
 version = "0.1.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2018"
 publish = false
 
@@ -37,9 +37,3 @@ url.workspace = true
 phaedra-dynamic.workspace = true
 phaedra-ssh.workspace = true
 phaedra-term = { workspace=true, features=["use_serde"] }
-phaedra-uds.workspace = true
-
-[target."cfg(windows)".dependencies]
-winapi = { workspace=true, features = [
-    "winuser",
-]}

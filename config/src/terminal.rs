@@ -49,11 +49,11 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
     }
 
     fn scrollback_size(&self) -> usize {
-        self.configuration().scrollback_lines
+        self.configuration().scroll.scrollback_lines
     }
 
     fn enable_csi_u_key_encoding(&self) -> bool {
-        self.configuration().enable_csi_u_key_encoding
+        self.configuration().key_input.enable_csi_u_key_encoding
     }
 
     fn color_palette(&self) -> ColorPalette {
@@ -63,11 +63,11 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
         }
         let config = self.configuration();
 
-        config.resolved_palette.clone().into()
+        config.color_config.resolved_palette.clone().into()
     }
 
     fn alternate_buffer_wheel_scroll_speed(&self) -> u8 {
-        self.configuration().alternate_buffer_wheel_scroll_speed
+        self.configuration().scroll.alternate_buffer_wheel_scroll_speed
     }
 
     fn enq_answerback(&self) -> String {
@@ -87,7 +87,7 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
     }
 
     fn canonicalize_pasted_newlines(&self) -> phaedra_term::config::NewlineCanon {
-        match self.configuration().canonicalize_pasted_newlines {
+        match self.configuration().text.canonicalize_pasted_newlines {
             None => phaedra_term::config::NewlineCanon::default(),
             Some(NewlineCanon::None) => phaedra_term::config::NewlineCanon::None,
             Some(NewlineCanon::LineFeed) => phaedra_term::config::NewlineCanon::LineFeed,
@@ -106,7 +106,7 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
     }
 
     fn debug_key_events(&self) -> bool {
-        self.configuration().debug_key_events
+        self.configuration().key_input.debug_key_events
     }
 
     fn log_unknown_escape_sequences(&self) -> bool {
@@ -114,14 +114,14 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
     }
 
     fn normalize_output_to_unicode_nfc(&self) -> bool {
-        self.configuration().normalize_output_to_unicode_nfc
+        self.configuration().text.normalize_output_to_unicode_nfc
     }
 
     fn bidi_mode(&self) -> BidiMode {
         let config = self.configuration();
         BidiMode {
-            enabled: config.bidi_enabled,
-            hint: config.bidi_direction,
+            enabled: config.text.bidi_enabled,
+            hint: config.text.bidi_direction,
         }
     }
 }

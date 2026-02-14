@@ -1,7 +1,7 @@
 [package]
 name = "phaedra-gui"
 version = "0.1.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2018"
 build = "build.rs"
 resolver = "2"
@@ -10,8 +10,7 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["vendored-fonts", "wayland"]
-wayland = ["window/wayland"]
+default = ["vendored-fonts"]
 distro-defaults = ["config/distro-defaults"]
 vendor-nerd-font-symbols-font = ["phaedra-font/vendor-nerd-font-symbols"]
 vendor-jetbrains-font = ["phaedra-font/vendor-jetbrains"]
@@ -28,10 +27,6 @@ dhat-ad-hoc = ["dhat"]  # if you are doing ad hoc profiling
 
 [build-dependencies]
 anyhow.workspace = true
-
-[target.'cfg(windows)'.build-dependencies]
-cc.workspace = true
-embed-resource.workspace = true
 
 [dependencies]
 anyhow.workspace = true
@@ -103,24 +98,10 @@ phaedra-open-url.workspace = true
 phaedra-ssh.workspace = true
 phaedra-term.workspace = true
 phaedra-toast-notification.workspace = true
-wgpu.workspace = true
+phaedra-unicode-data.workspace = true
+wgpu = { workspace = true, features = ["glsl"] }
 window-funcs.workspace = true
 window.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-shared_library.workspace = true
-winapi = { workspace=true, features = [
-    "winuser",
-    "consoleapi",
-    "handleapi",
-    "fileapi",
-    "namedpipeapi",
-    "synchapi",
-    "winsock2",
-]}
-windows = { workspace=true, features = [
-    "Win32_UI_Shell",
-]}
 
 [dev-dependencies]
 benchmarking.workspace = true

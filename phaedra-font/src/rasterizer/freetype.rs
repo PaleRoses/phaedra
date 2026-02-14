@@ -71,7 +71,7 @@ impl FontRasterizer for FreeTypeRasterizer {
                     drop(face);
 
                     let config = config::configuration();
-                    match config.font_colr_rasterizer {
+                    match config.font_config.font_colr_rasterizer {
                         FontRasterizerSelection::FreeType => {
                             return self.rasterize_outlines(
                                 glyph_pos,

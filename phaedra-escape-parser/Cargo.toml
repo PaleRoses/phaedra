@@ -1,5 +1,5 @@
 [package]
-authors = ["Wez Furlong"]
+authors = ["PaleRoses"]
 name = "phaedra-escape-parser"
 version = "0.1.0"
 edition = "2024"
@@ -30,26 +30,9 @@ phaedra-color-types.workspace = true
 phaedra-dynamic.workspace = true
 phaedra-input-types = {workspace = true, default-features=false}
 
-[target."cfg(windows)".dependencies.winapi]
-workspace = true
-optional = true
-features = [
-    "winbase",
-    "winerror",
-    "winnls",
-    "winuser",
-    "consoleapi",
-    "handleapi",
-    "fileapi",
-    "synchapi",
-    "memoryapi",
-    "winnt",
-    "impl-default"
-]
-
 [features]
 std = ["vtparse/std", "thiserror/std", "phaedra-input-types/std", "hex/std", "phaedra-dynamic/std"]
-kitty-shm = ["dep:nix", "dep:winapi"]
+kitty-shm = ["dep:nix"]
 use_serde = ["dep:serde", "phaedra-color-types/use_serde", "phaedra-blob-leases/serde", "bitflags/serde", "phaedra-input-types/serde"]
 use_image = ["image", "dep:image"]
 image = ["sha2", "phaedra-blob-leases"]

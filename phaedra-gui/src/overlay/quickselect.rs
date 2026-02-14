@@ -546,7 +546,7 @@ impl Pane for QuickSelectOverlay {
                 let mut overlay_lines = vec![];
 
                 let config = &self.renderer.config;
-                let colors = config.resolved_palette.clone();
+                let colors = config.color_config.resolved_palette.clone();
                 let disable_attr = config.quick_select_remove_styling;
 
                 // Process the lines; for the search row we want to render instead
@@ -642,7 +642,7 @@ impl Pane for QuickSelectOverlay {
         let dims = self.get_dimensions();
 
         let (top, mut lines) = self.delegate.get_lines(lines);
-        let colors = renderer.config.resolved_palette.clone();
+        let colors = renderer.config.color_config.resolved_palette.clone();
         let disable_attr = renderer.config.quick_select_remove_styling;
 
         // Process the lines; for the search row we want to render instead

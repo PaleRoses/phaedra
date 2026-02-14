@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 #[cfg(feature = "std")]
 use std::sync::LazyLock;
+#[cfg(feature = "dynamic")]
 use phaedra_dynamic::{FromDynamic, FromDynamicOptions, ToDynamic, Value};
 
 extern crate alloc;
@@ -319,12 +320,14 @@ impl SrgbaTuple {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl ToDynamic for SrgbaTuple {
     fn to_dynamic(&self) -> Value {
         self.to_string().to_dynamic()
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl FromDynamic for SrgbaTuple {
     fn from_dynamic(
         value: &Value,

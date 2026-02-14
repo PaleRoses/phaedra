@@ -263,8 +263,8 @@ mod test {
         for (input, expect) in &[
             ("foo", "foo"),
             (
-                "githubsDscom/wezterm/phaedra-plugins",
-                "githubsDscomsZsweztermsZsphaedra-plugins",
+                "githubsDscom/PaleRoses/phaedra-plugins",
+                "githubsDscomsZsPaleRosessZsphaedra-plugins",
             ),
             ("localhost:8080/repo", "localhostsCs8080sZsrepo"),
         ] {

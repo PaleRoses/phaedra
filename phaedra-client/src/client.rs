@@ -26,6 +26,8 @@ use std::net::TcpStream;
 #[cfg(unix)]
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 #[cfg(unix)]
+use std::os::unix::net::UnixStream;
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
 #[cfg(windows)]
 use std::os::windows::io::{AsRawSocket, AsSocket, BorrowedSocket, RawSocket};
@@ -33,7 +35,6 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 use thiserror::Error;
-use phaedra_uds::UnixStream;
 
 #[derive(Error, Debug)]
 #[error("Timeout")]
@@ -63,7 +64,7 @@ pub struct Client {
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 #[error(
-    "Please install the same version of wezterm on both the client and server!\n\
+    "Please install the same version of phaedra on both the client and server!\n\
      The server version is {} (codec version {}),\n\
      which is not compatible with our version \n\
      {} (codec version {}).",
@@ -503,11 +504,6 @@ pub fn unix_connect_with_retry(
                         use std::os::unix::io::{FromRawFd, IntoRawFd};
                         return Ok(UnixStream::from_raw_fd(a.into_raw_fd()));
                     }
-                    #[cfg(windows)]
-                    unsafe {
-                        use std::os::windows::io::{FromRawSocket, IntoRawSocket};
-                        return Ok(UnixStream::from_raw_socket(a.into_raw_socket()));
-                    }
                 }
             }
         }
@@ -660,7 +656,7 @@ impl Reconnectable {
         }
     }
 
-    /// Resolve the path to wezterm for the remote system.
+    /// Resolve the path to phaedra for the remote system.
     /// We can't simply derive this from the current executable because
     /// we are being asked to produce a path for the remote system and
     /// we don't really know anything about it.
@@ -1073,7 +1069,7 @@ impl Client {
                     }
 
                     let mut ui = ConnectionUI::new();
-                    ui.title("wezterm: Reconnecting...");
+                    ui.title("phaedra: Reconnecting...");
 
                     loop {
                         ui.sleep_with_reason(
@@ -1199,7 +1195,7 @@ impl Client {
                         .to_string()
                 } else {
                     format!(
-                        "Please install the same version of wezterm on both \
+                        "Please install the same version of phaedra on both \
                      the client and server! \
                      The server reported error '{err}' while being asked for its \
                      version.  This likely means that the server is older \
@@ -1241,7 +1237,7 @@ impl Client {
 
                 let config = configuration();
                 Ok(config
-                    .unix_domains
+                    .domain.unix_domains
                     .first()
                     .ok_or_else(|| {
                         anyhow!(

@@ -84,10 +84,10 @@ impl PaneSelector {
             let element = Element::new(&font, ElementContent::Text(caption))
                 .colors(ElementColors {
                     border: BorderColor::new(
-                        term_window.config.pane_select_bg_color.to_linear().into(),
+                        term_window.config.color_config.pane_select_bg_color.to_linear().into(),
                     ),
-                    bg: term_window.config.pane_select_bg_color.to_linear().into(),
-                    text: term_window.config.pane_select_fg_color.to_linear().into(),
+                    bg: term_window.config.color_config.pane_select_bg_color.to_linear().into(),
+                    text: term_window.config.color_config.pane_select_fg_color.to_linear().into(),
                 })
                 .padding(BoxDimension {
                     left: Dimension::Cells(0.25),

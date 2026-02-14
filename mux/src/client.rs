@@ -1,7 +1,8 @@
 use crate::PaneId;
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, LocalResult, TimeZone, Utc};
 use serde::*;
+use std::convert::TryFrom;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -11,6 +12,21 @@ lazy_static::lazy_static! {
     static ref EPOCH: u64 = SystemTime::now()
                                 .duration_since(SystemTime::UNIX_EPOCH)
                                 .unwrap().as_secs();
+}
+
+fn now_utc() -> DateTime<Utc> {
+    let duration = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(duration) => duration,
+        Err(_) => std::time::Duration::from_secs(0),
+    };
+    let seconds = i64::try_from(duration.as_secs()).unwrap_or(i64::MAX);
+    match Utc.timestamp_opt(seconds, duration.subsec_nanos()) {
+        LocalResult::Single(now) => now,
+        _ => match Utc.timestamp_opt(0, 0) {
+            LocalResult::Single(epoch) => epoch,
+            _ => unreachable!(),
+        },
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
@@ -58,15 +74,15 @@ impl ClientInfo {
     pub fn new(client_id: Arc<ClientId>) -> Self {
         Self {
             client_id,
-            connected_at: Utc::now(),
+            connected_at: now_utc(),
             active_workspace: None,
-            last_input: Utc::now(),
+            last_input: now_utc(),
             focused_pane_id: None,
         }
     }
 
     pub fn update_last_input(&mut self) {
-        self.last_input = Utc::now();
+        self.last_input = now_utc();
     }
 
     pub fn update_focused_pane(&mut self, pane_id: PaneId) {

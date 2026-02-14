@@ -1,7 +1,7 @@
 [package]
 name = "phaedra-font"
 version = "0.1.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2021"
 publish = false
 
@@ -39,13 +39,6 @@ phaedra-color-types.workspace = true
 phaedra-input-types.workspace = true
 phaedra-term = { workspace=true, features=["use_serde"] }
 phaedra-toast-notification.workspace = true
-
-[target.'cfg(any(target_os = "android", all(unix, not(target_os = "macos"))))'.dependencies]
-fontconfig.workspace = true
-
-[target."cfg(windows)".dependencies]
-dwrote.workspace = true
-winapi.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa.workspace = true

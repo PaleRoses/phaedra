@@ -90,7 +90,7 @@ impl super::TermWindow {
 
     pub fn apply_scale_change(&mut self, dimensions: &Dimensions, font_scale: f64) {
         let config = &self.config;
-        let font_size = config.font_size * font_scale;
+        let font_size = config.font_config.font_size * font_scale;
         let theoretical_height = font_size * dimensions.dpi as f64 / 72.0;
 
         if theoretical_height < 2.0 {
@@ -195,10 +195,10 @@ impl super::TermWindow {
                 pixel_max: size.pixel_height as f32,
                 pixel_cell: self.render_metrics.cell_size.height as f32,
             };
-            let padding_left = config.window_padding.left.evaluate_as_pixels(h_context) as usize;
-            let padding_top = config.window_padding.top.evaluate_as_pixels(v_context) as usize;
+            let padding_left = config.window_config.window_padding.left.evaluate_as_pixels(h_context) as usize;
+            let padding_top = config.window_config.window_padding.top.evaluate_as_pixels(v_context) as usize;
             let padding_bottom =
-                config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
+                config.window_config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
             let padding_right = effective_right_padding(&config, h_context);
 
             let pixel_height = (rows * self.render_metrics.cell_size.height as usize)
@@ -241,10 +241,10 @@ impl super::TermWindow {
                 pixel_max: self.terminal_size.pixel_height as f32,
                 pixel_cell: self.render_metrics.cell_size.height as f32,
             };
-            let padding_left = config.window_padding.left.evaluate_as_pixels(h_context) as usize;
-            let padding_top = config.window_padding.top.evaluate_as_pixels(v_context) as usize;
+            let padding_left = config.window_config.window_padding.left.evaluate_as_pixels(h_context) as usize;
+            let padding_top = config.window_config.window_padding.top.evaluate_as_pixels(v_context) as usize;
             let padding_bottom =
-                config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
+                config.window_config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
             let padding_right = effective_right_padding(&config, h_context);
 
             let avail_width = dimensions.pixel_width.saturating_sub(
@@ -268,7 +268,7 @@ impl super::TermWindow {
                 // Take care to use the exact pixel dimensions of the cells, rather
                 // than the available space, so that apps that are sensitive to
                 // the pixels-per-cell have consistent values at a given font size.
-                // https://github.com/wezterm/wezterm/issues/535
+                // https://github.com/PaleRoses/phaedra/issues/535
                 pixel_height: rows * self.render_metrics.cell_size.height as usize,
                 pixel_width: cols * self.render_metrics.cell_size.width as usize,
                 dpi: dimensions.dpi as u32,
@@ -302,7 +302,7 @@ impl super::TermWindow {
         self.invalidate_fancy_tab_bar();
         self.update_title();
 
-        window.set_resize_increments(if self.config.use_resize_increments {
+        window.set_resize_increments(if self.config.window_config.use_resize_increments {
             ri_calc.into()
         } else {
             ResizeIncrement::disabled()
@@ -391,7 +391,7 @@ impl super::TermWindow {
             // in adjust_font_scale will not block us from adapting to the new
             // DPI. This is gross and it would be better handled at the macOS
             // layer.
-            // <https://github.com/wezterm/wezterm/issues/3503>
+            // <https://github.com/PaleRoses/phaedra/issues/3503>
             self.window_state -= WindowState::MAXIMIZED;
         }
 
@@ -431,12 +431,12 @@ impl super::TermWindow {
     /// revises the scaling/resize change accordingly
     pub fn adjust_font_scale(&mut self, font_scale: f64, window: &Window) {
         let adjust_window_size_when_changing_font_size =
-            match self.config.adjust_window_size_when_changing_font_size {
+            match self.config.window_config.adjust_window_size_when_changing_font_size {
                 Some(value) => value,
                 None => {
                     let is_tiling = self
                         .config
-                        .tiling_desktop_environments
+                        .window_config.tiling_desktop_environments
                         .iter()
                         .any(|item| item.as_str() == self.connection_name.as_str());
                     !is_tiling
@@ -505,9 +505,9 @@ impl super::TermWindow {
             pixel_max: self.dimensions.pixel_height as f32,
             pixel_cell: render_metrics.cell_size.height as f32,
         };
-        let padding_left = config.window_padding.left.evaluate_as_pixels(h_context) as usize;
-        let padding_top = config.window_padding.top.evaluate_as_pixels(v_context) as usize;
-        let padding_bottom = config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
+        let padding_left = config.window_config.window_padding.left.evaluate_as_pixels(h_context) as usize;
+        let padding_top = config.window_config.window_padding.top.evaluate_as_pixels(v_context) as usize;
+        let padding_bottom = config.window_config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
 
         let dimensions = Dimensions {
             pixel_width: ((terminal_size.cols as usize * render_metrics.cell_size.width as usize)
@@ -560,9 +560,9 @@ impl super::TermWindow {
 /// enabled the scroll bar then they will expect it to have a reasonable
 /// size unless they've specified differently.
 pub fn effective_right_padding(config: &ConfigHandle, context: DimensionContext) -> usize {
-    if config.enable_scroll_bar && config.window_padding.right.is_zero() {
+    if config.enable_scroll_bar && config.window_config.window_padding.right.is_zero() {
         context.pixel_cell as usize
     } else {
-        config.window_padding.right.evaluate_as_pixels(context) as usize
+        config.window_config.window_padding.right.evaluate_as_pixels(context) as usize
     }
 }

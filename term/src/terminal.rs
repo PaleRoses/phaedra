@@ -103,7 +103,8 @@ impl DerefMut for Terminal {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, FromDynamic, ToDynamic)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "use_serde", derive(Serialize, Deserialize))]
 pub struct TerminalSize {
     pub rows: usize,

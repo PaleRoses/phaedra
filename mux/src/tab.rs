@@ -1438,7 +1438,7 @@ impl TabInner {
 
     fn activate_pane_direction(&mut self, direction: PaneDirection) {
         if self.zoomed.is_some() {
-            if !configuration().unzoom_on_switch_pane {
+            if !configuration().window_config.unzoom_on_switch_pane {
                 return;
             }
             self.toggle_zoom();
@@ -1565,7 +1565,7 @@ impl TabInner {
                     // If the pane is no longer known to the mux, then its liveness
                     // state isn't guaranteed to be monitored or updated, so let's
                     // consider the pane effectively dead if it isn't in the mux.
-                    // <https://github.com/wezterm/wezterm/issues/4030>
+                    // <https://github.com/PaleRoses/phaedra/issues/4030>
                     let in_mux = mux.get_pane(pane.pane_id()).is_some();
                     let dead = pane.is_dead();
                     log::trace!(
@@ -1755,7 +1755,7 @@ impl TabInner {
         }
 
         if self.zoomed.is_some() {
-            if !configuration().unzoom_on_switch_pane {
+            if !configuration().window_config.unzoom_on_switch_pane {
                 return;
             }
             self.toggle_zoom();
@@ -1923,7 +1923,7 @@ impl TabInner {
         }
 
         // Ensure that we're not zoomed, otherwise we'll end up in
-        // a bogus split state (https://github.com/wezterm/wezterm/issues/723)
+        // a bogus split state (https://github.com/PaleRoses/phaedra/issues/723)
         self.set_zoomed(false);
 
         self.iter_panes().iter().nth(pane_index).map(|pos| {

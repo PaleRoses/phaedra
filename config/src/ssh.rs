@@ -76,14 +76,14 @@ pub struct SshDomain {
 
     /// Show time since last response when waiting for a response.
     /// It is recommended to use
-    /// <https://wezterm.org/config/lua/pane/get_metadata.html#since_last_response_ms>
+    /// <https://github.com/PaleRoses/phaedra/tree/main/docs/config/lua/pane/get_metadata.md>
     /// instead.
     #[dynamic(default)]
     pub overlay_lag_indicator: bool,
 
-    /// The path to the wezterm binary on the remote host
+    /// The path to the phaedra binary on the remote host
     pub remote_phaedra_path: Option<String>,
-    /// Override the entire `wezterm cli proxy` invocation that would otherwise
+    /// Override the entire `phaedra cli proxy` invocation that would otherwise
     /// be computed from remote_phaedra_path and other information.
     pub override_proxy_command: Option<String>,
 
@@ -91,8 +91,8 @@ pub struct SshDomain {
 
     /// If false, then don't use a multiplexer connection,
     /// just connect directly using ssh. This doesn't require
-    /// that the remote host have wezterm installed, and is equivalent
-    /// to using `wezterm ssh` to connect.
+    /// that the remote host have phaedra installed, and is equivalent
+    /// to using `phaedra ssh` to connect.
     #[dynamic(default)]
     pub multiplexing: SshMultiplexing,
 

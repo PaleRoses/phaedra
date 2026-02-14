@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
 
-/// AgentProxy manages an agent.PID symlink in the wezterm runtime
+/// AgentProxy manages an agent.PID symlink in the phaedra runtime
 /// directory.
 /// The intent is to maintain the symlink and have it point to the
 /// appropriate ssh agent socket path for the most recently active
@@ -21,7 +21,7 @@ use std::sync::Arc;
 /// to decide whether the client process is allowed to consume
 /// the agent or not, and us sitting in the middle breaks that.
 ///
-/// As a further complication, when a wezterm proxy client is
+/// As a further complication, when a phaedra proxy client is
 /// present, both the proxy and the mux instance inside a gui
 /// tend to be updated together, with the gui often being
 /// touched last.
@@ -102,7 +102,7 @@ impl AgentProxy {
     }
 
     pub fn default_ssh_auth_sock() -> Option<String> {
-        match &config::configuration().default_ssh_auth_sock {
+        match &config::configuration().domain.default_ssh_auth_sock {
             Some(value) => Some(value.to_string()),
             None => std::env::var("SSH_AUTH_SOCK").ok(),
         }

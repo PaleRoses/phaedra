@@ -1,5 +1,5 @@
 [package]
-authors = ["Wez Furlong"]
+authors = ["PaleRoses"]
 name = "termwiz"
 version = "0.24.0"
 edition = "2018"
@@ -65,22 +65,6 @@ k9.workspace = true
 signal-hook.workspace = true
 termios.workspace = true
 nix = {workspace=true, features=["mman", "fs"]}
-
-[target."cfg(windows)".dependencies.winapi]
-features = [
-    "winbase",
-    "winerror",
-    "winnls",
-    "winuser",
-    "consoleapi",
-    "handleapi",
-    "fileapi",
-    "synchapi",
-    "memoryapi",
-    "winnt",
-    "impl-default"
-]
-workspace = true
 
 [package.metadata.docs.rs]
 features = ["docs"]

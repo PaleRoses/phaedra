@@ -10,7 +10,7 @@ use termwiz::escape::{Action, ControlCode};
 ///
 /// This utility is part of Phaedra.
 ///
-/// https://github.com/wezterm/wezterm
+/// https://github.com/PaleRoses/phaedra
 struct Opt {}
 
 fn main() -> Result<()> {

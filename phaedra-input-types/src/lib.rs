@@ -9,6 +9,7 @@ use core::fmt::Write;
 use core::sync::atomic::AtomicBool;
 #[cfg(feature = "std")]
 use std::sync::LazyLock;
+#[cfg(feature = "dynamic")]
 use phaedra_dynamic::{FromDynamic, ToDynamic};
 
 extern crate alloc;
@@ -29,7 +30,8 @@ pub type ScreenPoint = euclid::Point2D<isize, ScreenPixelUnit>;
 /// Which key is pressed.  Not all of these are probable to appear
 /// on most systems.  A lot of this list is @wez trawling docs and
 /// making an entry for things that might be possible in this first pass.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, FromDynamic, ToDynamic)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KeyCode {
     /// The decoded unicode character
@@ -465,8 +467,9 @@ impl ToString for KeyCode {
 }
 
 bitflags! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, FromDynamic, ToDynamic)]
-    #[dynamic(try_from="String", into="String")]
+    #[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+    #[cfg_attr(feature = "dynamic", dynamic(try_from = "String", into = "String"))]
     pub struct KeyboardLedStatus: u8 {
         const CAPS_LOCK = 1<<1;
         const NUM_LOCK = 1<<2;
@@ -517,8 +520,9 @@ impl TryFrom<String> for KeyboardLedStatus {
 
 bitflags! {
     #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-    #[derive(Clone, Copy, Debug, Default, PartialOrd, Ord, PartialEq, Eq, Hash, FromDynamic, ToDynamic)]
-    #[dynamic(into="String", try_from="String")]
+    #[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+    #[derive(Clone, Copy, Debug, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
+    #[cfg_attr(feature = "dynamic", dynamic(into = "String", try_from = "String"))]
     pub struct Modifiers: u16 {
         const NONE = 0;
         const SHIFT = 1<<1;
@@ -527,7 +531,7 @@ bitflags! {
         const SUPER = 1<<4;
         const LEFT_ALT = 1<<5;
         const RIGHT_ALT = 1<<6;
-        /// This is a virtual modifier used by wezterm
+        /// This is a virtual modifier used by phaedra
         const LEADER = 1<<7;
         const LEFT_CTRL = 1<<8;
         const RIGHT_CTRL = 1<<9;
@@ -771,7 +775,8 @@ impl Modifiers {
 
 /// These keycodes identify keys based on their physical
 /// position on an ANSI-standard US keyboard.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, Ord, PartialOrd, FromDynamic, ToDynamic)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum PhysKeyCode {
     A,
@@ -1776,7 +1781,7 @@ impl KeyEvent {
         }
         // TODO: Hyper and Meta are not handled yet.
         // We should somehow detect this?
-        // See: https://github.com/wezterm/wezterm/pull/4605#issuecomment-1823604708
+        // See: https://github.com/PaleRoses/phaedra/pull/4605#issuecomment-1823604708
         if self.leds.contains(KeyboardLedStatus::CAPS_LOCK) {
             modifiers |= 64;
         }
@@ -2065,9 +2070,10 @@ pub struct KittyKeyboardFlags: u16 {
 }
 
 bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, FromDynamic, ToDynamic)]
+    #[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     #[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(try_from = "String"))]
-    #[dynamic(try_from = "String", into = "String")]
+    #[cfg_attr(feature = "dynamic", dynamic(try_from = "String", into = "String"))]
     pub struct WindowDecorations: u8 {
         const TITLE = 1;
         const RESIZE = 2;
@@ -2148,21 +2154,24 @@ impl Default for WindowDecorations {
     }
 }
 
-#[derive(Debug, FromDynamic, ToDynamic, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum IntegratedTitleButton {
     Hide,
     Maximize,
     Close,
 }
 
-#[derive(Debug, Default, FromDynamic, ToDynamic, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum IntegratedTitleButtonAlignment {
     #[default]
     Right,
     Left,
 }
 
-#[derive(Debug, ToDynamic, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "dynamic", derive(ToDynamic))]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum IntegratedTitleButtonStyle {
     Windows,
     Gnome,
@@ -2179,6 +2188,7 @@ impl Default for IntegratedTitleButtonStyle {
     }
 }
 
+#[cfg(feature = "dynamic")]
 impl FromDynamic for IntegratedTitleButtonStyle {
     fn from_dynamic(
         value: &phaedra_dynamic::Value,
@@ -2299,7 +2309,8 @@ pub fn ctrl_mapping(c: char) -> Option<char> {
     })
 }
 
-#[derive(Debug, FromDynamic, ToDynamic, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UIKeyCapRendering {
     /// Super, Meta, Ctrl, Shift
     UnixLong,

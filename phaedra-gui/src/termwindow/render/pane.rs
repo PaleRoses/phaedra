@@ -34,7 +34,7 @@ impl crate::TermWindow {
         pos: &PositionedPane,
         layers: &mut TripleLayerQuadAllocator,
     ) -> anyhow::Result<()> {
-        if self.config.use_box_model_render {
+        if self.config.text.use_box_model_render {
             return self.paint_pane_box_model(pos);
         }
 
@@ -93,8 +93,7 @@ impl crate::TermWindow {
         let white_space = gl_state.util_sprites.white_space.texture_coords();
         let filled_box = gl_state.util_sprites.filled_box.texture_coords();
 
-        let window_is_transparent =
-            !self.window_background.is_empty() || config.window_background_opacity != 1.0;
+        let window_is_transparent = !self.window_background.is_empty();
 
         let default_bg = palette
             .resolve_bg(ColorAttribute::Default)
@@ -102,7 +101,7 @@ impl crate::TermWindow {
             .mul_alpha(if window_is_transparent {
                 0.
             } else {
-                config.text_background_opacity
+                config.text.text_background_opacity
             });
 
         let cell_width = self.render_metrics.cell_size.width as f32;
@@ -162,13 +161,13 @@ impl crate::TermWindow {
                     palette
                         .background
                         .to_linear()
-                        .mul_alpha(config.window_background_opacity),
+                        .mul_alpha(1.0),
                 )
                 .context("filled_rectangle")?;
             quad.set_hsv(if pos.is_active {
                 None
             } else {
-                Some(config.inactive_pane_hsb)
+                Some(config.color_config.inactive_pane_hsb)
             });
         }
 
@@ -182,7 +181,7 @@ impl crate::TermWindow {
             ) {
                 // target background color
                 let LinearRgba(r, g, b, _) = config
-                    .resolved_palette
+                    .color_config.resolved_palette
                     .visual_bell
                     .as_deref()
                     .unwrap_or(&palette.foreground)
@@ -198,7 +197,7 @@ impl crate::TermWindow {
                     let (r1, g1, b1, a) = palette
                         .background
                         .to_linear()
-                        .mul_alpha(config.window_background_opacity)
+                        .mul_alpha(1.0)
                         .tuple();
                     LinearRgba::with_components(
                         r1 + (r - r1) * intensity,
@@ -216,7 +215,7 @@ impl crate::TermWindow {
                 quad.set_hsv(if pos.is_active {
                     None
                 } else {
-                    Some(config.inactive_pane_hsb)
+                    Some(config.color_config.inactive_pane_hsb)
                 });
             }
         }
@@ -519,7 +518,7 @@ impl crate::TermWindow {
                                 use_pixel_positioning: self
                                     .term_window
                                     .config
-                                    .experimental_pixel_positioning,
+                                    .text.experimental_pixel_positioning,
                                 render_metrics: self.term_window.render_metrics,
                                 shape_key: Some(shape_key),
                                 password_input,
@@ -672,7 +671,7 @@ impl crate::TermWindow {
                     palette
                         .background
                         .to_linear()
-                        .mul_alpha(self.config.window_background_opacity)
+                        .mul_alpha(1.0)
                         .into()
                 } else {
                     InheritableColor::Inherited

@@ -1,7 +1,7 @@
 [package]
 name = "phaedra-ssh"
 version = "0.4.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2018"
 repository = "https://github.com/PaleRoses/phaedra"
 description = "More convenient higher level wrapper around libssh2"
@@ -37,7 +37,6 @@ socket2.workspace = true
 sha2.workspace = true
 ssh2 = {workspace=true, features=["openssl-on-win32"], optional = true}
 thiserror.workspace = true
-phaedra-uds.workspace = true
 
 # Not used directly, but is used to centralize the openssl vendor feature selection
 async_ossl.workspace = true

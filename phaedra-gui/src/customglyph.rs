@@ -684,7 +684,7 @@ impl PolyStyle {
 impl BlockKey {
     pub fn filter_out_synthetic(glyphs: &mut Vec<char>) {
         let config = config::configuration();
-        if config.custom_block_glyphs {
+        if config.text.custom_block_glyphs {
             glyphs.retain(|&c| Self::from_char(c).is_none());
         }
     }
@@ -5240,7 +5240,7 @@ impl GlyphCache {
                             style: style,
                         }],
                         &mut buffer,
-                        if config::configuration().anti_alias_custom_block_glyphs {
+                        if config::configuration().text.anti_alias_custom_block_glyphs {
                             PolyAA::AntiAlias
                         } else {
                             PolyAA::MoarPixels
@@ -5323,7 +5323,7 @@ impl GlyphCache {
                             style: PolyStyle::Outline,
                         }],
                         &mut buffer,
-                        if config::configuration().anti_alias_custom_block_glyphs {
+                        if config::configuration().text.anti_alias_custom_block_glyphs {
                             PolyAA::AntiAlias
                         } else {
                             PolyAA::MoarPixels
@@ -5472,7 +5472,7 @@ impl GlyphCache {
                             style: style,
                         }],
                         &mut buffer,
-                        if config::configuration().anti_alias_custom_block_glyphs {
+                        if config::configuration().text.anti_alias_custom_block_glyphs {
                             PolyAA::AntiAlias
                         } else {
                             PolyAA::MoarPixels
@@ -5604,7 +5604,7 @@ impl GlyphCache {
                                 style: style,
                             }],
                             &mut buffer,
-                            if config::configuration().anti_alias_custom_block_glyphs {
+                            if config::configuration().text.anti_alias_custom_block_glyphs {
                                 PolyAA::AntiAlias
                             } else {
                                 PolyAA::MoarPixels
@@ -5773,7 +5773,7 @@ impl GlyphCache {
                                 style: style,
                             }],
                             &mut buffer,
-                            if config::configuration().anti_alias_custom_block_glyphs {
+                            if config::configuration().text.anti_alias_custom_block_glyphs {
                                 PolyAA::AntiAlias
                             } else {
                                 PolyAA::MoarPixels
@@ -5989,7 +5989,7 @@ impl GlyphCache {
                     &metrics,
                     polys,
                     &mut buffer,
-                    if config::configuration().anti_alias_custom_block_glyphs {
+                    if config::configuration().text.anti_alias_custom_block_glyphs {
                         PolyAA::AntiAlias
                     } else {
                         PolyAA::MoarPixels

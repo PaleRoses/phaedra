@@ -1,7 +1,7 @@
 //! This crate provides the core of the virtual terminal emulator implementation
-//! used by [wezterm](https://wezterm.org/).  The home for this
-//! crate is in the wezterm repo and development is tracked at
-//! <https://github.com/wezterm/wezterm/>.
+//! used by [phaedra](https://github.com/PaleRoses/phaedra/).  The home for this
+//! crate is in the phaedra repo and development is tracked at
+//! <https://github.com/PaleRoses/phaedra/>.
 //!
 //! It is full featured, providing terminal escape sequence parsing, keyboard
 //! and mouse input encoding, a model for the screen cells including scrollback,
@@ -20,7 +20,9 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut, Range};
 use std::str;
+#[cfg(feature = "dynamic")]
 use phaedra_dynamic::{FromDynamic, ToDynamic};
+pub use phaedra_escape_parser::DeviceControlMode;
 use phaedra_surface::SequenceNo;
 
 pub mod config;
@@ -37,6 +39,8 @@ pub use crate::screen::*;
 
 pub mod terminal;
 pub use crate::terminal::*;
+
+pub mod effects;
 
 pub mod terminalstate;
 pub use crate::terminalstate::*;
@@ -113,7 +117,8 @@ pub struct CursorPosition {
 }
 
 #[cfg_attr(feature = "use_serde", derive(Deserialize, Serialize))]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, FromDynamic, ToDynamic)]
+#[cfg_attr(feature = "dynamic", derive(FromDynamic, ToDynamic))]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct SemanticZone {
     pub start_y: StableRowIndex,
     pub start_x: usize,

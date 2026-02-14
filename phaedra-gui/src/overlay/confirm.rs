@@ -153,7 +153,7 @@ pub fn show_confirmation_overlay(
 ) -> anyhow::Result<()> {
     let name = match *args.action {
         KeyAssignment::EmitEvent(id) => id,
-        _ => anyhow::bail!("Confirmation requires action to be defined by wezterm.action_callback"),
+        _ => anyhow::bail!("Confirmation requires action to be defined by phaedra.action_callback"),
     };
 
     if let Ok(confirm) = run_confirmation_impl(&args.message, &mut term) {

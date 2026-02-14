@@ -326,15 +326,6 @@ end
         phaedra_mod.set("target_triple", crate::phaedra_target_triple())?;
         phaedra_mod.set("version", crate::phaedra_version())?;
         phaedra_mod.set("home_dir", crate::HOME_DIR.to_str())?;
-        phaedra_mod.set(
-            "running_under_wsl",
-            lua.create_function(|_, ()| Ok(crate::running_under_wsl()))?,
-        )?;
-
-        phaedra_mod.set(
-            "default_wsl_domains",
-            lua.create_function(|_, ()| Ok(crate::WslDomain::default_domains()))?,
-        )?;
 
         phaedra_mod.set("font", lua.create_function(font)?)?;
         phaedra_mod.set(

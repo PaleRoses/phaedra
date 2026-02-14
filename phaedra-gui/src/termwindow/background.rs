@@ -342,7 +342,7 @@ pub fn load_background_image(
     render_metrics: &RenderMetrics,
 ) -> Vec<LoadedBackgroundLayer> {
     let mut layers = vec![];
-    for layer in &config.background {
+    for layer in &config.color_config.background {
         let load_start = std::time::Instant::now();
         match load_background_layer(layer, dimensions, render_metrics) {
             Ok(layer) => {

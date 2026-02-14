@@ -22,7 +22,7 @@ pub struct GlyphInfo {
     /// Without tracking this version of the width, we may not detect
     /// the combined case as the corresponding cluster index is simply
     /// omitted from the shaped result.
-    /// <https://github.com/wezterm/wezterm/issues/1563>
+    /// <https://github.com/PaleRoses/phaedra/issues/1563>
     pub num_cells: u8,
     /// Offset within text
     pub cluster: u32,
@@ -79,7 +79,7 @@ pub struct FontMetrics {
     /// between the scaled and unscaled versions of the descender.
     /// This represents a y-adjustment that should be applied to
     /// the glyph to make it appear to line up better.
-    /// <https://github.com/wezterm/wezterm/issues/1803>
+    /// <https://github.com/PaleRoses/phaedra/issues/1803>
     pub force_y_adjust: PixelLength,
 }
 
@@ -141,7 +141,7 @@ pub fn new_shaper(
     config: &config::ConfigHandle,
     handles: &[ParsedFont],
 ) -> anyhow::Result<Box<dyn FontShaper>> {
-    match config.font_shaper {
+    match config.font_config.font_shaper {
         FontShaperSelection::Harfbuzz => {
             Ok(Box::new(harfbuzz::HarfbuzzShaper::new(config, handles)?))
         }

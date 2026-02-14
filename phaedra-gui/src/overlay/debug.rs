@@ -147,7 +147,7 @@ pub fn show_debug_overlay(
         },
     };
 
-    lua.load("wezterm = require 'wezterm'").exec()?;
+    lua.load("phaedra = require 'phaedra'").exec()?;
     lua.globals().set("window", gui_win)?;
     let lua_version: String = lua.globals().get("_VERSION")?;
 
@@ -198,7 +198,7 @@ pub fn show_debug_overlay(
 
     term.render(&[Change::Text(format!(
         "Debug Overlay\r\n\
-         wezterm version: {version} {triple}\r\n\
+         phaedra version: {version} {triple}\r\n\
          Window Environment: {connection_info}\r\n\
          Lua Version: {lua_version}\r\n\
          {opengl_info}\r\n\

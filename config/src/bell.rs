@@ -81,3 +81,20 @@ impl Default for AudibleBell {
         Self::SystemBeep
     }
 }
+
+#[derive(Debug, Clone, FromDynamic, ToDynamic)]
+pub struct BellConfig {
+    #[dynamic(default)]
+    pub visual_bell: VisualBell,
+    #[dynamic(default)]
+    pub audible_bell: AudibleBell,
+}
+
+impl Default for BellConfig {
+    fn default() -> Self {
+        Self {
+            visual_bell: VisualBell::default(),
+            audible_bell: AudibleBell::default(),
+        }
+    }
+}

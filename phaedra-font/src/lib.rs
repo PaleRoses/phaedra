@@ -275,7 +275,7 @@ impl LoadedFont {
                 .font_config
                 .upgrade()
                 .map_or(FontRasterizerSelection::default(), |c| {
-                    c.config.borrow().font_rasterizer
+                    c.config.borrow().font_config.font_rasterizer
                 });
             let raster = new_rasterizer(
                 raster_selection,
@@ -322,7 +322,7 @@ impl FallbackResolveInfo {
             ),
         }
 
-        if self.config.search_font_dirs_for_fallback {
+        if self.config.font_config.search_font_dirs_for_fallback {
             match self
                 .font_dirs
                 .locate_fallback_for_codepoints(&self.no_glyphs)
@@ -358,7 +358,7 @@ impl FallbackResolveInfo {
             extra_handles
         );
 
-        if wanted.len() > 1 && self.config.sort_fallback_fonts_by_coverage {
+        if wanted.len() > 1 && self.config.font_config.sort_fallback_fonts_by_coverage {
             // Sort by ascending coverage
             extra_handles.sort_by_cached_key(|p| {
                 p.coverage_intersection(&wanted)
@@ -400,7 +400,7 @@ impl FallbackResolveInfo {
                 .collect::<String>();
 
             let current_gen = self.config.generation();
-            let show_warning = self.config.warn_about_missing_glyphs
+            let show_warning = self.config.text.warn_about_missing_glyphs
                 && LAST_WARNING
                     .lock()
                     .unwrap()
@@ -415,7 +415,8 @@ impl FallbackResolveInfo {
                     .lock()
                     .unwrap()
                     .replace((Instant::now(), self.config.generation()));
-                let url = "https://wezterm.org/config/fonts.html";
+                let url =
+                    "https://github.com/PaleRoses/phaedra/tree/main/docs/config/lua/config/font.md";
                 log::warn!(
                     "No fonts contain glyphs for these codepoints: {}.\n\
                      Placeholder glyphs are being displayed instead.\n\
@@ -485,7 +486,7 @@ impl FontConfigInner {
     /// Create a new empty configuration
     pub fn new(config: Option<ConfigHandle>, dpi: usize) -> anyhow::Result<Self> {
         let config = config.unwrap_or_else(configuration);
-        let locator = new_locator(config.font_locator);
+        let locator = new_locator(config.font_config.font_locator);
         Ok(Self {
             fonts: RefCell::new(HashMap::new()),
             locator,
@@ -575,7 +576,7 @@ impl FontConfigInner {
         // any fallback fonts they might have configured in the main
         // config and so that they don't have to replicate that list for
         // the title font.
-        for font in &config.font.font {
+        for font in &config.font_config.font.font {
             let mut font = font.clone();
             font.is_fallback = true;
             fonts.push(font);
@@ -602,23 +603,23 @@ impl FontConfigInner {
         let (sys_font, sys_size) = self.compute_title_font(&config, make_bold);
 
         let (font_size, text_style) = match entity {
-            Entity::Title => (config.window_frame.font_size.unwrap_or(sys_size), None),
+            Entity::Title => (config.window_config.window_frame.font_size.unwrap_or(sys_size), None),
             Entity::CommandPalette => (
-                config.command_palette_font_size,
-                config.command_palette_font.as_ref(),
+                config.font_config.command_palette_font_size,
+                config.font_config.command_palette_font.as_ref(),
             ),
             Entity::CharSelect => (
-                config.char_select_font_size,
-                config.char_select_font.as_ref(),
+                config.font_config.char_select_font_size,
+                config.font_config.char_select_font.as_ref(),
             ),
             Entity::PaneSelect => (
-                config.pane_select_font_size,
-                config.pane_select_font.as_ref(),
+                config.font_config.pane_select_font_size,
+                config.font_config.pane_select_font.as_ref(),
             ),
         };
 
         let text_style =
-            text_style.unwrap_or(config.window_frame.font.as_ref().unwrap_or(&sys_font));
+            text_style.unwrap_or(config.window_config.window_frame.font.as_ref().unwrap_or(&sys_font));
 
         let dpi = *self.dpi.borrow() as u32;
         let pixel_size = (font_size * dpi as f64 / 72.0) as u16;
@@ -647,7 +648,7 @@ impl FontConfigInner {
             text_style: text_style.clone(),
             id: alloc_font_id(),
             tried_glyphs: RefCell::new(HashSet::new()),
-            pixel_geometry: config.display_pixel_geometry,
+            pixel_geometry: config.font_config.display_pixel_geometry,
         });
 
         Ok(loaded)
@@ -821,8 +822,13 @@ impl FontConfigInner {
                     ""
                 };
 
-                let is_primary = config.font.font.iter().any(|a| a == attr);
-                let derived_from_primary = config.font.font.iter().any(|a| a.family == attr.family);
+                let is_primary = config.font_config.font.font.iter().any(|a| a == attr);
+                let derived_from_primary = config
+                    .font_config
+                    .font
+                    .font
+                    .iter()
+                    .any(|a| a.family == attr.family);
 
                 let explanation = if is_primary {
                     // This is the primary font selection
@@ -835,7 +841,7 @@ impl FontConfigInner {
                     // their primary font (we can't know for sure)
                     format!(
                         "Unable to load a font matching one of your font_rules: {}. \
-                        Note that wezterm will synthesize font_rules to select bold \
+                        Note that phaedra will synthesize font_rules to select bold \
                         and italic fonts based on your primary font configuration",
                         attr
                     )
@@ -849,7 +855,7 @@ impl FontConfigInner {
                 config::show_error(&format!(
                     "{}. Fallback(s) are being used instead, and the terminal \
                     may not render as intended{}. See \
-                    https://wezterm.org/config/fonts.html for more information",
+                    https://github.com/PaleRoses/phaedra/tree/main/docs/config/lua/config/font.md for more information",
                     explanation, styled_extra
                 ));
             }
@@ -862,8 +868,8 @@ impl FontConfigInner {
     /// matches according to the fontconfig pattern.
     fn resolve_font(&self, myself: &Rc<Self>, style: &TextStyle) -> anyhow::Result<Rc<LoadedFont>> {
         let config = self.config.borrow();
-        let is_default = *style == config.font;
-        let def_font = if !is_default && config.use_cap_height_to_scale_fallback_fonts {
+        let is_default = *style == config.font_config.font;
+        let def_font = if !is_default && config.font_config.use_cap_height_to_scale_fallback_fonts {
             Some(self.default_font(myself)?)
         } else {
             None
@@ -875,7 +881,7 @@ impl FontConfigInner {
             return Ok(Rc::clone(entry));
         }
 
-        let mut font_size = config.font_size * *self.font_scale.borrow();
+        let mut font_size = config.font_config.font_size * *self.font_scale.borrow();
         let dpi = *self.dpi.borrow() as u32;
         let pixel_size = (font_size * dpi as f64 / 72.0) as u16;
 
@@ -938,7 +944,7 @@ impl FontConfigInner {
             text_style: style.clone(),
             id: alloc_font_id(),
             tried_glyphs: RefCell::new(HashSet::new()),
-            pixel_geometry: config.display_pixel_geometry,
+            pixel_geometry: config.font_config.display_pixel_geometry,
         });
 
         fonts.insert(style.clone(), Rc::clone(&loaded));
@@ -961,7 +967,7 @@ impl FontConfigInner {
 
     /// Returns the baseline font specified in the configuration
     pub fn default_font(&self, myself: &Rc<Self>) -> anyhow::Result<Rc<LoadedFont>> {
-        self.resolve_font(myself, &self.config.borrow().font)
+        self.resolve_font(myself, &self.config.borrow().font_config.font)
     }
 
     pub fn get_font_scale(&self) -> f64 {
@@ -1019,9 +1025,9 @@ impl FontConfigInner {
             _ => false,
         };
 
-        for rule in &config.font_rules {
+        for rule in &config.font_config.font_rules {
             if let Some(intensity) = rule.intensity {
-                let effective_intensity = match config.bold_brightens_ansi_colors {
+                let effective_intensity = match config.color_config.bold_brightens_ansi_colors {
                     BoldBrightening::BrightOnly if would_bright => Intensity::Normal,
                     BoldBrightening::No
                     | BoldBrightening::BrightAndBold
@@ -1044,7 +1050,7 @@ impl FontConfigInner {
             // so we therefore assume that it did match overall.
             return &rule.font;
         }
-        &config.font
+        &config.font_config.font
     }
 }
 

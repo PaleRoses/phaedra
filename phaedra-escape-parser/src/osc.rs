@@ -1006,7 +1006,7 @@ impl ITermFileData {
                 param
             };
 
-            // eg: `File=;size=1234` case. <https://github.com/wezterm/wezterm/issues/1291>
+            // eg: `File=;size=1234` case. <https://github.com/PaleRoses/phaedra/issues/1291>
             if param.is_empty() {
                 continue;
             }

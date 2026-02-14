@@ -231,7 +231,7 @@ impl LauncherState {
         // Pull in the user defined entries from the launch_menu
         // section of the configuration.
         if args.flags.contains(LauncherFlags::LAUNCH_MENU_ITEMS) {
-            for item in &config.launch_menu {
+            for item in &config.launch.launch_menu {
                 self.entries.push(Entry {
                     label: match item.label.as_ref() {
                         Some(label) => label.to_string(),
@@ -394,7 +394,7 @@ impl LauncherState {
         let mut labels_iter = labels.into_iter();
 
         let config = configuration();
-        let colors = &config.resolved_palette;
+        let colors = &config.color_config.resolved_palette;
         let launcher_label_fg = colors.launcher_label_fg;
         let launcher_label_bg = colors.launcher_label_bg;
 

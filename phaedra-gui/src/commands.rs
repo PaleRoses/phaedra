@@ -113,12 +113,12 @@ impl CommandDef {
             let mods = *mods;
             let key = DeferredKeyCode::try_from(label.as_str())
                 .unwrap()
-                .resolve(config.key_map_preference)
+                .resolve(config.key_input.key_map_preference)
                 .clone();
 
             let ukey = DeferredKeyCode::try_from(us_layout_shift(&label))
                 .unwrap()
-                .resolve(config.key_map_preference)
+                .resolve(config.key_input.key_map_preference)
                 .clone();
 
             keys.push((mods, key.clone()));
@@ -171,7 +171,7 @@ impl CommandDef {
                 None
             }
             Some(def) => {
-                let keys = if is_built_in && config.disable_default_key_bindings {
+                let keys = if is_built_in && config.key_input.disable_default_key_bindings {
                     vec![]
                 } else {
                     def.permute_keys(config)
@@ -205,7 +205,7 @@ impl CommandDef {
         let mut result = Self::expanded_commands(config);
 
         // Generate some stuff based on the config
-        for cmd in &config.launch_menu {
+        for cmd in &config.launch.launch_menu {
             let label = match cmd.label.as_ref() {
                 Some(label) => label.to_string(),
                 None => match cmd.args.as_ref() {
@@ -384,7 +384,7 @@ impl CommandDef {
 
         let mut candidates_for_removal = vec![];
         #[allow(unexpected_cfgs)] // <https://github.com/SSheldon/rust-objc/issues/125>
-        let phaedra_perform_key_assignment_sel = sel!(weztermPerformKeyAssignment:);
+        let phaedra_perform_key_assignment_sel = sel!(phaedraPerformKeyAssignment:);
 
         /// Mark menu items as candidates for removal
         fn mark_candidates(menu: &Menu, candidates: &mut Vec<MenuItem>, action: SEL) {
@@ -1671,25 +1671,25 @@ pub fn derive_command_from_key_assignment(action: &KeyAssignment) -> Option<Comm
             icon: Some("md_pipe_disconnected"),
         },
         OpenUri(uri) => match uri.as_ref() {
-            "https://wezterm.org/" => CommandDef {
+            "https://github.com/PaleRoses/phaedra" => CommandDef {
                 brief: "Documentation".into(),
-                doc: "Visit the wezterm documentation website".into(),
+                doc: "Visit the phaedra documentation website".into(),
                 keys: vec![],
                 args: &[],
                 menubar: &["Help"],
                 icon: Some("md_help"),
             },
-            "https://github.com/wezterm/wezterm/discussions/" => CommandDef {
+            "https://github.com/PaleRoses/phaedra/discussions/" => CommandDef {
                 brief: "Discuss on GitHub".into(),
-                doc: "Visit wezterm's GitHub discussion".into(),
+                doc: "Visit phaedra's GitHub discussion".into(),
                 keys: vec![],
                 args: &[],
                 menubar: &["Help"],
                 icon: Some("oct_comment_discussion"),
             },
-            "https://github.com/wezterm/wezterm/issues/" => CommandDef {
+            "https://github.com/PaleRoses/phaedra/issues/" => CommandDef {
                 brief: "Search or report issue on GitHub".into(),
-                doc: "Visit wezterm's GitHub issues".into(),
+                doc: "Visit phaedra's GitHub issues".into(),
                 keys: vec![],
                 args: &[],
                 menubar: &["Help"],
@@ -2137,9 +2137,9 @@ fn compute_default_actions() -> Vec<KeyAssignment> {
         ShowLauncher,
         ShowTabNavigator,
         // ----------------- Help
-        OpenUri("https://wezterm.org/".to_string()),
-        OpenUri("https://github.com/wezterm/wezterm/discussions/".to_string()),
-        OpenUri("https://github.com/wezterm/wezterm/issues/".to_string()),
+        OpenUri("https://github.com/PaleRoses/phaedra".to_string()),
+        OpenUri("https://github.com/PaleRoses/phaedra/discussions/".to_string()),
+        OpenUri("https://github.com/PaleRoses/phaedra/issues/".to_string()),
         ShowDebugOverlay,
         // ----------------- Misc
         OpenLinkAtMouseCursor,

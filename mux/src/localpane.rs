@@ -266,8 +266,7 @@ impl Pane for LocalPane {
         let mut proc = self.process.lock();
 
         const EXIT_BEHAVIOR: &str = "This message is shown because \
-            \x1b]8;;https://wezterm.org/\
-            config/lua/config/exit_behavior.html\
+            \x1b]8;;https://github.com/PaleRoses/phaedra/tree/main/docs/config/lua/config/exit_behavior.md\
             \x1b\\exit_behavior\x1b]8;;\x1b\\";
 
         let mut terse = String::new();
@@ -291,13 +290,14 @@ impl Pane for LocalPane {
                     let success = match status.success() {
                         true => true,
                         false => configuration()
+                            .launch
                             .clean_exit_codes
                             .contains(&status.exit_code()),
                     };
 
                     match (
                         self.exit_behavior()
-                            .unwrap_or_else(|| configuration().exit_behavior),
+                            .unwrap_or_else(|| configuration().launch.exit_behavior),
                         success,
                         killed,
                     ) {
@@ -338,7 +338,7 @@ impl Pane for LocalPane {
 
         let mut notify = None;
         if !terse.is_empty() {
-            match configuration().exit_behavior_messaging {
+            match configuration().launch.exit_behavior_messaging {
                 ExitBehaviorMessaging::Verbose => {
                     if terse == "done" {
                         notify = Some(format!("\r\n{brief}\r\n{trailer}"));
@@ -596,6 +596,7 @@ impl Pane for LocalPane {
                     .collect::<HashSet<_>>();
 
                 let skip = configuration()
+                    .launch
                     .skip_close_confirmation_for_processes_named
                     .iter()
                     .cloned()
@@ -1137,7 +1138,7 @@ impl LocalPane {
 impl Drop for LocalPane {
     fn drop(&mut self) {
         // Avoid lingering zombies if we can, but don't block forever.
-        // <https://github.com/wezterm/wezterm/issues/558>
+        // <https://github.com/PaleRoses/phaedra/issues/558>
         if let ProcessState::Running { signaller, .. } = &mut *self.process.lock() {
             let _ = signaller.kill();
         }

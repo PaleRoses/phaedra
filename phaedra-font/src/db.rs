@@ -37,7 +37,7 @@ impl FontDatabase {
     /// and from the built-in selection of fonts
     pub fn with_font_dirs(config: &Config) -> anyhow::Result<Self> {
         let mut font_info = vec![];
-        for path in &config.font_dirs {
+        for path in &config.font_config.font_dirs {
             for entry in walkdir::WalkDir::new(path).into_iter() {
                 let entry = match entry {
                     Ok(entry) => entry,

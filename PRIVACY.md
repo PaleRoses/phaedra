@@ -44,14 +44,17 @@ contributors to Phaedra cannot see inside that request and therefore cannot
 infer any information from it.
 
 If you wish, you can disable update checking. See
-https://wezterm.org/config/lua/config/check_for_updates.html for
+https://github.com/PaleRoses/phaedra/blob/main/docs/config/lua/config/check_for_updates.md for
 more information on that.
+
+When update checks are enabled, the request targets:
+https://api.github.com/repos/PaleRoses/phaedra/releases/latest
 
 ## Third-Party Builds
 
 The above is true of the phaedra source code and the binaries produced by
-phaedra's CI and made available from https://wezterm.org/ and
-https://github.com/wezterm/wezterm/.
+phaedra's CI and made available from https://github.com/PaleRoses/phaedra
+and its releases.
 
 If you obtained a pre-built phaedra binary from some other source be aware that
 the person(s) building those versions may have modified them to behave

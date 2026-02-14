@@ -186,7 +186,7 @@ impl log::Log for Logger {
                 // We use writeln! here rather than eprintln! so that we can ignore
                 // a failed log write in the case that stderr has been redirected
                 // to a device that is out of disk space.
-                // <https://github.com/wezterm/wezterm/issues/1839>
+                // <https://github.com/PaleRoses/phaedra/issues/1839>
                 let mut stderr = std::io::stderr();
                 // Direct `write!` will `write()` every single padding space as individual syscall
                 // which makes terminal with tracing logs enabled unusably slow.
@@ -269,7 +269,7 @@ fn setup_pretty() -> (LevelFilter, Logger) {
 
     if base_name.contains("gui") {
         // Only tidy up logs when the gui process is starting.
-        // rationale: `wezterm cli` commands should have as low startup
+        // rationale: `phaedra cli` commands should have as low startup
         // overhead as possible
         prune_old_logs();
     }

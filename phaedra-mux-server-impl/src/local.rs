@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context as _};
 use config::{create_user_owned_dirs, UnixDomain};
 use promise::spawn::spawn_into_main_thread;
-use phaedra_uds::UnixListener;
+use std::os::unix::net::UnixListener;
 
 pub struct LocalListener {
     listener: UnixListener,

@@ -44,7 +44,7 @@ impl crate::TermWindow {
         let hsv = if params.is_active {
             None
         } else {
-            Some(params.config.inactive_pane_hsb)
+            Some(params.config.color_config.inactive_pane_hsb)
         };
 
         let width_scale = if !params.line.is_single_width() {
@@ -222,7 +222,7 @@ impl crate::TermWindow {
                 }
 
                 (
-                    bg.mul_alpha(self.config.text_background_opacity),
+                    bg.mul_alpha(self.config.text.text_background_opacity),
                     bg_default,
                 )
             };
@@ -243,7 +243,7 @@ impl crate::TermWindow {
 
                 // If the tab bar is falling just short of the full width of the
                 // window, extend it to fit.
-                // <https://github.com/wezterm/wezterm/issues/2210>
+                // <https://github.com/PaleRoses/phaedra/issues/2210>
                 if is_tab_bar && (x + width + cell_width) > params.pixel_width {
                     width += cell_width;
                 }
@@ -494,7 +494,7 @@ impl crate::TermWindow {
                             - (glyph.y_offset + glyph.bearing_y).get() as f32)
                             * height_scale;
 
-                    if self.config.custom_block_glyphs {
+                    if self.config.text.custom_block_glyphs {
                         if let Some(block) = &info.block_key {
                             texture.replace(
                                 gl_state
@@ -797,10 +797,10 @@ impl crate::TermWindow {
                     let blink_rate = match attrs.blink() {
                         Blink::None => None,
                         Blink::Slow => {
-                            Some((params.config.text_blink_rate, self.blink_state.borrow_mut()))
+                            Some((params.config.text.text_blink_rate, self.blink_state.borrow_mut()))
                         }
                         Blink::Rapid => Some((
-                            params.config.text_blink_rate_rapid,
+                            params.config.text.text_blink_rate_rapid,
                             self.rapid_blink_state.borrow_mut(),
                         )),
                     };
@@ -839,7 +839,7 @@ impl crate::TermWindow {
                     if params.window_is_transparent && bg_is_default {
                         0.0
                     } else {
-                        params.config.text_background_opacity
+                        params.config.text.text_background_opacity
                     },
                 );
 

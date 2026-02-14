@@ -14,7 +14,7 @@ lazy_static::lazy_static! {
 /// We contrive to call this from the main thread in response to the
 /// config being reloaded.
 /// It spawns a task for each of the timers that have been configured
-/// by the user via `wezterm.time.call_after`.
+/// by the user via `phaedra.time.call_after`.
 fn schedule_all(lua: Option<Rc<mlua::Lua>>) -> mlua::Result<()> {
     if let Some(lua) = lua {
         let scheduled_events: Vec<UserDataRef<ScheduledEvent>> =

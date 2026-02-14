@@ -22,13 +22,13 @@ extern "C" fn application_should_terminate(
 ) -> u64 {
     log::debug!("application termination requested");
     unsafe {
-        match config::configuration().window_close_confirmation {
+        match config::configuration().window_config.window_close_confirmation {
             WindowCloseConfirmation::NeverPrompt => terminate_now(),
             WindowCloseConfirmation::AlwaysPrompt => {
                 let alert: id = msg_send![class!(NSAlert), alloc];
                 let alert: id = msg_send![alert, init];
                 let message_text = nsstring("Terminate Phaedra?");
-                let info_text = nsstring("Detach and close all panes and terminate wezterm?");
+                let info_text = nsstring("Detach and close all panes and terminate phaedra?");
                 let cancel = nsstring("Cancel");
                 let ok = nsstring("Ok");
 
@@ -99,7 +99,7 @@ extern "C" fn phaedra_perform_key_assignment(
     menu_item: *mut Object,
 ) {
     let menu_item = crate::os::macos::menu::MenuItem::with_menu_item(menu_item);
-    // Safe because weztermPerformKeyAssignment: is only used with KeyAssignment
+    // Safe because phaedraPerformKeyAssignment: is only used with KeyAssignment
     let action = menu_item.get_represented_item();
     log::debug!("phaedra_perform_key_assignment {action:?}",);
     match action {
@@ -135,7 +135,7 @@ extern "C" fn application_dock_menu(
 ) -> *mut Object {
     let dock_menu = Menu::new_with_title("");
     let new_window_item =
-        MenuItem::new_with("New Window", Some(sel!(weztermPerformKeyAssignment:)), "");
+        MenuItem::new_with("New Window", Some(sel!(phaedraPerformKeyAssignment:)), "");
     new_window_item
         .set_represented_item(RepresentedItem::KeyAssignment(KeyAssignment::SpawnWindow));
     dock_menu.add_item(&new_window_item);
@@ -172,7 +172,7 @@ fn get_class() -> &'static Class {
                     as extern "C" fn(&mut Object, Sel, *mut Object) -> *mut Object,
             );
             cls.add_method(
-                sel!(weztermPerformKeyAssignment:),
+                sel!(phaedraPerformKeyAssignment:),
                 phaedra_perform_key_assignment as extern "C" fn(&mut Object, Sel, *mut Object),
             );
             cls.add_method(

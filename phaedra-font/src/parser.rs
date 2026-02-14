@@ -217,7 +217,7 @@ impl Names {
         // as freetype has a limited set of encodings that it supports.
         // We process the name table for ourselves to increase our chances
         // of returning a good version of the name.
-        // See <https://github.com/wezterm/wezterm/issues/1761#issuecomment-1079150560>
+        // See <https://github.com/PaleRoses/phaedra/issues/1761#issuecomment-1079150560>
         // for a case where freetype returns `?????` for a name.
         let names = face.get_sfnt_names();
 
@@ -284,13 +284,13 @@ impl ParsedFont {
 
     pub fn lua_name(&self) -> String {
         format!(
-            "wezterm.font(\"{}\", {{weight={}, stretch=\"{}\", style=\"{}\"}})",
+            "phaedra.font(\"{}\", {{weight={}, stretch=\"{}\", style=\"{}\"}})",
             self.names.family, self.weight, self.stretch, self.style
         )
     }
 
     pub fn lua_fallback(handles: &[Self]) -> String {
-        let mut code = "wezterm.font_with_fallback({\n".to_string();
+        let mut code = "phaedra.font_with_fallback({\n".to_string();
 
         for p in handles {
             code.push_str(&format!("  -- {}\n", p.handle.diagnostic_string()));
@@ -417,7 +417,7 @@ impl ParsedFont {
         };
 
         if has_svg {
-            if config::configuration().ignore_svg_fonts {
+            if config::configuration().font_config.ignore_svg_fonts {
                 anyhow::bail!("skipping svg font because ignore_svg_fonts=true");
             }
         }

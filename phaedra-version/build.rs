@@ -2,7 +2,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
     // If a file named `.tag` is present, we'll take its contents for the
-    // version number that we report in wezterm -h.
+    // version number that we report in phaedra -h.
     let mut ci_tag = String::new();
     if let Ok(tag) = std::fs::read("../.tag") {
         if let Ok(s) = String::from_utf8(tag) {

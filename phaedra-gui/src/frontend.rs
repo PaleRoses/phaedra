@@ -150,7 +150,7 @@ impl GuiFrontEnd {
                         | Alert::SetUserVar { .. },
                 } => {}
                 MuxNotification::Empty => {
-                    if config::configuration().quit_when_all_windows_are_closed {
+                    if config::configuration().window_config.quit_when_all_windows_are_closed {
                         promise::spawn::spawn_into_main_thread(async move {
                             if mux::activity::Activity::count() == 0 {
                                 log::trace!("Mux is now empty, terminate gui");
@@ -204,7 +204,7 @@ impl GuiFrontEnd {
             true
         });
         // Re-evaluate the config so that folks that are using
-        // `wezterm.gui.get_appearance()` can have that take effect
+        // `phaedra.gui.get_appearance()` can have that take effect
         // before any windows are created
         config::reload();
 
@@ -235,7 +235,7 @@ impl GuiFrontEnd {
 
                     // We send the script to execute to the shell on stdin, rather than ask the
                     // shell to execute it directly, so that we start the shell and read in the
-                    // user's rc files before running the script.  Without this, wezterm on macOS
+                    // user's rc files before running the script.  Without this, phaedra on macOS
                     // is launched with a default and very anemic path, and that is frustrating for
                     // users.
 
@@ -279,7 +279,7 @@ impl GuiFrontEnd {
 
                 fn spawn_command(spawn: &SpawnCommand, spawn_where: SpawnWhere) {
                     let config = config::configuration();
-                    let dpi = config.dpi.unwrap_or_else(|| ::window::default_dpi());
+                    let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi());
                     let size =
                         config.initial_size(dpi as u32, crate::cell_pixel_dims(&config, dpi).ok());
                     let term_config = Arc::new(config::TermConfig::with_config(config));

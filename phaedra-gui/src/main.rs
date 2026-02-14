@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context};
 use clap::builder::ValueParser;
 use clap::{Parser, ValueHint};
 use config::keyassignment::{SpawnCommand, SpawnTabDomain};
-use config::{ConfigHandle, SerialDomain, SshDomain, SshMultiplexing};
+use config::{ConfigHandle, SshDomain, SshMultiplexing};
 use mux::activity::Activity;
 use mux::domain::{Domain, LocalDomain};
 use mux::Mux;
@@ -53,7 +53,6 @@ mod spawn;
 mod stats;
 mod tabbar;
 mod termwindow;
-mod unicode_names;
 mod update;
 mod utilsprites;
 
@@ -66,11 +65,11 @@ pub use termwindow::{set_window_class, set_window_position, TermWindow, ICON_DAT
 
 #[derive(Debug, Parser)]
 #[command(
-    about = "Wez's Terminal Emulator\nhttp://github.com/wezterm/wezterm",
+    about = "Phaedra Terminal\nhttps://github.com/PaleRoses/phaedra",
     version = config::phaedra_version()
 )]
 struct Opt {
-    /// Skip loading wezterm.lua
+    /// Skip loading phaedra.lua
     #[arg(long, short = 'n')]
     skip_config: bool,
 
@@ -119,10 +118,7 @@ enum SubCommand {
     #[command(name = "ssh", about = "Establish an ssh session")]
     Ssh(SshCommand),
 
-    #[command(name = "serial", about = "Open a serial port")]
-    Serial(SerialCommand),
-
-    #[command(name = "connect", about = "Connect to wezterm multiplexer")]
+    #[command(name = "connect", about = "Connect to phaedra multiplexer")]
     Connect(ConnectCommand),
 
     #[command(name = "ls-fonts", about = "Display information about fonts")]
@@ -200,56 +196,6 @@ fn run_ssh(opts: SshCommand) -> anyhow::Result<()> {
     gui.run_forever()
 }
 
-async fn async_run_serial(opts: SerialCommand) -> anyhow::Result<()> {
-    let serial_domain = SerialDomain {
-        name: format!("Serial Port {}", opts.port),
-        port: Some(opts.port.clone()),
-        baud: opts.baud,
-    };
-
-    let start_command = StartCommand {
-        always_new_process: true,
-        class: opts.class,
-        cwd: None,
-        no_auto_connect: true,
-        position: opts.position,
-        workspace: None,
-        domain: Some(serial_domain.name.clone()),
-        ..Default::default()
-    };
-
-    let cmd = None;
-
-    let domain: Arc<dyn Domain> = Arc::new(LocalDomain::new_serial_domain(serial_domain)?);
-    let mux = Mux::get();
-    mux.add_domain(&domain);
-
-    let should_publish = false;
-    async_run_terminal_gui(cmd, start_command, should_publish).await
-}
-
-fn run_serial(config: config::ConfigHandle, opts: SerialCommand) -> anyhow::Result<()> {
-    if let Some(cls) = opts.class.as_ref() {
-        crate::set_window_class(cls);
-    }
-    if let Some(pos) = opts.position.as_ref() {
-        set_window_position(pos.clone());
-    }
-
-    build_initial_mux(&config, None, None)?;
-
-    let gui = crate::frontend::try_new()?;
-
-    promise::spawn::spawn(async {
-        if let Err(err) = async_run_serial(opts).await {
-            terminate_with_error(err);
-        }
-    })
-    .detach();
-
-    maybe_show_configuration_error_window();
-    gui.run_forever()
-}
 
 fn have_panes_in_domain_and_ws(domain: &Arc<dyn Domain>, workspace: &Option<String>) -> bool {
     let mux = Mux::get();
@@ -329,7 +275,7 @@ async fn spawn_tab_in_domain_if_mux_is_empty(
         true
     });
 
-    let dpi = config.dpi.unwrap_or_else(|| ::window::default_dpi());
+    let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi());
     let _tab = domain
         .spawn(
             config.initial_size(dpi as u32, Some(cell_pixel_dims(&config, dpi)?)),
@@ -470,7 +416,7 @@ async fn async_run_terminal_gui(
 
             domain.attach(Some(window_id)).await?;
             let config = config::configuration();
-            let dpi = config.dpi.unwrap_or_else(|| ::window::default_dpi());
+            let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi());
             let tab = domain
                 .spawn(
                     config.initial_size(dpi as u32, Some(cell_pixel_dims(&config, dpi)?)),
@@ -500,7 +446,7 @@ enum Publish {
 
 impl Publish {
     pub fn resolve(mux: &Arc<Mux>, config: &ConfigHandle, always_new_process: bool) -> Self {
-        if mux.default_domain().domain_name() != config.default_domain.as_deref().unwrap_or("local")
+        if mux.default_domain().domain_name() != config.domain.default_domain.as_deref().unwrap_or("local")
         {
             return Self::NoConnectNoPublish;
         }
@@ -568,7 +514,7 @@ impl Publish {
                             );
                         }
 
-                        let window_id = if new_tab || config.prefer_to_spawn_tabs {
+                        let window_id = if new_tab || config.launch.prefer_to_spawn_tabs {
                             if let Ok(pane_id) = client.resolve_pane_id(None).await {
                                 let panes = client.list_panes().await?;
 
@@ -607,7 +553,7 @@ impl Publish {
                                 size: config.initial_size(0, None),
                                 workspace: workspace.unwrap_or(
                                     config
-                                        .default_workspace
+                                        .launch.default_workspace
                                         .as_deref()
                                         .unwrap_or(mux::DEFAULT_WORKSPACE)
                                 ).to_string(),
@@ -619,7 +565,7 @@ impl Publish {
                         Ok(res) => {
                             log::info!(
                                 "Spawned your command via the existing GUI instance. \
-                             Use wezterm start --always-new-process if you do not want this behavior. \
+                             Use phaedra start --always-new-process if you do not want this behavior. \
                              Result={:?}",
                                 res
                             );
@@ -685,7 +631,7 @@ fn setup_mux(
     mux.replace_identity(Some(client_id));
     let default_workspace_name = default_workspace_name.unwrap_or(
         config
-            .default_workspace
+            .launch.default_workspace
             .as_deref()
             .unwrap_or(mux::DEFAULT_WORKSPACE),
     );
@@ -694,7 +640,7 @@ fn setup_mux(
     update_mux_domains(config)?;
 
     let default_name =
-        default_domain_name.unwrap_or(config.default_domain.as_deref().unwrap_or("local"));
+        default_domain_name.unwrap_or(config.domain.default_domain.as_deref().unwrap_or("local"));
 
     let domain = mux.get_domain_by_name(default_name).ok_or_else(|| {
         anyhow::anyhow!(
@@ -731,8 +677,8 @@ fn run_terminal_gui(opts: StartCommand, default_domain_name: Option<String>) -> 
         let prog = opts.prog.iter().map(|s| s.as_os_str()).collect::<Vec<_>>();
         let mut builder = config.build_prog(
             if prog.is_empty() { None } else { Some(prog) },
-            config.default_prog.as_ref(),
-            config.default_cwd.as_ref(),
+            config.launch.default_prog.as_ref(),
+            config.launch.default_cwd.as_ref(),
         )?;
         if let Some(cwd) = &opts.cwd {
             builder.cwd(if cwd.is_relative() {
@@ -752,7 +698,7 @@ fn run_terminal_gui(opts: StartCommand, default_domain_name: Option<String>) -> 
         opts.workspace.as_deref(),
     )?;
 
-    // First, let's see if we can ask an already running wezterm to do this.
+    // First, let's see if we can ask an already running phaedra to do this.
     // We must do this before we start the gui frontend as the scheduler
     // requirements are different.
     let mut publish = Publish::resolve(
@@ -801,7 +747,7 @@ fn notify_on_panic() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         if let Some(s) = info.payload().downcast_ref::<&str>() {
-            fatal_toast_notification("Wezterm panic", s);
+            fatal_toast_notification("Phaedra panic", s);
         }
         default_hook(info);
     }));
@@ -809,7 +755,7 @@ fn notify_on_panic() {
 
 fn terminate_with_error_message(err: &str) -> ! {
     log::error!("{}; terminating", err);
-    fatal_toast_notification("Wezterm Error", &err);
+    fatal_toast_notification("Phaedra Error", &err);
     std::process::exit(1);
 }
 
@@ -871,13 +817,13 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
 
     let font_config = Rc::new(phaedra_font::FontConfiguration::new(
         Some(config.clone()),
-        config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
+        config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
     )?);
 
     let render_metrics = crate::utilsprites::RenderMetrics::new(&font_config)?;
 
-    let bidi_hint = if config.bidi_enabled {
-        Some(config.bidi_direction)
+    let bidi_hint = if config.text.bidi_enabled {
+        Some(config.text.bidi_direction)
     } else {
         None
     };
@@ -902,7 +848,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
 
     if let Some(text) = &text {
         // Emulate the effect of output normalization
-        let text = if config.normalize_output_to_unicode_nfc {
+        let text = if config.text.normalize_output_to_unicode_nfc {
             text.nfc().collect()
         } else {
             text.to_string()
@@ -987,11 +933,11 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
 
                 let mut texture = cached_glyph.texture.clone();
 
-                if config.custom_block_glyphs {
+                if config.text.custom_block_glyphs {
                     if let Some(block) = info.only_char.and_then(BlockKey::from_char) {
                         texture.replace(glyph_cache.cached_block(block, &render_metrics)?);
                         println!(
-                            "{:2} {:4} {:12} drawn by wezterm because custom_block_glyphs=true: {:?}",
+                            "{:2} {:4} {:12} drawn by phaedra because custom_block_glyphs=true: {:?}",
                             info.cluster, text, escaped, block
                         );
                         is_custom = true;
@@ -1042,7 +988,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
                                         (px & 0xff) as u8,
                                     );
                                     // Use regular RGB for other terminals, but then
-                                    // set RGBA for wezterm
+                                    // set RGBA for phaedra
                                     glyph.push_str(&format!(
                                 "\x1b[38:2::{r}:{g}:{b}m\x1b[38:6::{r}:{g}:{b}:{a}m\u{2588}\x1b[0m"
                             ));
@@ -1076,7 +1022,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
     );
     println!();
 
-    for rule in &config.font_rules {
+    for rule in &config.font_config.font_rules {
         println!();
 
         let mut condition = "When".to_string();
@@ -1139,7 +1085,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
                 println!(
                     "{} system fonts found using {:?}:",
                     sys_fonts.len(),
-                    config.font_locator
+                    config.font_config.font_locator
                 );
                 for font in sys_fonts {
                     let pixel_sizes = if font.pixel_sizes.is_empty() {
@@ -1171,7 +1117,7 @@ fn run() -> anyhow::Result<()> {
     {
         unsafe {
             ::windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(
-                ::windows::core::PCWSTR(wide_string("org.wezfurlong.wezterm").as_ptr()),
+                ::windows::core::PCWSTR(wide_string("dev.phaedra.terminal").as_ptr()),
             )
             .unwrap();
         }
@@ -1214,7 +1160,7 @@ fn run() -> anyhow::Result<()> {
         opts.skip_config,
     )?;
     let config = config::configuration();
-    if let Some(value) = &config.default_ssh_auth_sock {
+    if let Some(value) = &config.domain.default_ssh_auth_sock {
         std::env::set_var("SSH_AUTH_SOCK", value);
     }
 
@@ -1233,13 +1179,13 @@ fn run() -> anyhow::Result<()> {
         None => {
             // Need to fake an argv0
             let mut argv = vec!["phaedra-gui".to_string()];
-            for a in &config.default_gui_startup_args {
+            for a in &config.launch.default_gui_startup_args {
                 argv.push(a.clone());
             }
             SubCommand::try_parse_from(&argv).with_context(|| {
                 format!(
                     "parsing the default_gui_startup_args config: {:?}",
-                    config.default_gui_startup_args
+                    config.launch.default_gui_startup_args
                 )
             })?
         }
@@ -1254,7 +1200,6 @@ fn run() -> anyhow::Result<()> {
         }
         SubCommand::BlockingStart(_) => unreachable!(),
         SubCommand::Ssh(ssh) => run_ssh(ssh),
-        SubCommand::Serial(serial) => run_serial(config, serial),
         SubCommand::Connect(connect) => run_terminal_gui(
             StartCommand {
                 domain: Some(connect.domain_name.clone()),

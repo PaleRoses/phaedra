@@ -1416,7 +1416,7 @@ impl Pane for CopyOverlay {
             fn with_lines_mut(&mut self, first_row: StableRowIndex, lines: &mut [&mut Line]) {
                 let mut overlay_lines = vec![];
                 let config = config::configuration();
-                let colors = &config.resolved_palette;
+                let colors = &config.color_config.resolved_palette;
 
                 for (idx, line) in lines.iter_mut().enumerate() {
                     let mut line: Line = line.clone();
@@ -1517,7 +1517,7 @@ impl Pane for CopyOverlay {
         let (top, mut lines) = self.delegate.get_lines(lines);
 
         let config = config::configuration();
-        let colors = &config.resolved_palette;
+        let colors = &config.color_config.resolved_palette;
 
         // Process the lines; for the search row we want to render instead
         // the search UI.

@@ -16,12 +16,12 @@ mod daemonize;
 
 #[derive(Debug, Parser)]
 #[command(
-    about = "Wez's Terminal Emulator\nhttp://github.com/wezterm/wezterm",
+    about = "Wez's Terminal Emulator\nhttp://github.com/PaleRoses/phaedra",
     version = config::phaedra_version(),
     trailing_var_arg = true,
 )]
 struct Opt {
-    /// Skip loading wezterm.lua
+    /// Skip loading phaedra.lua
     #[arg(long, short = 'n')]
     skip_config: bool,
 
@@ -57,7 +57,7 @@ struct Opt {
     pid_file_fd: Option<i32>,
 
     /// Instead of executing your shell, run PROG.
-    /// For example: `wezterm start -- bash -l` will spawn bash
+    /// For example: `phaedra start -- bash -l` will spawn bash
     /// as if it were a login shell.
     #[arg(value_parser, value_hint=ValueHint::CommandWithArguments, num_args=1..)]
     prog: Vec<OsString>,
@@ -99,7 +99,7 @@ fn run() -> anyhow::Result<()> {
     let config = config::configuration();
 
     config.update_ulimit()?;
-    if let Some(value) = &config.default_ssh_auth_sock {
+    if let Some(value) = &config.domain.default_ssh_auth_sock {
         std::env::set_var("SSH_AUTH_SOCK", value);
     }
 
@@ -200,7 +200,7 @@ fn run() -> anyhow::Result<()> {
     ] {
         std::env::remove_var(name);
     }
-    for name in &config::configuration().mux_env_remove {
+    for name in &config::configuration().domain.mux_env_remove {
         std::env::remove_var(name);
     }
 
@@ -309,7 +309,7 @@ mod ossl;
 
 pub fn spawn_listener() -> anyhow::Result<()> {
     let config = configuration();
-    for unix_dom in &config.unix_domains {
+    for unix_dom in &config.domain.unix_domains {
         std::env::set_var("PHAEDRA_UNIX_SOCKET", unix_dom.socket_path());
         let mut listener = phaedra_mux_server_impl::local::LocalListener::with_domain(unix_dom)?;
         thread::spawn(move || {
@@ -317,7 +317,7 @@ pub fn spawn_listener() -> anyhow::Result<()> {
         });
     }
 
-    for tls_server in &config.tls_servers {
+    for tls_server in &config.domain.tls_servers {
         ossl::spawn_tls_listener(tls_server)?;
     }
 

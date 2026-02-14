@@ -1,19 +1,21 @@
 [package]
 name = "phaedra-color-types"
 version = "0.3.0"
-authors = ["Wez Furlong"]
+authors = ["PaleRoses"]
 edition = "2018"
 repository = "https://github.com/PaleRoses/phaedra"
 description = "Types for working with colors"
 license = "MIT"
 
 [features]
+default = ["dynamic"]
+dynamic = ["dep:phaedra-dynamic"]
 use_serde = ["serde"]
-std = ["serde/std", "dep:deltae", "csscolorparser/lab"]
+std = ["dynamic", "serde/std", "dep:deltae", "csscolorparser/lab"]
 
 [dependencies]
 csscolorparser = {workspace=true, optional=true}
 deltae = {workspace = true, optional=true}
 num-traits = {workspace=true, features=["libm"]}
 serde = {workspace=true, features = ["derive"], optional=true}
-phaedra-dynamic.workspace = true
+phaedra-dynamic = {workspace = true, optional = true}

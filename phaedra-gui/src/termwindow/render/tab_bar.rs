@@ -37,8 +37,7 @@ impl crate::TermWindow {
             self.render_metrics.cell_size.width as usize,
         ));
 
-        let window_is_transparent =
-            !self.window_background.is_empty() || self.config.window_background_opacity != 1.0;
+        let window_is_transparent = !self.window_background.is_empty();
         let gl_state = self.render_state.as_ref().unwrap();
         let white_space = gl_state.util_sprites.white_space.texture_coords();
         let filled_box = gl_state.util_sprites.filled_box.texture_coords();
@@ -48,7 +47,7 @@ impl crate::TermWindow {
             .mul_alpha(if window_is_transparent {
                 0.
             } else {
-                self.config.text_background_opacity
+                self.config.text.text_background_opacity
             });
 
         self.render_screen_line(
@@ -89,7 +88,7 @@ impl crate::TermWindow {
                 default_bg,
                 style: None,
                 font: None,
-                use_pixel_positioning: self.config.experimental_pixel_positioning,
+                use_pixel_positioning: self.config.text.experimental_pixel_positioning,
                 render_metrics: self.render_metrics,
                 shape_key: None,
                 password_input: false,

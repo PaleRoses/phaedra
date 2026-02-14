@@ -299,7 +299,7 @@ fn read_from_pane_pty(
             localpane::emit_output_for_pane(
                 pane_id,
                 &format!(
-                    "⚠️  wezterm: read_from_pane_pty: \
+                    "⚠️  phaedra: read_from_pane_pty: \
                     Unable to allocate a socketpair: {err:#}"
                 ),
             );
@@ -340,7 +340,7 @@ fn read_from_pane_pty(
         }
     }
 
-    match exit_behavior.unwrap_or_else(|| configuration().exit_behavior) {
+    match exit_behavior.unwrap_or_else(|| configuration().launch.exit_behavior) {
         ExitBehavior::Hold | ExitBehavior::CloseOnCleanExit => {
             // We don't know if we can unilaterally close
             // this pane right now, so don't!
@@ -428,7 +428,7 @@ impl Mux {
             );
         }
 
-        let agent = if config::configuration().mux_enable_ssh_agent {
+        let agent = if config::configuration().domain.mux_enable_ssh_agent {
             Some(AgentProxy::new())
         } else {
             None
@@ -454,6 +454,7 @@ impl Mux {
     fn get_default_workspace(&self) -> String {
         let config = configuration();
         config
+            .launch
             .default_workspace
             .as_deref()
             .unwrap_or(DEFAULT_WORKSPACE)

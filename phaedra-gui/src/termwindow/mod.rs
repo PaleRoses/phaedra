@@ -479,7 +479,7 @@ impl TermWindow {
 
     fn close_requested(&mut self, window: &Window) {
         let mux = Mux::get();
-        match self.config.window_close_confirmation {
+        match self.config.window_config.window_close_confirmation {
             WindowCloseConfirmation::NeverPrompt => {
                 // Immediately kill the tabs and allow the window to close
                 mux.kill_window(self.mux_window_id);
@@ -561,7 +561,7 @@ impl TermWindow {
         match RenderState::new(ctx, &self.fonts, &self.render_metrics, ATLAS_SIZE) {
             Ok(render_state) => {
                 log::debug!(
-                    "Renderer initialized! {} wezterm version: {}",
+                    "Renderer initialized! {} phaedra version: {}",
                     render_info,
                     config::phaedra_version(),
                 );
@@ -583,7 +583,7 @@ impl TermWindow {
 impl TermWindow {
     pub async fn new_window(mux_window_id: MuxWindowId) -> anyhow::Result<()> {
         let config = configuration();
-        let dpi = config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize;
+        let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize;
         let fontconfig = Rc::new(FontConfiguration::new(Some(config.clone()), dpi)?);
 
         let mux = Mux::get();
@@ -639,15 +639,15 @@ impl TermWindow {
             pixel_max: terminal_size.pixel_width as f32,
             pixel_cell: render_metrics.cell_size.width as f32,
         };
-        let padding_left = config.window_padding.left.evaluate_as_pixels(h_context) as usize;
+        let padding_left = config.window_config.window_padding.left.evaluate_as_pixels(h_context) as usize;
         let padding_right = resize::effective_right_padding(&config, h_context) as usize;
         let v_context = DimensionContext {
             dpi: dpi as f32,
             pixel_max: terminal_size.pixel_height as f32,
             pixel_cell: render_metrics.cell_size.height as f32,
         };
-        let padding_top = config.window_padding.top.evaluate_as_pixels(v_context) as usize;
-        let padding_bottom = config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
+        let padding_top = config.window_config.window_padding.top.evaluate_as_pixels(v_context) as usize;
+        let padding_bottom = config.window_config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
 
         let mut dimensions = Dimensions {
             pixel_width: (terminal_size.pixel_width + padding_left + padding_right) as usize,
@@ -760,17 +760,17 @@ impl TermWindow {
                 None,
             )),
             blink_state: RefCell::new(ColorEase::new(
-                config.text_blink_rate,
-                config.text_blink_ease_in,
-                config.text_blink_rate,
-                config.text_blink_ease_out,
+                config.text.text_blink_rate,
+                config.text.text_blink_ease_in,
+                config.text.text_blink_rate,
+                config.text.text_blink_ease_out,
                 None,
             )),
             rapid_blink_state: RefCell::new(ColorEase::new(
-                config.text_blink_rate_rapid,
-                config.text_blink_rapid_ease_in,
-                config.text_blink_rate_rapid,
-                config.text_blink_rapid_ease_out,
+                config.text.text_blink_rate_rapid,
+                config.text.text_blink_rapid_ease_in,
+                config.text.text_blink_rate_rapid,
+                config.text.text_blink_rapid_ease_out,
                 None,
             )),
             event_states: HashMap::new(),
@@ -846,7 +846,7 @@ impl TermWindow {
             let mut myself = tw.borrow_mut();
             let webgpu = Rc::new(WebGpuState::new(&window, dimensions, &config).await?);
             myself.config_subscription.replace(config_subscription);
-            if config.use_resize_increments {
+            if config.window_config.use_resize_increments {
                 window.set_resize_increments(
                     ResizeIncrementCalculator {
                         x: myself.render_metrics.cell_size.width as u16,
@@ -905,7 +905,7 @@ impl TermWindow {
                 // that the mux can empty out, otherwise the mux keeps
                 // the TermWindow alive via the frontend even though
                 // the window is gone and we'll linger forever.
-                // <https://github.com/wezterm/wezterm/issues/3522>
+                // <https://github.com/PaleRoses/phaedra/issues/3522>
                 self.clear_all_overlays();
                 Ok(false)
             }
@@ -924,7 +924,7 @@ impl TermWindow {
                 // What's fugly about this is that we'll reload the
                 // global config here once per window, which could
                 // be nasty for folks with a lot of windows.
-                // <https://github.com/wezterm/wezterm/issues/2295>
+                // <https://github.com/PaleRoses/phaedra/issues/2295>
                 config::reload();
                 self.config_was_reloaded();
                 Ok(true)
@@ -980,7 +980,7 @@ impl TermWindow {
                 Ok(true)
             }
             WindowEvent::AdviseDeadKeyStatus(status) => {
-                if self.config.debug_key_events {
+                if self.config.key_input.debug_key_events {
                     log::info!("DeadKeyStatus now: {:?}", status);
                 } else {
                     log::trace!("DeadKeyStatus now: {:?}", status);
@@ -1097,7 +1097,7 @@ impl TermWindow {
                     // So we do a bit of fancy footwork here to resolve the overlay
                     // and use that if it has the same pane_id, but otherwise fall
                     // back to what we get from the mux.
-                    // <https://github.com/wezterm/wezterm/issues/3209>
+                    // <https://github.com/PaleRoses/phaedra/issues/3209>
                     let active_pane = self
                         .get_active_pane_or_overlay()
                         .ok_or_else(|| anyhow!("there is no active pane!?"))?;
@@ -1730,17 +1730,17 @@ impl TermWindow {
             None,
         );
         *self.blink_state.borrow_mut() = ColorEase::new(
-            config.text_blink_rate,
-            config.text_blink_ease_in,
-            config.text_blink_rate,
-            config.text_blink_ease_out,
+            config.text.text_blink_rate,
+            config.text.text_blink_ease_in,
+            config.text.text_blink_rate,
+            config.text.text_blink_ease_out,
             None,
         );
         *self.rapid_blink_state.borrow_mut() = ColorEase::new(
-            config.text_blink_rate_rapid,
-            config.text_blink_rapid_ease_in,
-            config.text_blink_rate_rapid,
-            config.text_blink_rapid_ease_out,
+            config.text.text_blink_rate_rapid,
+            config.text.text_blink_rapid_ease_in,
+            config.text.text_blink_rate_rapid,
+            config.text.text_blink_rapid_ease_out,
             None,
         );
 
@@ -1965,7 +1965,7 @@ impl TermWindow {
             },
             &tabs,
             &panes,
-            self.config.resolved_palette.tab_bar.as_ref(),
+            self.config.color_config.resolved_palette.tab_bar.as_ref(),
             &self.config,
             &self.left_status,
             &self.right_status,
@@ -2151,7 +2151,7 @@ impl TermWindow {
             .ok_or_else(|| anyhow!("no such window"))?;
 
         // This logic is coupled with the CliSubCommand::ActivateTab
-        // logic in wezterm/src/main.rs. If you update this, update that!
+        // logic in phaedra/src/main.rs. If you update this, update that!
         let max = window.len();
 
         let tab_idx = if tab_idx < 0 {
@@ -2185,7 +2185,7 @@ impl TermWindow {
         ensure!(max > 0, "no more tabs");
 
         // This logic is coupled with the CliSubCommand::ActivateTab
-        // logic in wezterm/src/main.rs. If you update this, update that!
+        // logic in phaedra/src/main.rs. If you update this, update that!
         let active = window.get_active_idx() as isize;
         let tab = active + delta;
         let tab = if wrap {
@@ -2401,7 +2401,7 @@ impl TermWindow {
             .unwrap_or("Fuzzy matching: ".to_string());
 
         let config = &self.config;
-        let alphabet = args.alphabet.unwrap_or(config.launcher_alphabet.clone());
+        let alphabet = args.alphabet.unwrap_or(config.key_input.launcher_alphabet.clone());
 
         promise::spawn::spawn(async move {
             let args = LauncherArgs::new(
@@ -2457,7 +2457,7 @@ impl TermWindow {
             // dedup to avoid issues where both left and right prompts are
             // defined: we only care if there were 1+ prompts on a line,
             // not about how many prompts are on a line.
-            // <https://github.com/wezterm/wezterm/issues/1121>
+            // <https://github.com/PaleRoses/phaedra/issues/1121>
             zones.dedup();
             cache.zones = zones;
             cache.seqno = seqno;
@@ -2716,7 +2716,7 @@ impl TermWindow {
                 use keyevent::Key;
                 let mods = key.mods;
                 if let Key::Code(key) = self.win_key_code_to_termwiz_key_code(
-                    &key.key.resolve(self.config.key_map_preference),
+                    &key.key.resolve(self.config.key_input.key_map_preference),
                 ) {
                     pane.key_down(key, mods)?;
                 }
@@ -2766,7 +2766,7 @@ impl TermWindow {
                 let config = &self.config;
                 log::info!("QuitApplication over here (window)");
 
-                match config.window_close_confirmation {
+                match config.window_config.window_close_confirmation {
                     WindowCloseConfirmation::NeverPrompt => {
                         let con = Connection::get().expect("call on gui thread");
                         con.terminate_message_loop();

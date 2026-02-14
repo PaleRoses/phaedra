@@ -1,7 +1,7 @@
 [package]
 name = "phaedra-input-types"
 version = "0.1.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2021"
 repository = "https://github.com/PaleRoses/phaedra"
 description = "config serialization for phaedra via dynamic json-like data values"
@@ -11,10 +11,12 @@ license = "MIT"
 
 [dependencies]
 bitflags.workspace = true
-euclid.workspace = true
+euclid = {workspace = true, features = ["libm"]}
 serde = {workspace=true, features = ["rc", "derive"], optional=true}
-phaedra-dynamic.workspace = true
+phaedra-dynamic = {workspace = true, optional = true}
 
 [features]
-default = ["serde", "std"]
-std = ["serde/std", "euclid/std"]
+default = ["dynamic"]
+dynamic = ["dep:phaedra-dynamic"]
+serde = ["dep:serde", "bitflags/serde"]
+std = ["dynamic", "serde", "serde/std", "euclid/std"]

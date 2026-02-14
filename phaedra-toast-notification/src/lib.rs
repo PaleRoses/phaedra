@@ -1,6 +1,4 @@
-mod dbus;
 mod macos;
-mod windows;
 
 #[derive(Debug, Clone)]
 pub struct ToastNotification {
@@ -16,12 +14,10 @@ impl ToastNotification {
     }
 }
 
-#[cfg(windows)]
-use crate::windows as backend;
-#[cfg(all(not(target_os = "macos"), not(windows)))]
-use dbus as backend;
 #[cfg(target_os = "macos")]
 use macos as backend;
+#[cfg(not(target_os = "macos"))]
+use nop as backend;
 
 mod nop {
     use super::*;

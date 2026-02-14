@@ -228,9 +228,9 @@ impl Window {
 
         unsafe {
             let style_mask = decoration_to_mask(
-                config.window_decorations,
-                config.integrated_title_button_style,
-            );
+                config.window_config.window_decorations,
+                config.window_config.integrated_title_button_style,
+            ) | NSWindowStyleMask::NSFullSizeContentViewWindowMask;
             let rect = NSRect::new(
                 NSPoint::new(0., 0.),
                 NSSize::new(width as f64, height as f64),
@@ -275,8 +275,8 @@ impl Window {
 
             apply_decorations_to_window(
                 &window,
-                config.window_decorations,
-                config.integrated_title_button_style,
+                config.window_config.window_decorations,
+                config.window_config.integrated_title_button_style,
             );
 
             // Prevent Cocoa native tabs from being used
@@ -357,7 +357,7 @@ impl Window {
             CGSSetWindowBackgroundBlurRadius(
                 CGSMainConnectionID(),
                 window.windowNumber(),
-                config.macos_window_background_blur,
+                config.window_config.macos_window_background_blur,
             );
             window.setContentView_(*view);
             window.setDelegate_(*view);
@@ -630,7 +630,7 @@ impl WindowOps for Window {
 
         let border_dimensions = if window_state.contains(WindowState::FULL_SCREEN)
             && !native_full_screen
-            && !config.macos_fullscreen_extend_behind_notch
+            && !config.window_config.macos_fullscreen_extend_behind_notch
         {
             let main_screen = unsafe { NSScreen::mainScreen(nil) };
             let has_safe_area_insets: BOOL =
@@ -726,8 +726,8 @@ impl WindowInner {
         if !self.is_fullscreen() {
             apply_decorations_to_window(
                 &self.window,
-                self.config.window_decorations,
-                self.config.integrated_title_button_style,
+                self.config.window_config.window_decorations,
+                self.config.window_config.integrated_title_button_style,
             );
         }
     }
@@ -779,8 +779,8 @@ impl WindowInner {
                     self.window.orderOut_(nil);
                     apply_decorations_to_window(
                         &self.window,
-                        self.config.window_decorations,
-                        self.config.integrated_title_button_style,
+                        self.config.window_config.window_decorations,
+                        self.config.window_config.integrated_title_button_style,
                     );
                     self.window.setFrame_display_(saved_rect, YES);
                     self.window.makeKeyAndOrderFront_(nil);
@@ -817,28 +817,24 @@ impl WindowInner {
     }
 
     fn update_window_shadow(&mut self) {
-        let is_opaque = if self.config.window_background_opacity >= 1.0 {
-            YES
-        } else {
-            NO
-        };
+        let is_opaque = YES;
         unsafe {
             self.window.setOpaque_(is_opaque);
             // when transparent, also turn off the window shadow,
             // because having the shadow enabled seems to correlate
             // with ghostly remnants see:
-            // https://github.com/wezterm/wezterm/issues/310.
+            // https://github.com/PaleRoses/phaedra/issues/310.
             // But allow overriding the shadows independent of opacity as well:
-            // <https://github.com/wezterm/wezterm/issues/2669>
+            // <https://github.com/PaleRoses/phaedra/issues/2669>
             let shadow = if self
                 .config
-                .window_decorations
+                .window_config.window_decorations
                 .contains(WindowDecorations::MACOS_FORCE_ENABLE_SHADOW)
             {
                 YES
             } else if self
                 .config
-                .window_decorations
+                .window_config.window_decorations
                 .contains(WindowDecorations::MACOS_FORCE_DISABLE_SHADOW)
             {
                 NO
@@ -852,7 +848,7 @@ impl WindowInner {
     fn update_titlebar_background(&self) {
         if !self
             .config
-            .window_decorations
+            .window_config.window_decorations
             .contains(WindowDecorations::MACOS_USE_BACKGROUND_COLOR_AS_TITLEBAR_COLOR)
         {
             return;
@@ -862,7 +858,7 @@ impl WindowInner {
         // specified color scheme
         let color = self
             .config
-            .resolved_palette
+            .color_config.resolved_palette
             .background
             .unwrap_or(RgbaColor::from(SrgbaTuple(0., 0., 0., 255.)));
 
@@ -894,7 +890,7 @@ impl WindowInner {
             CGSSetWindowBackgroundBlurRadius(
                 CGSMainConnectionID(),
                 self.window.windowNumber(),
-                self.config.macos_window_background_blur,
+                self.config.window_config.macos_window_background_blur,
             );
         }
     }
@@ -915,8 +911,8 @@ impl WindowInner {
 
             apply_decorations_to_window(
                 &self.window,
-                self.config.window_decorations,
-                self.config.integrated_title_button_style,
+                self.config.window_config.window_decorations,
+                self.config.window_config.integrated_title_button_style,
             );
 
             self.update_titlebar_background();
@@ -1016,7 +1012,7 @@ impl WindowInner {
         if let Some(window_view) = WindowView::get_this(unsafe { &**self.view }) {
             window_view.inner.borrow_mut().text_cursor_position = cursor;
         }
-        if self.config.use_ime {
+        if self.config.key_input.use_ime {
             unsafe {
                 let input_context: id = msg_send![&**self.view, inputContext];
                 let () = msg_send![input_context, invalidateCharacterCoordinates];
@@ -1045,7 +1041,7 @@ impl WindowInner {
     }
 
     fn toggle_fullscreen(&mut self) {
-        let native_fullscreen = self.config.native_macos_fullscreen_mode;
+        let native_fullscreen = self.config.window_config.native_macos_fullscreen_mode;
 
         // If they changed their config since going full screen, be sure
         // to undo whichever fullscreen mode they had active rather than
@@ -1077,7 +1073,7 @@ impl WindowInner {
 
     fn config_did_change(&mut self, config: &ConfigHandle) {
         let dpi_changed =
-            self.config.dpi != config.dpi || self.config.dpi_by_screen != config.dpi_by_screen;
+            self.config.font_config.dpi != config.font_config.dpi || self.config.font_config.dpi_by_screen != config.font_config.dpi_by_screen;
 
         self.config = config.clone();
         if let Some(window_view) = WindowView::get_this(unsafe { &**self.view }) {
@@ -1109,7 +1105,8 @@ fn apply_decorations_to_window(
     decorations: WindowDecorations,
     integrated_title_button_style: IntegratedTitleButtonStyle,
 ) {
-    let mask = decoration_to_mask(decorations, integrated_title_button_style);
+    let mask = decoration_to_mask(decorations, integrated_title_button_style)
+        | NSWindowStyleMask::NSFullSizeContentViewWindowMask;
     let decorations = effective_decorations(decorations, integrated_title_button_style);
     unsafe {
         window.setStyleMask_(mask);
@@ -1131,19 +1128,8 @@ fn apply_decorations_to_window(
             let _: () = msg_send![button, setHidden: hidden];
         }
 
-        window.setTitleVisibility_(if decorations.contains(WindowDecorations::TITLE) {
-            appkit::NSWindowTitleVisibility::NSWindowTitleVisible
-        } else {
-            appkit::NSWindowTitleVisibility::NSWindowTitleHidden
-        });
-
-        if decorations.contains(WindowDecorations::INTEGRATED_BUTTONS)
-            || decorations.contains(WindowDecorations::MACOS_USE_BACKGROUND_COLOR_AS_TITLEBAR_COLOR)
-        {
-            window.setTitlebarAppearsTransparent_(YES);
-        } else {
-            window.setTitlebarAppearsTransparent_(hidden);
-        }
+        window.setTitleVisibility_(appkit::NSWindowTitleVisibility::NSWindowTitleHidden);
+        window.setTitlebarAppearsTransparent_(YES);
     }
 }
 
@@ -1478,12 +1464,12 @@ impl Inner {
 
         let config = &self.config;
 
-        let use_dead_keys = if !config.use_dead_keys {
+        let use_dead_keys = if !config.key_input.use_dead_keys {
             false
         } else if mods.contains(Modifiers::LEFT_ALT) {
-            config.send_composed_key_when_left_alt_is_pressed
+            config.key_input.send_composed_key_when_left_alt_is_pressed
         } else if mods.contains(Modifiers::RIGHT_ALT) {
-            config.send_composed_key_when_right_alt_is_pressed
+            config.key_input.send_composed_key_when_right_alt_is_pressed
         } else {
             true
         };
@@ -1563,14 +1549,14 @@ pub fn superclass(this: &Object) -> &'static Class {
 }
 
 fn dpi_for_window_screen(ns_window: *mut Object, config: &ConfigHandle) -> Option<f64> {
-    if config.dpi_by_screen.is_empty() {
-        return config.dpi;
+    if config.font_config.dpi_by_screen.is_empty() {
+        return config.font_config.dpi;
     }
 
     let screen = unsafe { msg_send![ns_window, screen] };
     let info = crate::os::macos::connection::nsscreen_to_screen_info(screen);
 
-    config.dpi_by_screen.get(&info.name).copied()
+    config.font_config.dpi_by_screen.get(&info.name).copied()
 }
 
 #[allow(clippy::identity_op)]
@@ -1944,7 +1930,7 @@ impl WindowView {
 
         {
             let inner = self.inner.borrow();
-            native_full_screen = inner.config.native_macos_fullscreen_mode;
+            native_full_screen = inner.config.window_config.native_macos_fullscreen_mode;
             is_simple_full_screen = inner.fullscreen.is_some();
         }
 
@@ -2011,7 +1997,7 @@ impl WindowView {
         menu_item: *mut Object,
     ) {
         let menu_item = MenuItem::with_menu_item(menu_item);
-        // Safe because weztermPerformKeyAssignment: is only used with KeyAssignment
+        // Safe because phaedraPerformKeyAssignment: is only used with KeyAssignment
         let action = menu_item.get_represented_item();
         log::debug!("phaedra_perform_key_assignment {action:?}",);
         match action {
@@ -2232,7 +2218,7 @@ impl WindowView {
             } else if virtual_key == kVK_Delete {
                 (true, "\x08")
             } else if virtual_key == kVK_ANSI_KeypadEnter {
-                // https://github.com/wezterm/wezterm/issues/739
+                // https://github.com/PaleRoses/phaedra/issues/739
                 // Keypad enter sends ctrl-c for some reason; explicitly
                 // treat that as enter here.
                 (true, "\r")
@@ -2242,7 +2228,7 @@ impl WindowView {
 
         // Shift-Tab on macOS produces \x19 for some reason.
         // Rewrite it to something we understand.
-        // <https://github.com/wezterm/wezterm/issues/1902>
+        // <https://github.com/PaleRoses/phaedra/issues/1902>
         let chars = if virtual_key == kVK_Tab && modifiers.contains(Modifiers::SHIFT) {
             "\t"
         } else {
@@ -2333,11 +2319,11 @@ impl WindowView {
         };
 
         let config_handle = config::configuration();
-        let use_ime = config_handle.use_ime;
+        let use_ime = config_handle.key_input.use_ime;
         let send_composed_key_when_left_alt_is_pressed =
-            config_handle.send_composed_key_when_left_alt_is_pressed;
+            config_handle.key_input.send_composed_key_when_left_alt_is_pressed;
         let send_composed_key_when_right_alt_is_pressed =
-            config_handle.send_composed_key_when_right_alt_is_pressed;
+            config_handle.key_input.send_composed_key_when_right_alt_is_pressed;
 
         // If unmod is empty it most likely means that the user has selected
         // an alternate keymap that has a chorded representation of eg: an ASCII
@@ -2365,7 +2351,7 @@ impl WindowView {
                 false
             } else {
                 modifiers.is_empty()
-                    || modifiers.intersects(config_handle.macos_forward_to_ime_modifier_mask)
+                    || modifiers.intersects(config_handle.key_input.macos_forward_to_ime_modifier_mask)
             }
         };
 
@@ -2462,14 +2448,14 @@ impl WindowView {
         // which isn't particularly helpful. eg: ALT+SHIFT+` produces chars='`' and unmod='~'
         // In this case, we take the key from unmod.
         // We leave `raw` set to None as we want to preserve the value of modifiers.
-        // <https://github.com/wezterm/wezterm/issues/1706>.
+        // <https://github.com/PaleRoses/phaedra/issues/1706>.
         // We can't do this for every ALT+SHIFT combo, as the weird behavior doesn't
         // apply to eg: ALT+SHIFT+789 for Norwegian layouts
-        // <https://github.com/wezterm/wezterm/issues/760>
+        // <https://github.com/PaleRoses/phaedra/issues/760>
         let swap_unmod_and_chars = (modifiers.contains(Modifiers::SHIFT | Modifiers::ALT)
             && virtual_key == kVK_ANSI_Grave)
             ||
-            // <https://github.com/wezterm/wezterm/issues/1907>
+            // <https://github.com/PaleRoses/phaedra/issues/1907>
             (modifiers.contains(Modifiers::SHIFT | Modifiers::CTRL)
                 && virtual_key == kVK_ANSI_Slash);
 
@@ -2508,7 +2494,7 @@ impl WindowView {
                     // But take care: on German layouts CTRL-Backslash has unmod="/"
                     // but chars="\x1c"; we only want to do this transformation when
                     // chars and unmod have that base ASCII relationship.
-                    // <https://github.com/wezterm/wezterm/issues/1891>
+                    // <https://github.com/PaleRoses/phaedra/issues/1891>
                     (KeyCode::Char(c), Some(KeyCode::Char(raw)))
                         if is_ascii_control(*c) == Some(raw.to_ascii_lowercase()) =>
                     {
@@ -2573,7 +2559,7 @@ impl WindowView {
         {
             // Synthesize a key down event for this, because macOS will
             // not do that, even though we tell it that we handled this event.
-            // <https://github.com/wezterm/wezterm/issues/1867>
+            // <https://github.com/PaleRoses/phaedra/issues/1867>
             Self::key_common(this, nsevent, true);
 
             // Prevent macOS from calling doCommandBySelector(cancel:)
@@ -2662,7 +2648,7 @@ impl WindowView {
             // the current screen changing. We cannot detect that case here.
             // There is some logic to compensate for this in
             // phaedra-gui/src/termwindow/resize.rs.
-            // <https://github.com/wezterm/wezterm/issues/3503>
+            // <https://github.com/PaleRoses/phaedra/issues/3503>
             let is_zoomed = !is_full_screen
                 && inner.window.as_ref().map_or(false, |window| {
                     let window = window.load();
@@ -2914,7 +2900,7 @@ impl WindowView {
             );
 
             cls.add_method(
-                sel!(weztermPerformKeyAssignment:),
+                sel!(phaedraPerformKeyAssignment:),
                 Self::phaedra_perform_key_assignment
                     as extern "C" fn(&mut Object, Sel, *mut Object),
             );

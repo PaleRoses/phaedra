@@ -1,5 +1,5 @@
 //! a tab hosting a termwiz terminal applet
-//! The idea is to use these when wezterm needs to request
+//! The idea is to use these when phaedra needs to request
 //! input from the user as part of eg: setting up an ssh
 //! session.
 

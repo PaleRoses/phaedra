@@ -454,7 +454,7 @@ impl CellAttributes {
         // color when erasing rather than other attributes, so it should
         // be fine to clear out the actual underline attribute.
         // Let's extend this to other line attribute types as well.
-        // <https://github.com/wezterm/wezterm/issues/2489>
+        // <https://github.com/PaleRoses/phaedra/issues/2489>
         res.set_underline(Underline::None);
         res.set_overline(false);
         res.set_strikethrough(false);
@@ -846,7 +846,7 @@ impl UnicodeVersion {
     fn width(&self, c: WcWidth) -> usize {
         // Special case for symbol fonts that are naughtly and use
         // the unassigned range instead of the private use range.
-        // <https://github.com/wezterm/wezterm/issues/1864>
+        // <https://github.com/PaleRoses/phaedra/issues/1864>
         if c == WcWidth::Unassigned {
             1
         } else if c == WcWidth::Ambiguous && self.ambiguous_are_wide {
@@ -930,7 +930,7 @@ pub fn unicode_column_width(s: &str, version: Option<&UnicodeVersion>) -> usize 
 /// This means that a global understanding of the unicode version that
 /// is in use isn't a good solution.
 ///
-/// The approach that wezterm wants to take here is to define a
+/// The approach that phaedra wants to take here is to define a
 /// configuration value that sets the starting level of unicode conformance,
 /// and to define an escape sequence that can push/pop a desired confirmance
 /// level onto a stack maintained by the terminal emulator.
@@ -1197,7 +1197,7 @@ mod test {
         assert_eq!(grapheme_column_width(sequence2, None), 2);
     }
 
-    // See <https://github.com/wezterm/wezterm/issues/6637>
+    // See <https://github.com/PaleRoses/phaedra/issues/6637>
     // We're not directly "fixing" that issue here in termwiz at this time
     // because it isn't clear that this cell module has enough context
     // to eg: decide that the width of U+2028 should be returned as 1.
@@ -1220,7 +1220,7 @@ mod test {
         assert!(!is_white_space_char('x'));
 
         // U+2068 is a BIDI control character and is relevant here
-        // due to <https://github.com/wezterm/wezterm/issues/1422>.
+        // due to <https://github.com/PaleRoses/phaedra/issues/1422>.
         // It is Non-Printing, non-White_Space
         assert!(!is_white_space_char('\u{2068}'));
     }

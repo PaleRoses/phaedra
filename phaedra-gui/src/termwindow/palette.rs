@@ -277,7 +277,7 @@ impl CommandPalette {
                         bg: LinearRgba::TRANSPARENT.into(),
                         text: term_window
                             .config
-                            .command_palette_fg_color
+                            .color_config.command_palette_fg_color
                             .to_linear()
                             .into(),
                     })
@@ -308,12 +308,12 @@ impl CommandPalette {
 
             let solid_bg_color: InheritableColor = term_window
                 .config
-                .command_palette_bg_color
+                .color_config.command_palette_bg_color
                 .to_linear()
                 .into();
             let solid_fg_color: InheritableColor = term_window
                 .config
-                .command_palette_fg_color
+                .color_config.command_palette_fg_color
                 .to_linear()
                 .into();
 
@@ -371,7 +371,7 @@ impl CommandPalette {
                     a_key.cmp(&b_key)
                 });
 
-                let separator = if term_window.config.ui_key_cap_rendering
+                let separator = if term_window.config.key_input.ui_key_cap_rendering
                     == ::window::UIKeyCapRendering::AppleSymbols
                 {
                     " "
@@ -386,14 +386,14 @@ impl CommandPalette {
                             mods.to_string_with_separator(::window::ModifierToStringArgs {
                                 separator,
                                 want_none: false,
-                                ui_key_cap_rendering: Some(term_window.config.ui_key_cap_rendering),
+                                ui_key_cap_rendering: Some(term_window.config.key_input.ui_key_cap_rendering),
                             });
                         if !mod_string.is_empty() {
                             mod_string.push_str(separator);
                         }
                         let keycode = crate::inputmap::ui_key(
                             &keycode,
-                            term_window.config.ui_key_cap_rendering,
+                            term_window.config.key_input.ui_key_cap_rendering,
                         );
                         format!("{mod_string}{keycode}")
                     })
@@ -457,18 +457,18 @@ impl CommandPalette {
                 border: BorderColor::new(
                     term_window
                         .config
-                        .command_palette_bg_color
+                        .color_config.command_palette_bg_color
                         .to_linear()
                         .into(),
                 ),
                 bg: term_window
                     .config
-                    .command_palette_bg_color
+                    .color_config.command_palette_bg_color
                     .to_linear()
                     .into(),
                 text: term_window
                     .config
-                    .command_palette_fg_color
+                    .color_config.command_palette_fg_color
                     .to_linear()
                     .into(),
             })
@@ -666,7 +666,7 @@ impl Modal for CommandPalette {
         let mut max_rows_on_screen = ((term_window.dimensions.pixel_height * 8 / 10)
             / metrics.cell_size.height as usize)
             - 2;
-        if let Some(size) = term_window.config.command_palette_rows {
+        if let Some(size) = term_window.config.launch.command_palette_rows {
             max_rows_on_screen = max_rows_on_screen.min(size);
         }
         *self.max_rows_on_screen.borrow_mut() = max_rows_on_screen;

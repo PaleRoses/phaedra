@@ -1,7 +1,7 @@
 [package]
 name = "filedescriptor"
 version = "0.8.3"
-authors = ["Wez Furlong"]
+authors = ["PaleRoses"]
 edition = "2018"
 repository = "https://github.com/PaleRoses/phaedra"
 description = "More ergonomic wrappers around RawFd and RawHandle"
@@ -13,14 +13,3 @@ keywords = ["socketpair", "pipe", "poll", "filedescriptor"]
 [dependencies]
 thiserror.workspace = true
 libc.workspace = true
-
-[target."cfg(windows)".dependencies]
-winapi = { workspace=true, features = [
-    "winuser",
-    "handleapi",
-    "fileapi",
-    "namedpipeapi",
-    "processthreadsapi",
-    "winsock2",
-    "processenv"
-]}

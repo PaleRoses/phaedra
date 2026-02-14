@@ -23,11 +23,11 @@ mod cli;
 
 #[derive(Debug, Parser)]
 #[command(
-    about = "Wez's Terminal Emulator\nhttp://github.com/wezterm/wezterm",
+    about = "Wez's Terminal Emulator\nhttp://github.com/PaleRoses/phaedra",
     version = phaedra_version()
 )]
 pub struct Opt {
-    /// Skip loading wezterm.lua
+    /// Skip loading phaedra.lua
     #[arg(long, short = 'n')]
     skip_config: bool,
 
@@ -104,10 +104,7 @@ enum SubCommand {
     #[command(name = "ssh", about = "Establish an ssh session")]
     Ssh(SshCommand),
 
-    #[command(name = "serial", about = "Open a serial port")]
-    Serial(SerialCommand),
-
-    #[command(name = "connect", about = "Connect to wezterm multiplexer")]
+    #[command(name = "connect", about = "Connect to phaedra multiplexer")]
     Connect(ConnectCommand),
 
     #[command(name = "ls-fonts", about = "Display information about fonts")]
@@ -192,7 +189,7 @@ struct ImgCatCommand {
     /// Set the maximum number of pixels per image frame.
     /// Images will be scaled down so that they do not exceed this size,
     /// unless `--no-resample` is also used.
-    /// The default value matches the limit set by wezterm.
+    /// The default value matches the limit set by phaedra.
     /// Note that resampling the image here will reduce any animated
     /// images to a single frame.
     #[arg(long, default_value = "25000000")]
@@ -201,7 +198,7 @@ struct ImgCatCommand {
     /// Do not resample images whose frames are larger than the
     /// max-pixels value.
     /// Note that this will typically result in the image refusing
-    /// to display in wezterm.
+    /// to display in phaedra.
     #[arg(long)]
     no_resample: bool,
 
@@ -724,7 +721,7 @@ fn init_config(opts: &Opt) -> anyhow::Result<ConfigHandle> {
     .context("config::common_init")?;
     let config = config::configuration();
     config.update_ulimit()?;
-    if let Some(value) = &config.default_ssh_auth_sock {
+    if let Some(value) = &config.domain.default_ssh_auth_sock {
         std::env::set_var("SSH_AUTH_SOCK", value);
     }
     Ok(config)
@@ -748,7 +745,6 @@ fn run() -> anyhow::Result<()> {
         | SubCommand::LsFonts(_)
         | SubCommand::ShowKeys(_)
         | SubCommand::Ssh(_)
-        | SubCommand::Serial(_)
         | SubCommand::Connect(_) => delegate_to_gui(saver),
         SubCommand::ImageCat(cmd) => cmd.run(),
         SubCommand::SetCwd(cmd) => cmd.run(),

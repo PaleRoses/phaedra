@@ -62,7 +62,7 @@ impl crate::TermWindow {
         let items = self.tab_bar.items();
         let colors = self
             .config
-            .colors
+            .color_config.colors
             .as_ref()
             .and_then(|c| c.tab_bar.as_ref())
             .cloned()
@@ -74,16 +74,16 @@ impl crate::TermWindow {
         let bar_colors = ElementColors {
             border: BorderColor::default(),
             bg: if self.focused.is_some() {
-                self.config.window_frame.active_titlebar_bg
+                self.config.window_config.window_frame.active_titlebar_bg
             } else {
-                self.config.window_frame.inactive_titlebar_bg
+                self.config.window_config.window_frame.inactive_titlebar_bg
             }
             .to_linear()
             .into(),
             text: if self.focused.is_some() {
-                self.config.window_frame.active_titlebar_fg
+                self.config.window_config.window_frame.active_titlebar_fg
             } else {
-                self.config.window_frame.inactive_titlebar_fg
+                self.config.window_config.window_frame.inactive_titlebar_fg
             }
             .to_linear()
             .into(),
@@ -310,9 +310,9 @@ impl crate::TermWindow {
         // Reserve space for the native titlebar buttons
         if self
             .config
-            .window_decorations
+            .window_config.window_decorations
             .contains(::window::WindowDecorations::INTEGRATED_BUTTONS)
-            && self.config.integrated_title_button_style == IntegratedTitleButtonStyle::MacOsNative
+            && self.config.window_config.integrated_title_button_style == IntegratedTitleButtonStyle::MacOsNative
             && !self.window_state.contains(window::WindowState::FULL_SCREEN)
         {
             left_status.push(
@@ -330,7 +330,7 @@ impl crate::TermWindow {
                 TabBarItem::LeftStatus => left_status.push(item_to_elem(item)),
                 TabBarItem::None | TabBarItem::RightStatus => right_eles.push(item_to_elem(item)),
                 TabBarItem::WindowButton(_) => {
-                    if self.config.integrated_title_button_alignment
+                    if self.config.window_config.integrated_title_button_alignment
                         == IntegratedTitleButtonAlignment::Left
                     {
                         left_eles.push(item_to_elem(item))
@@ -368,15 +368,15 @@ impl crate::TermWindow {
 
         let window_buttons_at_left = self
             .config
-            .window_decorations
+            .window_config.window_decorations
             .contains(window::WindowDecorations::INTEGRATED_BUTTONS)
-            && (self.config.integrated_title_button_alignment
+            && (self.config.window_config.integrated_title_button_alignment
                 == IntegratedTitleButtonAlignment::Left
-                || self.config.integrated_title_button_style
+                || self.config.window_config.integrated_title_button_style
                     == IntegratedTitleButtonStyle::MacOsNative);
 
         let left_padding = if window_buttons_at_left {
-            if self.config.integrated_title_button_style == IntegratedTitleButtonStyle::MacOsNative
+            if self.config.window_config.integrated_title_button_style == IntegratedTitleButtonStyle::MacOsNative
             {
                 if !self.window_state.contains(window::WindowState::FULL_SCREEN) {
                     Dimension::Pixels(70.0)

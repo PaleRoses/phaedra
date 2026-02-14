@@ -1,7 +1,7 @@
 [package]
 name = "phaedra"
 version = "0.1.0"
-authors = ["Wez Furlong <wez@wezfurlong.org>"]
+authors = ["PaleRoses"]
 edition = "2018"
 publish = false
 
@@ -42,20 +42,3 @@ phaedra-term.workspace = true
 
 [target."cfg(unix)".dependencies]
 termios.workspace = true
-
-[target."cfg(windows)".dependencies.winapi]
-features = [
-    "winbase",
-    "winerror",
-    "winnls",
-    "winuser",
-    "consoleapi",
-    "handleapi",
-    "fileapi",
-    "synchapi",
-]
-workspace = true
-
-[target.'cfg(windows)'.build-dependencies]
-cc.workspace = true
-embed-resource.workspace = true

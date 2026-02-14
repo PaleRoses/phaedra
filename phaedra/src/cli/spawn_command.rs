@@ -44,7 +44,7 @@ pub struct SpawnCommand {
     workspace: Option<String>,
 
     /// Instead of executing your shell, run PROG.
-    /// For example: `wezterm cli spawn -- bash -l` will spawn bash
+    /// For example: `phaedra cli spawn -- bash -l` will spawn bash
     /// as if it were a login shell.
     #[arg(value_parser, value_hint=ValueHint::CommandWithArguments, num_args=1..)]
     prog: Vec<OsString>,
@@ -88,7 +88,7 @@ impl SpawnCommand {
             .as_deref()
             .unwrap_or(
                 config
-                    .default_workspace
+                    .launch.default_workspace
                     .as_deref()
                     .unwrap_or(mux::DEFAULT_WORKSPACE),
             )
