@@ -24,8 +24,8 @@ use crate::termwindow::keyevent::{KeyTableArgs, KeyTableState};
 use crate::termwindow::modal::Modal;
 use crate::termwindow::render::paint::AllowImage;
 use crate::termwindow::render::{
-    CachedLineState, LineQuadCacheKey, LineQuadCacheValue, LineToEleShapeCacheKey,
-    LineToElementShapeItem,
+    CachedLineState, LineCommandCacheValue, LineQuadCacheKey, LineQuadCacheValue,
+    LineToEleShapeCacheKey, LineToElementShapeItem,
 };
 use crate::termwindow::webgpu::WebGpuState;
 use ::phaedra_term::input::{ClickPosition, MouseButton as TMB};
@@ -52,7 +52,7 @@ use mux::{Mux, MuxNotification};
 use mux_lua::MuxPane;
 use smol::channel::Sender;
 use smol::Timer;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::{HashMap, LinkedList};
 use std::ops::Add;
 use std::rc::Rc;
@@ -426,9 +426,10 @@ pub struct TermWindow {
     line_to_ele_shape_cache: RefCell<LfuCache<LineToEleShapeCacheKey, LineToElementShapeItem>>,
 
     line_state_cache: RefCell<LfuCacheU64<Arc<CachedLineState>>>,
-    next_line_state_id: u64,
+    next_line_state_id: Cell<u64>,
 
     line_quad_cache: RefCell<LfuCache<LineQuadCacheKey, LineQuadCacheValue>>,
+    line_command_cache: RefCell<LfuCache<LineQuadCacheKey, LineCommandCacheValue>>,
 
     last_status_call: Instant,
     cursor_blink_state: RefCell<ColorEase>,
@@ -737,10 +738,16 @@ impl TermWindow {
                 |config| config.cache().line_state_cache_size,
                 &config,
             )),
-            next_line_state_id: 0,
+            next_line_state_id: Cell::new(0),
             line_quad_cache: RefCell::new(LfuCache::new(
                 "line_quad_cache.hit.rate",
                 "line_quad_cache.miss.rate",
+                |config| config.cache().line_quad_cache_size,
+                &config,
+            )),
+            line_command_cache: RefCell::new(LfuCache::new(
+                "line_command_cache.hit.rate",
+                "line_command_cache.miss.rate",
                 |config| config.cache().line_quad_cache_size,
                 &config,
             )),
@@ -1753,6 +1760,7 @@ impl TermWindow {
         }
         self.line_state_cache.borrow_mut().update_config(&config);
         self.line_quad_cache.borrow_mut().update_config(&config);
+        self.line_command_cache.borrow_mut().update_config(&config);
         self.line_to_ele_shape_cache
             .borrow_mut()
             .update_config(&config);

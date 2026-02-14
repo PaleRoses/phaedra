@@ -6,6 +6,7 @@ use crate::quad::{
     HeapQuadAllocator, QuadAllocator, QuadImpl, QuadTrait, TripleLayerQuadAllocator,
     TripleLayerQuadAllocatorTrait,
 };
+use crate::render_command::RenderCommand;
 use crate::shapecache::*;
 use crate::termwindow::render::paint::AllowImage;
 use crate::termwindow::{BorrowedShapeCacheKey, RenderState, ShapedInfo, TermWindowNotif};
@@ -81,6 +82,13 @@ pub struct LineQuadCacheValue {
     pub layers: HeapQuadAllocator,
     // Only set if the line contains any hyperlinks, so
     // that we can invalidate when it changes
+    pub current_highlight: Option<Arc<Hyperlink>>,
+    pub invalidate_on_hover_change: bool,
+}
+
+pub struct LineCommandCacheValue {
+    pub expires: Option<Instant>,
+    pub commands: Vec<RenderCommand>,
     pub current_highlight: Option<Arc<Hyperlink>>,
     pub invalidate_on_hover_change: bool,
 }
@@ -865,13 +873,14 @@ impl crate::TermWindow {
         self.shape_generation += 1;
         self.shape_cache.borrow_mut().clear();
         self.line_to_ele_shape_cache.borrow_mut().clear();
+        self.line_command_cache.borrow_mut().clear();
         if let Some(render_state) = self.render_state.as_mut() {
             render_state.recreate_texture_atlas(&self.fonts, &self.render_metrics, size)?;
         }
         Ok(())
     }
 
-    fn shape_hash_for_line(&mut self, line: &Line) -> [u8; 16] {
+    fn shape_hash_for_line(&self, line: &Line) -> [u8; 16] {
         let seqno = line.current_seqno();
         let mut id = None;
         if let Some(cached_arc) = line.get_appdata() {
@@ -886,8 +895,8 @@ impl crate::TermWindow {
         }
 
         let id = id.unwrap_or_else(|| {
-            let id = self.next_line_state_id;
-            self.next_line_state_id += 1;
+            let id = self.next_line_state_id.get();
+            self.next_line_state_id.set(id + 1);
             id
         });
 

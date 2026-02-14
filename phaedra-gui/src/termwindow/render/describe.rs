@@ -2,18 +2,24 @@ use crate::frame::{ChromeFrame, Frame, PaneFrame, PostProcessParams};
 use crate::render_command::{HsbTransform as CmdHsbTransform, RectF, RenderCommand};
 use crate::selection::SelectionRange;
 use crate::termwindow::render::paint::AllowImage;
-use crate::termwindow::render::{RenderScreenLineParams, RenderScreenLineResult};
+use crate::termwindow::render::{
+    same_hyperlink, CursorProperties, LineCommandCacheValue, LineQuadCacheKey,
+    LineToEleShapeCacheKey, RenderScreenLineParams, RenderScreenLineResult,
+};
 use crate::termwindow::{ScrollHit, UIItem, UIItemType};
 use anyhow::Context;
+use ::window::DeadKeyStatus;
 use config::observers::*;
 use config::{TermConfig, VisualBellTarget};
 use mux::pane::{Pane, WithPaneLines};
 use mux::renderable::{RenderableDimensions, StableCursorPosition};
 use mux::tab::{PositionedPane, PositionedSplit, SplitDirection};
+use ordered_float::NotNan;
 use phaedra_dynamic::Value;
 use phaedra_term::color::{ColorAttribute, ColorPalette};
 use phaedra_term::{Line, StableRowIndex, TerminalConfiguration};
 use std::sync::Arc;
+use std::time::Instant;
 use window::bitmaps::TextureRect;
 use window::color::LinearRgba;
 
@@ -492,33 +498,111 @@ impl crate::TermWindow {
                     .map_or(0..0, |sel| sel.cols_for_row(stable_row, self.rectangular));
                 let selection = selrange.start..selrange.end.min(self.dims.cols);
 
-                let password_input = if self.cursor.y == stable_row
-                    && self
-                        .term_window
-                        .config
-                        .terminal_features()
-                        .detect_password_input
-                {
-                    match self.pos.pane.get_metadata() {
-                        Value::Object(obj) => match obj.get(&Value::String("password_input".to_string())) {
-                            Some(Value::Bool(b)) => *b,
-                            _ => false,
+                let (cursor, composing, password_input) = if self.cursor.y == stable_row {
+                    (
+                        Some(CursorProperties {
+                            position: StableCursorPosition {
+                                y: 0,
+                                ..*self.cursor
+                            },
+                            dead_key_or_leader: self.term_window.dead_key_status
+                                != DeadKeyStatus::None
+                                || self.term_window.leader_is_active(),
+                            cursor_fg: self.cursor_fg,
+                            cursor_bg: self.cursor_bg,
+                            cursor_border_color: self.cursor_border_color,
+                            cursor_is_default_color: self.cursor_is_default_color,
+                        }),
+                        match (self.pos.is_active, &self.term_window.dead_key_status) {
+                            (true, DeadKeyStatus::Composing(composing)) => Some(composing.to_string()),
+                            _ => None,
                         },
-                        _ => false,
-                    }
+                        if self.term_window.config.terminal_features().detect_password_input {
+                            match self.pos.pane.get_metadata() {
+                                Value::Object(obj) => {
+                                    match obj.get(&Value::String("password_input".to_string())) {
+                                        Some(Value::Bool(b)) => *b,
+                                        _ => false,
+                                    }
+                                }
+                                _ => false,
+                            }
+                        } else {
+                            false
+                        },
+                    )
                 } else {
-                    false
+                    (None, None, false)
                 };
 
-                let (mut line_commands, _line_result): (
+                let shape_hash = self.term_window.shape_hash_for_line(line);
+                let quad_key = LineQuadCacheKey {
+                    pane_id: self.pos.pane.pane_id(),
+                    password_input,
+                    pane_is_active: self.pos.is_active,
+                    config_generation: self.term_window.config.generation(),
+                    shape_generation: self.term_window.shape_generation,
+                    quad_generation: self.term_window.quad_generation,
+                    composing: composing.clone(),
+                    selection: selection.clone(),
+                    cursor,
+                    shape_hash,
+                    top_pixel_y: NotNan::new(self.top_pixel_y).unwrap()
+                        + (line_idx + self.pos.top) as f32
+                            * self.term_window.render_metrics.cell_size.height as f32,
+                    left_pixel_x: NotNan::new(self.left_pixel_x).unwrap(),
+                    phys_line_idx: line_idx,
+                    reverse_video: self.dims.reverse_video,
+                };
+
+                let cached_commands = {
+                    let mut cache = self.term_window.line_command_cache.borrow_mut();
+                    cache.get(&quad_key).and_then(|cached| {
+                        let expired = cached.expires.map(|i| Instant::now() >= i).unwrap_or(false);
+                        let hover_changed = if cached.invalidate_on_hover_change {
+                            !same_hyperlink(
+                                cached.current_highlight.as_ref(),
+                                self.term_window.current_highlight.as_ref(),
+                            )
+                        } else {
+                            false
+                        };
+                        if expired || hover_changed {
+                            None
+                        } else {
+                            self.term_window.update_next_frame_time(cached.expires);
+                            Some(cached.commands.clone())
+                        }
+                    })
+                };
+
+                if let Some(mut commands) = cached_commands {
+                    self.commands.append(&mut commands);
+                    return Ok(());
+                }
+
+                let next_due = self.term_window.has_animation.borrow_mut().take();
+                let shape_key = LineToEleShapeCacheKey {
+                    shape_hash,
+                    shape_generation: quad_key.shape_generation,
+                    composing: if self.cursor.y == stable_row && self.pos.is_active {
+                        if let DeadKeyStatus::Composing(composing) = &self.term_window.dead_key_status {
+                            Some((self.cursor.x, composing.to_string()))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    },
+                };
+
+                let (mut line_commands, line_result): (
                     Vec<RenderCommand>,
                     RenderScreenLineResult,
                 ) = self
                     .term_window
                     .describe_screen_line(RenderScreenLineParams {
-                        top_pixel_y: self.top_pixel_y
-                            + (line_idx + self.pos.top) as f32
-                                * self.term_window.render_metrics.cell_size.height as f32,
+                        top_pixel_y: *quad_key.top_pixel_y,
                         left_pixel_x: self.left_pixel_x,
                         pixel_width: self.dims.cols as f32
                             * self.term_window.render_metrics.cell_size.width as f32,
@@ -550,10 +634,30 @@ impl crate::TermWindow {
                             .text()
                             .experimental_pixel_positioning,
                         render_metrics: self.term_window.render_metrics,
-                        shape_key: None,
+                        shape_key: Some(shape_key),
                         password_input,
                     })
                     .context("describe_screen_line")?;
+
+                let expires = self.term_window.has_animation.borrow().as_ref().cloned();
+                self.term_window.update_next_frame_time(next_due);
+
+                self.term_window
+                    .line_command_cache
+                    .borrow_mut()
+                    .put(
+                        quad_key,
+                        LineCommandCacheValue {
+                            expires,
+                            commands: line_commands.clone(),
+                            invalidate_on_hover_change: line_result.invalidate_on_hover_change,
+                            current_highlight: if line_result.invalidate_on_hover_change {
+                                self.term_window.current_highlight.clone()
+                            } else {
+                                None
+                            },
+                        },
+                    );
 
                 self.commands.append(&mut line_commands);
                 Ok(())
