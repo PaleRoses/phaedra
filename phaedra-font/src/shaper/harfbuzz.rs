@@ -3,6 +3,7 @@ use crate::shaper::{FallbackIdx, FontMetrics, FontShaper, GlyphInfo, Presentatio
 use crate::units::*;
 use crate::{ftwrap, hbwrap as harfbuzz};
 use anyhow::{anyhow, Context};
+use config::observers::*;
 use config::ConfigHandle;
 use finl_unicode::grapheme_clusters::Graphemes;
 use log::error;
@@ -127,7 +128,7 @@ impl HarfbuzzShaper {
         let lang = harfbuzz::language_from_string("en")?;
 
         let features: Vec<harfbuzz::hb_feature_t> = config
-            .font_config
+            .font_config()
             .harfbuzz_features
             .iter()
             .filter_map(|s| harfbuzz::feature_from_string(s).ok())

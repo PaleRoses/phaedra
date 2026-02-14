@@ -1,4 +1,5 @@
 use crate::overlay::quickselect;
+use config::observers::*;
 use crate::scripting::guiwin::GuiWin;
 use config::configuration;
 use config::keyassignment::{InputSelector, InputSelectorEntry, KeyAssignment};
@@ -121,7 +122,7 @@ impl SelectorState {
         let mut labels_iter = labels.into_iter();
 
         let config = configuration();
-        let colors = &config.color_config.resolved_palette;
+        let colors = &config.color_config().resolved_palette;
         let input_selector_label_fg = colors.input_selector_label_fg;
         let input_selector_label_bg = colors.input_selector_label_bg;
 

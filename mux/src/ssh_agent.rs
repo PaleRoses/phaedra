@@ -1,6 +1,7 @@
 use crate::{ClientId, Mux};
 use anyhow::Context;
 use chrono::{DateTime, Duration, Utc};
+use config::observers::*;
 use parking_lot::RwLock;
 #[cfg(unix)]
 use std::os::unix::fs::symlink as symlink_file;
@@ -102,7 +103,7 @@ impl AgentProxy {
     }
 
     pub fn default_ssh_auth_sock() -> Option<String> {
-        match &config::configuration().domain.default_ssh_auth_sock {
+        match &config::configuration().domain().default_ssh_auth_sock {
             Some(value) => Some(value.to_string()),
             None => std::env::var("SSH_AUTH_SOCK").ok(),
         }

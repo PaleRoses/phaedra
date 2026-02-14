@@ -1,4 +1,5 @@
 use crate::quad::Vertex;
+use config::observers::*;
 use anyhow::anyhow;
 use config::{ConfigHandle, GpuInfo, WebGpuPowerPreference};
 use std::cell::RefCell;
@@ -247,7 +248,7 @@ impl WebGpuState {
 
         let mut adapter: Option<wgpu::Adapter> = None;
 
-        if let Some(preference) = &config.webgpu_preferred_adapter {
+        if let Some(preference) = &config.gpu().webgpu_preferred_adapter {
             for a in instance.enumerate_adapters(backends) {
                 if !a.is_surface_supported(&surface) {
                     let info = adapter_info_to_gpu_info(a.get_info());
@@ -304,14 +305,14 @@ impl WebGpuState {
             adapter = Some(
                 instance
                     .request_adapter(&wgpu::RequestAdapterOptions {
-                        power_preference: match config.webgpu_power_preference {
+                        power_preference: match config.gpu().webgpu_power_preference {
                             WebGpuPowerPreference::HighPerformance => {
                                 wgpu::PowerPreference::HighPerformance
                             }
                             WebGpuPowerPreference::LowPower => wgpu::PowerPreference::LowPower,
                         },
                         compatible_surface: Some(&surface),
-                        force_fallback_adapter: config.webgpu_force_fallback_adapter,
+                        force_fallback_adapter: config.gpu().webgpu_force_fallback_adapter,
                     })
                     .await?,
             );

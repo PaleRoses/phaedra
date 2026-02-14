@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use codec::*;
 use config::configuration;
 use config::keyassignment::ScrollbackEraseMode;
+use config::observers::*;
 use mux::domain::DomainId;
 use mux::pane::{
     alloc_pane_id, CachePolicy, CloseReason, ForEachPaneLogicalLine, LogicalLine, Pane, PaneId,
@@ -71,7 +72,7 @@ impl ClientPane {
         )));
 
         let fetch_limiter =
-            RateLimiter::new(|config| config.ratelimit_mux_line_prefetches_per_second);
+            RateLimiter::new(|config| config.mux_config().ratelimit_mux_line_prefetches_per_second);
 
         let render = RenderableState {
             inner: RefCell::new(RenderableInner::new(
@@ -95,7 +96,7 @@ impl ClientPane {
         };
 
         let config = configuration();
-        let palette: ColorPalette = config.color_config.resolved_palette.clone().into();
+        let palette: ColorPalette = config.color_config().resolved_palette.clone().into();
 
         // Advise the server of our palette preference
         promise::spawn::spawn({

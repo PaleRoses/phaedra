@@ -1,4 +1,5 @@
 use crate::customglyph::*;
+use config::observers::*;
 use crate::termwindow::box_model::*;
 use crate::termwindow::render::corners::*;
 use crate::termwindow::{TabBarItem, UIItemType};
@@ -221,7 +222,7 @@ pub fn window_button_element(
     metrics: &RenderMetrics,
     config: &ConfigHandle,
 ) -> Element {
-    let style = config.window_config.integrated_title_button_style;
+    let style = config.window_config().integrated_title_button_style;
 
     if style == Style::MacOsNative {
         return Element::new(font, ElementContent::Text(String::new()));
@@ -329,9 +330,9 @@ pub fn window_button_element(
         Style::MacOsNative => unreachable!(),
     };
 
-    let foreground = config.window_config.integrated_title_button_color.clone();
+    let foreground = config.window_config().integrated_title_button_color.clone();
     let background_lightness = {
-        let bg: config::RgbaColor = config.window_config.window_frame.active_titlebar_bg.into();
+        let bg: config::RgbaColor = config.window_config().window_frame.active_titlebar_bg.into();
         let (_h, _s, l, _a) = bg.to_hsla();
         l
     };

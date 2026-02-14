@@ -1,4 +1,5 @@
 use crate::commands::CommandDef;
+use config::observers::*;
 use config::keyassignment::{
     ClipboardCopyDestination, ClipboardPasteSource, KeyAssignment, KeyTableEntry, KeyTables,
     MouseEventTrigger, SelectionMode,
@@ -23,13 +24,18 @@ impl InputMap {
     }
 
     pub fn new(config: &ConfigHandle) -> Self {
-        let mut mouse = config.mouse_bindings();
+        let mut mouse = config
+            .mouse()
+            .mouse_bindings
+            .iter()
+            .map(|mouse| ((mouse.event.clone(), mouse.mods), mouse.action.clone()))
+            .collect::<HashMap<_, _>>();
 
         let mut keys = config.key_bindings();
 
-        let leader = config.key_input.leader.as_ref().map(|leader| {
+        let leader = config.key_input().leader.as_ref().map(|leader| {
             (
-                leader.key.key.resolve(config.key_input.key_map_preference).clone(),
+                leader.key.key.resolve(config.key_input().key_map_preference).clone(),
                 leader.key.mods,
                 Duration::from_millis(leader.timeout_milliseconds),
             )
@@ -47,7 +53,7 @@ impl InputMap {
 
         use KeyAssignment::*;
 
-        if !config.key_input.disable_default_key_bindings {
+        if !config.key_input().disable_default_key_bindings {
             for (mods, code, action) in CommandDef::default_key_assignments(config) {
                 // If the user configures {key='p', mods='CTRL|SHIFT'} that gets
                 // normalized into {key='P', mods='CTRL'} in Config::key_bindings(),
@@ -86,7 +92,7 @@ impl InputMap {
             }
         }
 
-        if !config.disable_default_mouse_bindings {
+        if !config.mouse().disable_default_mouse_bindings {
             m!(
                 [
                     MouseEventTriggerMods {

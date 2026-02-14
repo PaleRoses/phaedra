@@ -1,4 +1,5 @@
 use crate::termwindow::{PaneInformation, TabInformation, UIItem, UIItemType};
+use config::observers::*;
 use config::{ConfigHandle, TabBarColors};
 use finl_unicode::grapheme_clusters::Graphemes;
 use mlua::FromLua;
@@ -63,7 +64,7 @@ fn call_format_tab_title(
                         tab.clone(),
                         tabs,
                         panes,
-                        (**config).clone(),
+                        config.compute_extra_defaults(None),
                         hover,
                         tab_max_width,
                     ),
@@ -153,12 +154,12 @@ fn compute_tab_title(
                     tab.tab_title.clone()
                 };
 
-                let classic_spacing = if config.use_fancy_tab_bar { "" } else { " " };
-                if config.show_tab_index_in_tab_bar {
+                let classic_spacing = if config.tab_bar().use_fancy_tab_bar { "" } else { " " };
+                if config.tab_bar().show_tab_index_in_tab_bar {
                     let index = format!(
                         "{classic_spacing}{}: ",
                         tab.tab_index
-                            + if config.tab_and_split_indices_are_zero_based {
+                            + if config.tab_bar().tab_and_split_indices_are_zero_based {
                                 0
                             } else {
                                 1
@@ -193,7 +194,7 @@ fn compute_tab_title(
                 // easier to click on tab titles, but we'll still go below
                 // this if there are too many tabs to fit the window at
                 // this width.
-                if !config.use_fancy_tab_bar {
+                if !config.tab_bar().use_fancy_tab_bar {
                     while len + unicode_column_width(&title, None) < 5 {
                         title.push(' ');
                     }
@@ -247,40 +248,40 @@ impl TabBarState {
         line: &mut Line,
         colors: &TabBarColors,
     ) {
-        let default_cell = if config.use_fancy_tab_bar {
+        let default_cell = if config.tab_bar().use_fancy_tab_bar {
             CellAttributes::default()
         } else {
             colors.new_tab().as_cell_attributes()
         };
 
-        let default_cell_hover = if config.use_fancy_tab_bar {
+        let default_cell_hover = if config.tab_bar().use_fancy_tab_bar {
             CellAttributes::default()
         } else {
             colors.new_tab_hover().as_cell_attributes()
         };
 
         let window_hide =
-            parse_status_text(&config.tab_bar_style.window_hide, default_cell.clone());
+            parse_status_text(&config.tab_bar().tab_bar_style.window_hide, default_cell.clone());
         let window_hide_hover = parse_status_text(
-            &config.tab_bar_style.window_hide_hover,
+            &config.tab_bar().tab_bar_style.window_hide_hover,
             default_cell_hover.clone(),
         );
 
         let window_maximize =
-            parse_status_text(&config.tab_bar_style.window_maximize, default_cell.clone());
+            parse_status_text(&config.tab_bar().tab_bar_style.window_maximize, default_cell.clone());
         let window_maximize_hover = parse_status_text(
-            &config.tab_bar_style.window_maximize_hover,
+            &config.tab_bar().tab_bar_style.window_maximize_hover,
             default_cell_hover.clone(),
         );
 
         let window_close =
-            parse_status_text(&config.tab_bar_style.window_close, default_cell.clone());
+            parse_status_text(&config.tab_bar().tab_bar_style.window_close, default_cell.clone());
         let window_close_hover = parse_status_text(
-            &config.tab_bar_style.window_close_hover,
+            &config.tab_bar().tab_bar_style.window_close_hover,
             default_cell_hover.clone(),
         );
 
-        for button in &config.window_config.integrated_title_buttons {
+        for button in &config.window_config().integrated_title_buttons {
             use IntegratedTitleButton as Button;
             let title = match button {
                 Button::Hide => {
@@ -349,16 +350,16 @@ impl TabBarState {
         let new_tab_attrs = colors.new_tab().as_cell_attributes();
 
         let new_tab = parse_status_text(
-            &config.tab_bar_style.new_tab,
-            if config.use_fancy_tab_bar {
+            &config.tab_bar().tab_bar_style.new_tab,
+            if config.tab_bar().use_fancy_tab_bar {
                 CellAttributes::default()
             } else {
                 new_tab_attrs.clone()
             },
         );
         let new_tab_hover = parse_status_text(
-            &config.tab_bar_style.new_tab_hover,
-            if config.use_fancy_tab_bar {
+            &config.tab_bar().tab_bar_style.new_tab_hover,
+            if config.tab_bar().use_fancy_tab_bar {
                 CellAttributes::default()
             } else {
                 new_tab_hover_attrs.clone()
@@ -366,7 +367,7 @@ impl TabBarState {
         );
 
         let use_integrated_title_buttons = config
-            .window_config.window_decorations
+            .window_config().window_decorations
             .contains(window::WindowDecorations::INTEGRATED_BUTTONS);
 
         // We ultimately want to produce a line looking like this:
@@ -377,7 +378,7 @@ impl TabBarState {
 
         let mut active_tab_no = 0;
 
-        let tab_titles: Vec<TitleText> = if config.show_tabs_in_tab_bar {
+        let tab_titles: Vec<TitleText> = if config.tab_bar().show_tabs_in_tab_bar {
             tab_info
                 .iter()
                 .map(|tab| {
@@ -390,7 +391,7 @@ impl TabBarState {
                         pane_info,
                         config,
                         false,
-                        config.tab_max_width,
+                        config.tab_bar().tab_max_width,
                     )
                 })
                 .collect()
@@ -402,14 +403,14 @@ impl TabBarState {
 
         let available_cells =
             title_width.saturating_sub(number_of_tabs.saturating_sub(1) + new_tab.len());
-        let tab_width_max = if config.use_fancy_tab_bar || available_cells >= titles_len {
+        let tab_width_max = if config.tab_bar().use_fancy_tab_bar || available_cells >= titles_len {
             // We can render each title with its full width
             usize::max_value()
         } else {
             // We need to clamp the length to balance them out
             available_cells / number_of_tabs
         }
-        .min(config.tab_max_width);
+        .min(config.tab_bar().tab_max_width);
 
         let mut line = Line::with_width(0, SEQ_ZERO);
 
@@ -423,9 +424,9 @@ impl TabBarState {
         );
 
         if use_integrated_title_buttons
-            && config.window_config.integrated_title_button_style == IntegratedTitleButtonStyle::MacOsNative
-            && config.use_fancy_tab_bar == false
-            && config.tab_bar_at_bottom == false
+            && config.window_config().integrated_title_button_style == IntegratedTitleButtonStyle::MacOsNative
+            && config.tab_bar().use_fancy_tab_bar == false
+            && config.tab_bar().tab_bar_at_bottom == false
         {
             for _ in 0..10 as usize {
                 line.insert_cell(0, black_cell.clone(), title_width, SEQ_ZERO);
@@ -434,8 +435,8 @@ impl TabBarState {
         }
 
         if use_integrated_title_buttons
-            && config.window_config.integrated_title_button_style != IntegratedTitleButtonStyle::MacOsNative
-            && config.window_config.integrated_title_button_alignment == IntegratedTitleButtonAlignment::Left
+            && config.window_config().integrated_title_button_style != IntegratedTitleButtonStyle::MacOsNative
+            && config.window_config().integrated_title_button_alignment == IntegratedTitleButtonAlignment::Left
         {
             Self::integrated_title_buttons(mouse_x, &mut x, config, &mut items, &mut line, &colors);
         }
@@ -481,7 +482,7 @@ impl TabBarState {
             let esc = format_as_escapes(tab_title.items.clone()).expect("already parsed ok above");
             let mut tab_line = parse_status_text(
                 &esc,
-                if config.use_fancy_tab_bar {
+                if config.tab_bar().use_fancy_tab_bar {
                     CellAttributes::default()
                 } else {
                     cell_attrs.clone()
@@ -507,7 +508,7 @@ impl TabBarState {
         }
 
         // New tab button
-        if config.show_new_tab_button_in_tab_bar {
+        if config.tab_bar().show_new_tab_button_in_tab_bar {
             let hover = is_tab_hover(mouse_x, x, new_tab_hover.len());
 
             let new_tab_button = if hover { &new_tab_hover } else { &new_tab };
@@ -529,30 +530,30 @@ impl TabBarState {
 
         // Reserve place for integrated title buttons
         let title_width = if use_integrated_title_buttons
-            && config.window_config.integrated_title_button_style != IntegratedTitleButtonStyle::MacOsNative
-            && config.window_config.integrated_title_button_alignment == IntegratedTitleButtonAlignment::Right
+            && config.window_config().integrated_title_button_style != IntegratedTitleButtonStyle::MacOsNative
+            && config.window_config().integrated_title_button_alignment == IntegratedTitleButtonAlignment::Right
         {
             let window_hide =
-                parse_status_text(&config.tab_bar_style.window_hide, CellAttributes::default());
+                parse_status_text(&config.tab_bar().tab_bar_style.window_hide, CellAttributes::default());
             let window_hide_hover = parse_status_text(
-                &config.tab_bar_style.window_hide_hover,
+                &config.tab_bar().tab_bar_style.window_hide_hover,
                 CellAttributes::default(),
             );
 
             let window_maximize = parse_status_text(
-                &config.tab_bar_style.window_maximize,
+                &config.tab_bar().tab_bar_style.window_maximize,
                 CellAttributes::default(),
             );
             let window_maximize_hover = parse_status_text(
-                &config.tab_bar_style.window_maximize_hover,
+                &config.tab_bar().tab_bar_style.window_maximize_hover,
                 CellAttributes::default(),
             );
             let window_close = parse_status_text(
-                &config.tab_bar_style.window_close,
+                &config.tab_bar().tab_bar_style.window_close,
                 CellAttributes::default(),
             );
             let window_close_hover = parse_status_text(
-                &config.tab_bar_style.window_close_hover,
+                &config.tab_bar().tab_bar_style.window_close_hover,
                 CellAttributes::default(),
             );
 
@@ -561,7 +562,7 @@ impl TabBarState {
             let close_len = window_close.len().max(window_close_hover.len());
 
             let mut width_to_reserve = 0;
-            for button in &config.window_config.integrated_title_buttons {
+            for button in &config.window_config().integrated_title_buttons {
                 use IntegratedTitleButton as Button;
                 let button_len = match button {
                     Button::Hide => hide_len,
@@ -596,8 +597,8 @@ impl TabBarState {
         }
 
         if use_integrated_title_buttons
-            && config.window_config.integrated_title_button_style != IntegratedTitleButtonStyle::MacOsNative
-            && config.window_config.integrated_title_button_alignment == IntegratedTitleButtonAlignment::Right
+            && config.window_config().integrated_title_button_style != IntegratedTitleButtonStyle::MacOsNative
+            && config.window_config().integrated_title_button_alignment == IntegratedTitleButtonAlignment::Right
         {
             x = title_width;
             Self::integrated_title_buttons(mouse_x, &mut x, config, &mut items, &mut line, &colors);

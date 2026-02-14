@@ -11,6 +11,7 @@ use crate::Appearance;
 use cocoa::appkit::{NSApp, NSApplication, NSApplicationActivationPolicyRegular, NSScreen};
 use cocoa::base::{id, nil};
 use cocoa::foundation::{NSArray, NSInteger};
+use config::observers::*;
 use objc::runtime::{Object, BOOL, YES};
 use objc::*;
 use serde::Deserialize;
@@ -231,9 +232,9 @@ pub fn nsscreen_to_screen_info(screen: *mut Object) -> ScreenInfo {
     let scale = backing_frame.size.width / frame.size.width;
 
     let config = config::configuration();
-    let effective_dpi = if let Some(dpi) = config.font_config.dpi_by_screen.get(&name).copied() {
+    let effective_dpi = if let Some(dpi) = config.font_config().dpi_by_screen.get(&name).copied() {
         Some(dpi)
-    } else if let Some(dpi) = config.font_config.dpi {
+    } else if let Some(dpi) = config.font_config().dpi {
         Some(dpi)
     } else {
         Some(crate::DEFAULT_DPI * scale)

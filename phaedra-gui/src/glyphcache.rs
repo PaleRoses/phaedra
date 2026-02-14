@@ -1,4 +1,5 @@
 use super::utilsprites::RenderMetrics;
+use config::observers::*;
 use crate::customglyph::*;
 use crate::renderstate::RenderContext;
 use crate::termwindow::render::paint::AllowImage;
@@ -581,7 +582,7 @@ impl GlyphCache {
             image_cache: LfuCache::new(
                 "glyph_cache.image_cache.hit.rate",
                 "glyph_cache.image_cache.miss.rate",
-                |config| config.glyph_cache_image_cache_size,
+                |config| config.cache().glyph_cache_image_cache_size,
                 &fonts.config(),
             ),
             frame_cache: HashMap::new(),
@@ -590,7 +591,7 @@ impl GlyphCache {
             block_glyphs: HashMap::new(),
             cursor_glyphs: HashMap::new(),
             color: HashMap::new(),
-            min_frame_duration: Duration::from_millis(1000 / fonts.config().max_fps as u64),
+            min_frame_duration: Duration::from_millis(1000 / fonts.config().gpu().max_fps as u64),
         })
     }
 }
@@ -610,7 +611,7 @@ impl GlyphCache {
             image_cache: LfuCache::new(
                 "glyph_cache.image_cache.hit.rate",
                 "glyph_cache.image_cache.miss.rate",
-                |config| config.glyph_cache_image_cache_size,
+                |config| config.cache().glyph_cache_image_cache_size,
                 &fonts.config(),
             ),
             frame_cache: HashMap::new(),
@@ -619,7 +620,7 @@ impl GlyphCache {
             block_glyphs: HashMap::new(),
             cursor_glyphs: HashMap::new(),
             color: HashMap::new(),
-            min_frame_duration: Duration::from_millis(1000 / fonts.config().max_fps as u64),
+            min_frame_duration: Duration::from_millis(1000 / fonts.config().gpu().max_fps as u64),
         })
     }
 }
@@ -727,7 +728,7 @@ impl GlyphCache {
         let is_square_or_wide = aspect >= 0.7;
 
         let allow_width_overflow = if is_square_or_wide {
-            match self.fonts.config().font_config.allow_square_glyphs_to_overflow_width {
+            match self.fonts.config().font_config().allow_square_glyphs_to_overflow_width {
                 AllowSquareGlyphOverflow::Never => false,
                 AllowSquareGlyphOverflow::Always => true,
                 AllowSquareGlyphOverflow::WhenFollowedBySpace => followed_by_space,

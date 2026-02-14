@@ -1,5 +1,6 @@
 use crate::locator::{FontDataHandle, FontDataSource, FontOrigin};
 use crate::shaper::GlyphInfo;
+use config::observers::*;
 use config::{FontAttributes, FontStyle, FreeTypeLoadFlags, FreeTypeLoadTarget};
 pub use config::{FontStretch, FontWeight};
 use rangeset::RangeSet;
@@ -417,7 +418,7 @@ impl ParsedFont {
         };
 
         if has_svg {
-            if config::configuration().font_config.ignore_svg_fonts {
+            if config::configuration().font_config().ignore_svg_fonts {
                 anyhow::bail!("skipping svg font because ignore_svg_fonts=true");
             }
         }

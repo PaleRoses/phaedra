@@ -356,7 +356,7 @@ end
         phaedra_mod.set(
             "default_hyperlink_rules",
             lua.create_function(move |lua, ()| {
-                let rules = crate::config::default_hyperlink_rules();
+                let rules = crate::terminal_feature_config::default_hyperlink_rules();
                 Ok(to_lua(lua, rules))
             })?,
         )?;

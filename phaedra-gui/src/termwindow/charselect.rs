@@ -1,4 +1,5 @@
 use crate::overlay::selector::{matcher_pattern, matcher_score};
+use config::observers::*;
 use crate::termwindow::box_model::*;
 use crate::termwindow::modal::Modal;
 use crate::termwindow::render::corners::{
@@ -392,7 +393,7 @@ impl CharSelector {
             .expect("to resolve char selection font");
         let metrics = RenderMetrics::with_font_metrics(&font.metrics());
 
-        let top_bar_height = if term_window.show_tab_bar && !term_window.config.tab_bar_at_bottom {
+        let top_bar_height = if term_window.show_tab_bar && !term_window.config.tab_bar().tab_bar_at_bottom {
             term_window.tab_bar_pixel_height().unwrap()
         } else {
             0.
@@ -424,7 +425,7 @@ impl CharSelector {
         .colors(ElementColors {
             border: BorderColor::default(),
             bg: LinearRgba::TRANSPARENT.into(),
-            text: term_window.config.color_config.char_select_fg_color.to_linear().into(),
+            text: term_window.config.color_config().char_select_fg_color.to_linear().into(),
         })
         .display(DisplayType::Block)];
 
@@ -438,13 +439,13 @@ impl CharSelector {
         {
             let (bg, text) = if display_idx == selected_row {
                 (
-                    term_window.config.color_config.char_select_fg_color.to_linear().into(),
-                    term_window.config.color_config.char_select_bg_color.to_linear().into(),
+                    term_window.config.color_config().char_select_fg_color.to_linear().into(),
+                    term_window.config.color_config().char_select_bg_color.to_linear().into(),
                 )
             } else {
                 (
                     LinearRgba::TRANSPARENT.into(),
-                    term_window.config.color_config.char_select_fg_color.to_linear().into(),
+                    term_window.config.color_config().char_select_fg_color.to_linear().into(),
                 )
             };
             elements.push(
@@ -475,10 +476,10 @@ impl CharSelector {
         let element = Element::new(&font, ElementContent::Children(elements))
             .colors(ElementColors {
                 border: BorderColor::new(
-                    term_window.config.color_config.char_select_bg_color.to_linear().into(),
+                    term_window.config.color_config().char_select_bg_color.to_linear().into(),
                 ),
-                bg: term_window.config.color_config.char_select_bg_color.to_linear().into(),
-                text: term_window.config.color_config.char_select_fg_color.to_linear().into(),
+                bg: term_window.config.color_config().char_select_bg_color.to_linear().into(),
+                text: term_window.config.color_config().char_select_fg_color.to_linear().into(),
             })
             .margin(BoxDimension {
                 left: Dimension::Cells(1.25),

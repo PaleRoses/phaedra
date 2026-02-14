@@ -17,6 +17,7 @@ use ::freetype::{
 };
 use anyhow::{bail, Context as _};
 use cairo::{Content, Context, Extend, Format, ImageSurface, Matrix, Operator, RecordingSurface};
+use config::observers::*;
 use config::{DisplayPixelGeometry, FreeTypeLoadFlags, FreeTypeLoadTarget};
 use std::cell::RefCell;
 use std::f64::consts::PI;
@@ -71,7 +72,7 @@ impl FontRasterizer for FreeTypeRasterizer {
                     drop(face);
 
                     let config = config::configuration();
-                    match config.font_config.font_colr_rasterizer {
+                    match config.font_config().font_colr_rasterizer {
                         FontRasterizerSelection::FreeType => {
                             return self.rasterize_outlines(
                                 glyph_pos,

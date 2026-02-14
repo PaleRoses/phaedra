@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context};
 use clap::builder::ValueParser;
 use clap::{Parser, ValueEnum, ValueHint};
 use clap_complete::{generate as generate_completion, shells, Generator as CompletionGenerator};
+use config::observers::*;
 use config::{phaedra_version, ConfigHandle};
 use mux::Mux;
 use std::ffi::OsString;
@@ -721,7 +722,7 @@ fn init_config(opts: &Opt) -> anyhow::Result<ConfigHandle> {
     .context("config::common_init")?;
     let config = config::configuration();
     config.update_ulimit()?;
-    if let Some(value) = &config.domain.default_ssh_auth_sock {
+    if let Some(value) = &config.domain().default_ssh_auth_sock {
         std::env::set_var("SSH_AUTH_SOCK", value);
     }
     Ok(config)

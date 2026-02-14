@@ -6,6 +6,7 @@
 //! time of writing our window layer doesn't provide an API for context
 //! menus.
 use crate::commands::derive_command_from_key_assignment;
+use config::observers::*;
 use crate::inputmap::InputMap;
 use crate::overlay::quickselect;
 use crate::overlay::selector::{matcher_pattern, matcher_score};
@@ -231,7 +232,7 @@ impl LauncherState {
         // Pull in the user defined entries from the launch_menu
         // section of the configuration.
         if args.flags.contains(LauncherFlags::LAUNCH_MENU_ITEMS) {
-            for item in &config.launch.launch_menu {
+            for item in &config.launch().launch_menu {
                 self.entries.push(Entry {
                     label: match item.label.as_ref() {
                         Some(label) => label.to_string(),
@@ -394,7 +395,7 @@ impl LauncherState {
         let mut labels_iter = labels.into_iter();
 
         let config = configuration();
-        let colors = &config.color_config.resolved_palette;
+        let colors = &config.color_config().resolved_palette;
         let launcher_label_fg = colors.launcher_label_fg;
         let launcher_label_bg = colors.launcher_label_bg;
 

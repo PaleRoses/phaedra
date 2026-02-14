@@ -1,4 +1,5 @@
 use crate::inputmap::InputMap;
+use config::observers::*;
 use config::keyassignment::*;
 use config::window::WindowLevel;
 use config::{ConfigHandle, DeferredKeyCode};
@@ -113,12 +114,12 @@ impl CommandDef {
             let mods = *mods;
             let key = DeferredKeyCode::try_from(label.as_str())
                 .unwrap()
-                .resolve(config.key_input.key_map_preference)
+                .resolve(config.key_input().key_map_preference)
                 .clone();
 
             let ukey = DeferredKeyCode::try_from(us_layout_shift(&label))
                 .unwrap()
-                .resolve(config.key_input.key_map_preference)
+                .resolve(config.key_input().key_map_preference)
                 .clone();
 
             keys.push((mods, key.clone()));
@@ -171,7 +172,7 @@ impl CommandDef {
                 None
             }
             Some(def) => {
-                let keys = if is_built_in && config.key_input.disable_default_key_bindings {
+                let keys = if is_built_in && config.key_input().disable_default_key_bindings {
                     vec![]
                 } else {
                     def.permute_keys(config)
@@ -205,7 +206,7 @@ impl CommandDef {
         let mut result = Self::expanded_commands(config);
 
         // Generate some stuff based on the config
-        for cmd in &config.launch.launch_menu {
+        for cmd in &config.launch().launch_menu {
             let label = match cmd.label.as_ref() {
                 Some(label) => label.to_string(),
                 None => match cmd.args.as_ref() {

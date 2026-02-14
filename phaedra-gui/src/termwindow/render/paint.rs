@@ -1,4 +1,5 @@
 use crate::termwindow::TermWindowNotif;
+use config::observers::*;
 use ::window::bitmaps::atlas::OutOfTextureSpace;
 use ::window::WindowOps;
 use anyhow::Context;
@@ -118,7 +119,7 @@ impl crate::TermWindow {
         // Schedule continuous rendering for animated shaders
         if let Some(ref webgpu) = self.webgpu {
             if webgpu.has_postprocess() {
-                let fps = self.config.webgpu_shader_fps;
+                let fps = self.config.gpu().webgpu_shader_fps;
                 if fps > 0 {
                     let frame_interval = Duration::from_millis(1000 / fps as u64);
                     let next_frame = Instant::now() + frame_interval;

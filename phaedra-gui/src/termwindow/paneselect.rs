@@ -1,4 +1,5 @@
 use crate::termwindow::box_model::*;
+use config::observers::*;
 use crate::termwindow::modal::Modal;
 use crate::termwindow::render::corners::{
     BOTTOM_LEFT_ROUNDED_CORNER, BOTTOM_RIGHT_ROUNDED_CORNER, TOP_LEFT_ROUNDED_CORNER,
@@ -26,7 +27,7 @@ pub struct PaneSelector {
 impl PaneSelector {
     pub fn new(term_window: &mut TermWindow, args: &PaneSelectArguments) -> Self {
         let alphabet = if args.alphabet.is_empty() {
-            term_window.config.quick_select_alphabet.clone()
+            term_window.config.mouse().quick_select_alphabet.clone()
         } else {
             args.alphabet.clone()
         };
@@ -61,7 +62,7 @@ impl PaneSelector {
             .expect("to resolve pane selection font");
         let metrics = RenderMetrics::with_font_metrics(&font.metrics());
 
-        let top_bar_height = if term_window.show_tab_bar && !term_window.config.tab_bar_at_bottom {
+        let top_bar_height = if term_window.show_tab_bar && !term_window.config.tab_bar().tab_bar_at_bottom {
             term_window.tab_bar_pixel_height().unwrap()
         } else {
             0.
@@ -84,10 +85,10 @@ impl PaneSelector {
             let element = Element::new(&font, ElementContent::Text(caption))
                 .colors(ElementColors {
                     border: BorderColor::new(
-                        term_window.config.color_config.pane_select_bg_color.to_linear().into(),
+                        term_window.config.color_config().pane_select_bg_color.to_linear().into(),
                     ),
-                    bg: term_window.config.color_config.pane_select_bg_color.to_linear().into(),
-                    text: term_window.config.color_config.pane_select_fg_color.to_linear().into(),
+                    bg: term_window.config.color_config().pane_select_bg_color.to_linear().into(),
+                    text: term_window.config.color_config().pane_select_fg_color.to_linear().into(),
                 })
                 .padding(BoxDimension {
                     left: Dimension::Cells(0.25),

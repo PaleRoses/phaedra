@@ -1,5 +1,6 @@
 #![cfg(unix)]
 use anyhow::Context;
+use config::observers::*;
 use libc::pid_t;
 use std::io::Write;
 use std::os::unix::io::{AsRawFd, IntoRawFd, RawFd};
@@ -37,7 +38,7 @@ fn setsid() -> anyhow::Result<()> {
 }
 
 fn lock_pid_file(config: &config::ConfigHandle) -> anyhow::Result<std::fs::File> {
-    let pid_file = config.daemon_options.pid_file();
+    let pid_file = config.mux_config().daemon_options.pid_file();
     let pid_file_dir = pid_file
         .parent()
         .ok_or_else(|| anyhow::anyhow!("{} has no parent?", pid_file.display()))?;
@@ -76,8 +77,8 @@ pub fn daemonize(config: &config::ConfigHandle) -> anyhow::Result<Option<RawFd>>
     } else {
         None
     };
-    let stdout = config.daemon_options.open_stdout()?;
-    let stderr = config.daemon_options.open_stderr()?;
+    let stdout = config.mux_config().daemon_options.open_stdout()?;
+    let stderr = config.mux_config().daemon_options.open_stderr()?;
     let devnull = std::fs::File::open("/dev/null").context("opening /dev/null for read")?;
 
     match fork()? {

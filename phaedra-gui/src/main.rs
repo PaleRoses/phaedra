@@ -2,6 +2,7 @@
 #![cfg_attr(not(test), windows_subsystem = "windows")]
 
 use crate::customglyph::BlockKey;
+use config::observers::*;
 use crate::glyphcache::GlyphCache;
 use crate::utilsprites::RenderMetrics;
 use ::window::*;
@@ -41,8 +42,13 @@ mod download;
 mod frontend;
 mod glyphcache;
 mod inputmap;
+pub mod execute;
+pub mod input_effect;
+pub mod interpret;
+pub mod observers;
 mod overlay;
 mod quad;
+pub mod render_command;
 mod renderstate;
 mod resize_increment_calculator;
 mod scripting;
@@ -275,7 +281,7 @@ async fn spawn_tab_in_domain_if_mux_is_empty(
         true
     });
 
-    let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi());
+    let dpi = config.font_config().dpi.unwrap_or_else(|| ::window::default_dpi());
     let _tab = domain
         .spawn(
             config.initial_size(dpi as u32, Some(cell_pixel_dims(&config, dpi)?)),
@@ -416,7 +422,7 @@ async fn async_run_terminal_gui(
 
             domain.attach(Some(window_id)).await?;
             let config = config::configuration();
-            let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi());
+            let dpi = config.font_config().dpi.unwrap_or_else(|| ::window::default_dpi());
             let tab = domain
                 .spawn(
                     config.initial_size(dpi as u32, Some(cell_pixel_dims(&config, dpi)?)),
@@ -446,7 +452,7 @@ enum Publish {
 
 impl Publish {
     pub fn resolve(mux: &Arc<Mux>, config: &ConfigHandle, always_new_process: bool) -> Self {
-        if mux.default_domain().domain_name() != config.domain.default_domain.as_deref().unwrap_or("local")
+        if mux.default_domain().domain_name() != config.domain().default_domain.as_deref().unwrap_or("local")
         {
             return Self::NoConnectNoPublish;
         }
@@ -514,7 +520,7 @@ impl Publish {
                             );
                         }
 
-                        let window_id = if new_tab || config.launch.prefer_to_spawn_tabs {
+                        let window_id = if new_tab || config.launch().prefer_to_spawn_tabs {
                             if let Ok(pane_id) = client.resolve_pane_id(None).await {
                                 let panes = client.list_panes().await?;
 
@@ -553,7 +559,7 @@ impl Publish {
                                 size: config.initial_size(0, None),
                                 workspace: workspace.unwrap_or(
                                     config
-                                        .launch.default_workspace
+                                        .launch().default_workspace
                                         .as_deref()
                                         .unwrap_or(mux::DEFAULT_WORKSPACE)
                                 ).to_string(),
@@ -631,7 +637,7 @@ fn setup_mux(
     mux.replace_identity(Some(client_id));
     let default_workspace_name = default_workspace_name.unwrap_or(
         config
-            .launch.default_workspace
+            .launch().default_workspace
             .as_deref()
             .unwrap_or(mux::DEFAULT_WORKSPACE),
     );
@@ -640,7 +646,7 @@ fn setup_mux(
     update_mux_domains(config)?;
 
     let default_name =
-        default_domain_name.unwrap_or(config.domain.default_domain.as_deref().unwrap_or("local"));
+        default_domain_name.unwrap_or(config.domain().default_domain.as_deref().unwrap_or("local"));
 
     let domain = mux.get_domain_by_name(default_name).ok_or_else(|| {
         anyhow::anyhow!(
@@ -677,8 +683,8 @@ fn run_terminal_gui(opts: StartCommand, default_domain_name: Option<String>) -> 
         let prog = opts.prog.iter().map(|s| s.as_os_str()).collect::<Vec<_>>();
         let mut builder = config.build_prog(
             if prog.is_empty() { None } else { Some(prog) },
-            config.launch.default_prog.as_ref(),
-            config.launch.default_cwd.as_ref(),
+            config.launch().default_prog.as_ref(),
+            config.launch().default_cwd.as_ref(),
         )?;
         if let Some(cwd) = &opts.cwd {
             builder.cwd(if cwd.is_relative() {
@@ -817,13 +823,13 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
 
     let font_config = Rc::new(phaedra_font::FontConfiguration::new(
         Some(config.clone()),
-        config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
+        config.font_config().dpi.unwrap_or_else(|| ::window::default_dpi()) as usize,
     )?);
 
     let render_metrics = crate::utilsprites::RenderMetrics::new(&font_config)?;
 
-    let bidi_hint = if config.text.bidi_enabled {
-        Some(config.text.bidi_direction)
+    let bidi_hint = if config.text().bidi_enabled {
+        Some(config.text().bidi_direction)
     } else {
         None
     };
@@ -848,7 +854,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
 
     if let Some(text) = &text {
         // Emulate the effect of output normalization
-        let text = if config.text.normalize_output_to_unicode_nfc {
+        let text = if config.text().normalize_output_to_unicode_nfc {
             text.nfc().collect()
         } else {
             text.to_string()
@@ -933,7 +939,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
 
                 let mut texture = cached_glyph.texture.clone();
 
-                if config.text.custom_block_glyphs {
+                if config.text().custom_block_glyphs {
                     if let Some(block) = info.only_char.and_then(BlockKey::from_char) {
                         texture.replace(glyph_cache.cached_block(block, &render_metrics)?);
                         println!(
@@ -1022,7 +1028,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
     );
     println!();
 
-    for rule in &config.font_config.font_rules {
+    for rule in &config.font_config().font_rules {
         println!();
 
         let mut condition = "When".to_string();
@@ -1085,7 +1091,7 @@ pub fn run_ls_fonts(config: config::ConfigHandle, cmd: &LsFontsCommand) -> anyho
                 println!(
                     "{} system fonts found using {:?}:",
                     sys_fonts.len(),
-                    config.font_config.font_locator
+                    config.font_config().font_locator
                 );
                 for font in sys_fonts {
                     let pixel_sizes = if font.pixel_sizes.is_empty() {
@@ -1160,7 +1166,7 @@ fn run() -> anyhow::Result<()> {
         opts.skip_config,
     )?;
     let config = config::configuration();
-    if let Some(value) = &config.domain.default_ssh_auth_sock {
+    if let Some(value) = &config.domain().default_ssh_auth_sock {
         std::env::set_var("SSH_AUTH_SOCK", value);
     }
 
@@ -1179,13 +1185,13 @@ fn run() -> anyhow::Result<()> {
         None => {
             // Need to fake an argv0
             let mut argv = vec!["phaedra-gui".to_string()];
-            for a in &config.launch.default_gui_startup_args {
+            for a in &config.launch().default_gui_startup_args {
                 argv.push(a.clone());
             }
             SubCommand::try_parse_from(&argv).with_context(|| {
                 format!(
                     "parsing the default_gui_startup_args config: {:?}",
-                    config.launch.default_gui_startup_args
+                    config.launch().default_gui_startup_args
                 )
             })?
         }

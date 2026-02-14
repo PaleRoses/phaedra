@@ -5,6 +5,7 @@ use async_ossl::AsyncSslStream;
 use async_trait::async_trait;
 use codec::*;
 use config::{configuration, SshDomain, TlsDomainClient, UnixDomain, UnixTarget};
+use config::observers::*;
 use filedescriptor::FileDescriptor;
 use futures::FutureExt;
 use mux::client::ClientId;
@@ -1237,7 +1238,7 @@ impl Client {
 
                 let config = configuration();
                 Ok(config
-                    .domain.unix_domains
+                    .domain().unix_domains
                     .first()
                     .ok_or_else(|| {
                         anyhow!(

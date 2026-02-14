@@ -1,4 +1,5 @@
 use crate::selection::{SelectionCoordinate, SelectionRange};
+use config::observers::*;
 use crate::termwindow::{TermWindow, TermWindowNotif};
 use config::keyassignment::{ClipboardCopyDestination, QuickSelectArguments, ScrollbackEraseMode};
 use config::ConfigHandle;
@@ -252,14 +253,14 @@ impl QuickSelectOverlay {
             }
         } else {
             // User-provided patterns take precedence over built-ins
-            for p in &config.quick_select_patterns {
+            for p in &config.mouse().quick_select_patterns {
                 if have_patterns {
                     pattern.push('|');
                 }
                 pattern.push_str(p);
                 have_patterns = true;
             }
-            if !config.disable_default_quick_select_patterns {
+            if !config.mouse().disable_default_quick_select_patterns {
                 for p in &PATTERNS {
                     if have_patterns {
                         pattern.push('|');
@@ -546,8 +547,8 @@ impl Pane for QuickSelectOverlay {
                 let mut overlay_lines = vec![];
 
                 let config = &self.renderer.config;
-                let colors = config.color_config.resolved_palette.clone();
-                let disable_attr = config.quick_select_remove_styling;
+                let colors = config.color_config().resolved_palette.clone();
+                let disable_attr = config.mouse().quick_select_remove_styling;
 
                 // Process the lines; for the search row we want to render instead
                 // the search UI.
@@ -642,8 +643,8 @@ impl Pane for QuickSelectOverlay {
         let dims = self.get_dimensions();
 
         let (top, mut lines) = self.delegate.get_lines(lines);
-        let colors = renderer.config.color_config.resolved_palette.clone();
-        let disable_attr = renderer.config.quick_select_remove_styling;
+        let colors = renderer.config.color_config().resolved_palette.clone();
+        let disable_attr = renderer.config.mouse().quick_select_remove_styling;
 
         // Process the lines; for the search row we want to render instead
         // the search UI.
@@ -779,7 +780,7 @@ impl QuickSelectRenderable {
             if !self.args.alphabet.is_empty() {
                 &self.args.alphabet
             } else {
-                &self.config.quick_select_alphabet
+                &self.config.mouse().quick_select_alphabet
             },
             uniq_results.len(),
         );

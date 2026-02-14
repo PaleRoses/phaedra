@@ -5,6 +5,7 @@ use crate::tab::{SplitRequest, Tab, TabId};
 use crate::window::{Window, WindowId};
 use anyhow::{anyhow, Context, Error};
 use config::keyassignment::SpawnTabDomain;
+use config::observers::*;
 use config::{configuration, ExitBehavior, GuiPosition};
 use domain::{Domain, DomainId, DomainState, SplitSource};
 use filedescriptor::{poll, pollfd, socketpair, AsRawSocketDescriptor, FileDescriptor, POLLIN};
@@ -138,12 +139,13 @@ fn send_actions_to_mux(pane: &Weak<dyn Pane>, dead: &Arc<AtomicBool>, actions: V
 }
 
 fn parse_buffered_data(pane: Weak<dyn Pane>, dead: &Arc<AtomicBool>, mut rx: FileDescriptor) {
-    let mut buf = vec![0; configuration().mux_output_parser_buffer_size];
+    let mut buf = vec![0; configuration().mux_config().mux_output_parser_buffer_size];
     let mut parser = termwiz::escape::parser::Parser::new();
     let mut actions = vec![];
     let mut hold = false;
     let mut action_size = 0;
-    let mut delay = Duration::from_millis(configuration().mux_output_parser_coalesce_delay_ms);
+    let mut delay =
+        Duration::from_millis(configuration().mux_config().mux_output_parser_coalesce_delay_ms);
     let mut deadline = None;
 
     loop {
@@ -227,8 +229,8 @@ fn parse_buffered_data(pane: Weak<dyn Pane>, dead: &Arc<AtomicBool>, mut rx: Fil
                 }
 
                 let config = configuration();
-                buf.resize(config.mux_output_parser_buffer_size, 0);
-                delay = Duration::from_millis(config.mux_output_parser_coalesce_delay_ms);
+                buf.resize(config.mux_config().mux_output_parser_buffer_size, 0);
+                delay = Duration::from_millis(config.mux_config().mux_output_parser_coalesce_delay_ms);
             }
         }
     }
@@ -340,7 +342,7 @@ fn read_from_pane_pty(
         }
     }
 
-    match exit_behavior.unwrap_or_else(|| configuration().launch.exit_behavior) {
+    match exit_behavior.unwrap_or_else(|| configuration().launch().exit_behavior) {
         ExitBehavior::Hold | ExitBehavior::CloseOnCleanExit => {
             // We don't know if we can unilaterally close
             // this pane right now, so don't!
@@ -428,7 +430,7 @@ impl Mux {
             );
         }
 
-        let agent = if config::configuration().domain.mux_enable_ssh_agent {
+        let agent = if config::configuration().domain().mux_enable_ssh_agent {
             Some(AgentProxy::new())
         } else {
             None
@@ -454,7 +456,7 @@ impl Mux {
     fn get_default_workspace(&self) -> String {
         let config = configuration();
         config
-            .launch
+            .launch()
             .default_workspace
             .as_deref()
             .unwrap_or(DEFAULT_WORKSPACE)

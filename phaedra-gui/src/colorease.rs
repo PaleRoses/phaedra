@@ -1,4 +1,5 @@
 use config::EasingFunction;
+use config::observers::*;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -82,7 +83,7 @@ impl ColorEase {
                 {
                     1
                 } else {
-                    config::configuration().animation_fps as u64
+                    config::configuration().runtime().animation_fps as u64
                 };
                 let next = match fps {
                     1 if elapsed < self.in_duration => {

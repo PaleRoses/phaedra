@@ -1,6 +1,7 @@
 use crate::pane::CloseReason;
 use crate::{Mux, MuxNotification, Tab, TabId};
 use config::GuiPosition;
+use config::observers::*;
 use std::sync::Arc;
 
 static WIN_ID: ::std::sync::atomic::AtomicUsize = ::std::sync::atomic::AtomicUsize::new(0);
@@ -152,7 +153,9 @@ impl Window {
     fn do_remove_idx(&mut self, idx: usize, active: Option<Arc<Tab>>) -> Arc<Tab> {
         if let (Some(active), Some(removing)) = (&active, self.tabs.get(idx)) {
             if active.tab_id() == removing.tab_id()
-                && config::configuration().switch_to_last_active_tab_when_closing_tab
+                && config::configuration()
+                    .tab_bar()
+                    .switch_to_last_active_tab_when_closing_tab
             {
                 // If we are removing the active tab, switch back to
                 // the previously active tab

@@ -1,3 +1,4 @@
+use config::observers::*;
 use config::{ConfigHandle, SshMultiplexing};
 use mux::domain::{Domain, LocalDomain};
 use mux::ssh::RemoteSshDomain;
@@ -12,7 +13,7 @@ pub mod sessionhandler;
 
 fn client_domains(config: &config::ConfigHandle) -> Vec<ClientDomainConfig> {
     let mut domains = vec![];
-    for unix_dom in &config.domain.unix_domains {
+    for unix_dom in &config.domain().unix_domains {
         domains.push(ClientDomainConfig::Unix(unix_dom.clone()));
     }
 
@@ -22,7 +23,7 @@ fn client_domains(config: &config::ConfigHandle) -> Vec<ClientDomainConfig> {
         }
     }
 
-    for tls_client in &config.domain.tls_clients {
+    for tls_client in &config.domain().tls_clients {
         domains.push(ClientDomainConfig::Tls(tls_client.clone()));
     }
     domains
@@ -61,7 +62,7 @@ fn update_mux_domains_impl(config: &ConfigHandle, is_standalone_mux: bool) -> an
         mux.add_domain(&domain);
     }
 
-    for exec_dom in &config.domain.exec_domains {
+    for exec_dom in &config.domain().exec_domains {
         if mux.get_domain_by_name(&exec_dom.name).is_some() {
             continue;
         }
@@ -71,7 +72,7 @@ fn update_mux_domains_impl(config: &ConfigHandle, is_standalone_mux: bool) -> an
     }
 
     if is_standalone_mux {
-        if let Some(name) = &config.domain.default_mux_server_domain {
+        if let Some(name) = &config.domain().default_mux_server_domain {
             if let Some(dom) = mux.get_domain_by_name(name) {
                 if dom.is::<ClientDomain>() {
                     anyhow::bail!("default_mux_server_domain cannot be set to a client domain!");
@@ -80,7 +81,7 @@ fn update_mux_domains_impl(config: &ConfigHandle, is_standalone_mux: bool) -> an
             }
         }
     } else {
-        if let Some(name) = &config.domain.default_domain {
+        if let Some(name) = &config.domain().default_domain {
             if let Some(dom) = mux.get_domain_by_name(name) {
                 mux.set_default_domain(&dom);
             }

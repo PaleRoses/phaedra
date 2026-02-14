@@ -2,6 +2,7 @@
 // and inclusive range
 #![allow(clippy::range_plus_one)]
 use mux::pane::Pane;
+use config::observers::*;
 use std::cmp::Ordering;
 use std::ops::Range;
 use termwiz::surface::line::DoubleClickRange;
@@ -166,7 +167,7 @@ pub struct SelectionRange {
 
 fn is_double_click_word(s: &str) -> bool {
     match s.chars().count() {
-        1 => !config::configuration().selection_word_boundary.contains(s),
+        1 => !config::configuration().mouse().selection_word_boundary.contains(s),
         0 => false,
         _ => true,
     }

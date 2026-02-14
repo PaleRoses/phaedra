@@ -1,12 +1,13 @@
 #![allow(clippy::range_plus_one)]
 use super::renderstate::*;
+use config::observers::*;
 use super::utilsprites::RenderMetrics;
 use crate::colorease::ColorEase;
 use crate::frontend::{front_end, try_front_end};
 use crate::inputmap::InputMap;
 use crate::overlay::{
-    confirm_close_pane, confirm_close_tab, confirm_close_window, confirm_quit_program, launcher,
-    start_overlay, start_overlay_pane, CopyModeParams, CopyOverlay, LauncherArgs, LauncherFlags,
+    confirm_close_pane, confirm_close_tab, confirm_close_window, launcher, start_overlay,
+    start_overlay_pane, CopyOverlay, LauncherArgs, LauncherFlags,
     QuickSelectOverlay,
 };
 use crate::resize_increment_calculator::ResizeIncrementCalculator;
@@ -30,10 +31,8 @@ use ::phaedra_term::input::{ClickPosition, MouseButton as TMB};
 use ::window::*;
 use anyhow::{anyhow, ensure, Context};
 use config::keyassignment::{
-    Confirmation, KeyAssignment, LauncherActionArgs, PaneDirection, Pattern, PromptInputLine,
-    QuickSelectArguments, RotationDirection, SpawnCommand, SplitSize,
+    Confirmation, KeyAssignment, LauncherActionArgs, Pattern, PromptInputLine, SpawnCommand,
 };
-use config::window::WindowLevel;
 use config::{
     configuration, AudibleBell, ConfigHandle, Dimension, DimensionContext, GeometryOrigin,
     GuiPosition, TermConfig, WindowCloseConfirmation,
@@ -45,8 +44,7 @@ use mux::pane::{
 };
 use mux::renderable::RenderableDimensions;
 use mux::tab::{
-    PositionedPane, PositionedSplit, SplitDirection, SplitRequest, SplitSize as MuxSplitSize, Tab,
-    TabId,
+    PositionedPane, PositionedSplit, Tab, TabId,
 };
 use mux::window::WindowId as MuxWindowId;
 use mux::{Mux, MuxNotification};
@@ -479,7 +477,7 @@ impl TermWindow {
 
     fn close_requested(&mut self, window: &Window) {
         let mux = Mux::get();
-        match self.config.window_config.window_close_confirmation {
+        match self.config.window_config().window_close_confirmation {
             WindowCloseConfirmation::NeverPrompt => {
                 // Immediately kill the tabs and allow the window to close
                 mux.kill_window(self.mux_window_id);
@@ -583,7 +581,7 @@ impl TermWindow {
 impl TermWindow {
     pub async fn new_window(mux_window_id: MuxWindowId) -> anyhow::Result<()> {
         let config = configuration();
-        let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi()) as usize;
+        let dpi = config.font_config().dpi.unwrap_or_else(|| ::window::default_dpi()) as usize;
         let fontconfig = Rc::new(FontConfiguration::new(Some(config.clone()), dpi)?);
 
         let mux = Mux::get();
@@ -602,7 +600,7 @@ impl TermWindow {
 
         // Initially we have only a single tab, so take that into account
         // for the tab bar state.
-        let show_tab_bar = config.enable_tab_bar && !config.hide_tab_bar_if_only_one_tab;
+        let show_tab_bar = config.tab_bar().enable_tab_bar && !config.tab_bar().hide_tab_bar_if_only_one_tab;
         let tab_bar_height = if show_tab_bar {
             Self::tab_bar_pixel_height_impl(&config, &fontconfig, &render_metrics)? as usize
         } else {
@@ -639,15 +637,15 @@ impl TermWindow {
             pixel_max: terminal_size.pixel_width as f32,
             pixel_cell: render_metrics.cell_size.width as f32,
         };
-        let padding_left = config.window_config.window_padding.left.evaluate_as_pixels(h_context) as usize;
+        let padding_left = config.window_config().window_padding.left.evaluate_as_pixels(h_context) as usize;
         let padding_right = resize::effective_right_padding(&config, h_context) as usize;
         let v_context = DimensionContext {
             dpi: dpi as f32,
             pixel_max: terminal_size.pixel_height as f32,
             pixel_cell: render_metrics.cell_size.height as f32,
         };
-        let padding_top = config.window_config.window_padding.top.evaluate_as_pixels(v_context) as usize;
-        let padding_bottom = config.window_config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
+        let padding_top = config.window_config().window_padding.top.evaluate_as_pixels(v_context) as usize;
+        let padding_bottom = config.window_config().window_padding.bottom.evaluate_as_pixels(v_context) as usize;
 
         let mut dimensions = Dimensions {
             pixel_width: (terminal_size.pixel_width + padding_left + padding_right) as usize,
@@ -707,7 +705,7 @@ impl TermWindow {
             leader_is_down: None,
             dead_key_status: DeadKeyStatus::None,
             show_tab_bar,
-            show_scroll_bar: config.enable_scroll_bar,
+            show_scroll_bar: config.scroll().enable_scroll_bar,
             tab_bar: TabBarState::default(),
             fancy_tab_bar: None,
             right_status: String::new(),
@@ -729,48 +727,48 @@ impl TermWindow {
             shape_cache: RefCell::new(LfuCache::new(
                 "shape_cache.hit.rate",
                 "shape_cache.miss.rate",
-                |config| config.shape_cache_size,
+                |config| config.cache().shape_cache_size,
                 &config,
             )),
             line_state_cache: RefCell::new(LfuCacheU64::new(
                 "line_state_cache.hit.rate",
                 "line_state_cache.miss.rate",
-                |config| config.line_state_cache_size,
+                |config| config.cache().line_state_cache_size,
                 &config,
             )),
             next_line_state_id: 0,
             line_quad_cache: RefCell::new(LfuCache::new(
                 "line_quad_cache.hit.rate",
                 "line_quad_cache.miss.rate",
-                |config| config.line_quad_cache_size,
+                |config| config.cache().line_quad_cache_size,
                 &config,
             )),
             line_to_ele_shape_cache: RefCell::new(LfuCache::new(
                 "line_to_ele_shape_cache.hit.rate",
                 "line_to_ele_shape_cache.miss.rate",
-                |config| config.line_to_ele_shape_cache_size,
+                |config| config.cache().line_to_ele_shape_cache_size,
                 &config,
             )),
             last_status_call: Instant::now(),
             cursor_blink_state: RefCell::new(ColorEase::new(
-                config.cursor_blink_rate,
-                config.cursor_blink_ease_in,
-                config.cursor_blink_rate,
-                config.cursor_blink_ease_out,
+                config.cursor().cursor_blink_rate,
+                config.cursor().cursor_blink_ease_in,
+                config.cursor().cursor_blink_rate,
+                config.cursor().cursor_blink_ease_out,
                 None,
             )),
             blink_state: RefCell::new(ColorEase::new(
-                config.text.text_blink_rate,
-                config.text.text_blink_ease_in,
-                config.text.text_blink_rate,
-                config.text.text_blink_ease_out,
+                config.text().text_blink_rate,
+                config.text().text_blink_ease_in,
+                config.text().text_blink_rate,
+                config.text().text_blink_ease_out,
                 None,
             )),
             rapid_blink_state: RefCell::new(ColorEase::new(
-                config.text.text_blink_rate_rapid,
-                config.text.text_blink_rapid_ease_in,
-                config.text.text_blink_rate_rapid,
-                config.text.text_blink_rapid_ease_out,
+                config.text().text_blink_rate_rapid,
+                config.text().text_blink_rapid_ease_in,
+                config.text().text_blink_rate_rapid,
+                config.text().text_blink_rapid_ease_out,
                 None,
             )),
             event_states: HashMap::new(),
@@ -846,7 +844,7 @@ impl TermWindow {
             let mut myself = tw.borrow_mut();
             let webgpu = Rc::new(WebGpuState::new(&window, dimensions, &config).await?);
             myself.config_subscription.replace(config_subscription);
-            if config.window_config.use_resize_increments {
+            if config.window_config().use_resize_increments {
                 window.set_resize_increments(
                     ResizeIncrementCalculator {
                         x: myself.render_metrics.cell_size.width as u16,
@@ -862,7 +860,7 @@ impl TermWindow {
                 );
             }
 
-            if let Some(shader_path) = &config.webgpu_shader {
+            if let Some(shader_path) = &config.gpu().webgpu_shader {
                 match std::fs::read_to_string(shader_path) {
                     Ok(shader_source) => {
                         if let Err(e) = webgpu.load_postprocess_shader(&shader_source) {
@@ -980,7 +978,7 @@ impl TermWindow {
                 Ok(true)
             }
             WindowEvent::AdviseDeadKeyStatus(status) => {
-                if self.config.key_input.debug_key_events {
+                if self.config.key_input().debug_key_events {
                     log::info!("DeadKeyStatus now: {:?}", status);
                 } else {
                     log::trace!("DeadKeyStatus now: {:?}", status);
@@ -1022,7 +1020,7 @@ impl TermWindow {
                 };
                 let urls = urls
                     .iter()
-                    .map(|url| self.config.quote_dropped_files.escape(&url.to_string()))
+                    .map(|url| self.config.mouse().quote_dropped_files.escape(&url.to_string()))
                     .collect::<Vec<_>>()
                     .join(" ")
                     + " ";
@@ -1038,6 +1036,7 @@ impl TermWindow {
                     .iter()
                     .map(|path| {
                         self.config
+                            .mouse()
                             .quote_dropped_files
                             .escape(&path.to_string_lossy())
                     })
@@ -1200,7 +1199,7 @@ impl TermWindow {
                         return Ok(());
                     }
 
-                    match self.config.audible_bell {
+                    match self.config.bell().audible_bell {
                         AudibleBell::SystemBeep => {
                             Connection::get().expect("on main thread").beep();
                         }
@@ -1718,33 +1717,33 @@ impl TermWindow {
             _ => return,
         };
         if window.len() == 1 {
-            self.show_tab_bar = config.enable_tab_bar && !config.hide_tab_bar_if_only_one_tab;
+            self.show_tab_bar = config.tab_bar().enable_tab_bar && !config.tab_bar().hide_tab_bar_if_only_one_tab;
         } else {
-            self.show_tab_bar = config.enable_tab_bar;
+            self.show_tab_bar = config.tab_bar().enable_tab_bar;
         }
         *self.cursor_blink_state.borrow_mut() = ColorEase::new(
-            config.cursor_blink_rate,
-            config.cursor_blink_ease_in,
-            config.cursor_blink_rate,
-            config.cursor_blink_ease_out,
+            config.cursor().cursor_blink_rate,
+            config.cursor().cursor_blink_ease_in,
+            config.cursor().cursor_blink_rate,
+            config.cursor().cursor_blink_ease_out,
             None,
         );
         *self.blink_state.borrow_mut() = ColorEase::new(
-            config.text.text_blink_rate,
-            config.text.text_blink_ease_in,
-            config.text.text_blink_rate,
-            config.text.text_blink_ease_out,
+            config.text().text_blink_rate,
+            config.text().text_blink_ease_in,
+            config.text().text_blink_rate,
+            config.text().text_blink_ease_out,
             None,
         );
         *self.rapid_blink_state.borrow_mut() = ColorEase::new(
-            config.text.text_blink_rate_rapid,
-            config.text.text_blink_rapid_ease_in,
-            config.text.text_blink_rate_rapid,
-            config.text.text_blink_rapid_ease_out,
+            config.text().text_blink_rate_rapid,
+            config.text().text_blink_rapid_ease_in,
+            config.text().text_blink_rate_rapid,
+            config.text().text_blink_rapid_ease_out,
             None,
         );
 
-        self.show_scroll_bar = config.enable_scroll_bar;
+        self.show_scroll_bar = config.scroll().enable_scroll_bar;
         self.shape_generation += 1;
         {
             let mut shape_cache = self.shape_cache.borrow_mut();
@@ -1861,7 +1860,7 @@ impl TermWindow {
     /// Called by various bits of code to update the title bar.
     /// Let's also trigger the status event so that it can choose
     /// to update the right-status.
-    fn update_title(&mut self) {
+    pub(crate) fn update_title(&mut self) {
         self.schedule_status_update();
         self.update_title_impl();
     }
@@ -1939,7 +1938,7 @@ impl TermWindow {
 
         let border = self.get_os_border();
         let tab_bar_height = self.tab_bar_pixel_height().unwrap_or(0.);
-        let tab_bar_y = if self.config.tab_bar_at_bottom {
+        let tab_bar_y = if self.config.tab_bar().tab_bar_at_bottom {
             ((self.dimensions.pixel_height as f32) - (tab_bar_height + border.bottom.get() as f32))
                 .max(0.)
         } else {
@@ -1965,7 +1964,7 @@ impl TermWindow {
             },
             &tabs,
             &panes,
-            self.config.color_config.resolved_palette.tab_bar.as_ref(),
+            self.config.color_config().resolved_palette.tab_bar.as_ref(),
             &self.config,
             &self.left_status,
             &self.right_status,
@@ -1999,7 +1998,7 @@ impl TermWindow {
                             active_pane.clone(),
                             tabs,
                             panes,
-                            (*self.config).clone(),
+                            self.config.compute_extra_defaults(None),
                         ),
                     ),
                 )?;
@@ -2043,9 +2042,9 @@ impl TermWindow {
             window.set_title(&title);
 
             let show_tab_bar = if num_tabs == 1 {
-                self.config.enable_tab_bar && !self.config.hide_tab_bar_if_only_one_tab
+                self.config.tab_bar().enable_tab_bar && !self.config.tab_bar().hide_tab_bar_if_only_one_tab
             } else {
-                self.config.enable_tab_bar
+                self.config.tab_bar().enable_tab_bar
             };
 
             // If the number of tabs changed and caused the tab bar to
@@ -2063,7 +2062,7 @@ impl TermWindow {
         if let Some(window) = self.window.as_ref() {
             let now = Instant::now();
             if self.last_status_call <= now {
-                let interval = Duration::from_millis(self.config.status_update_interval);
+                let interval = Duration::from_millis(self.config.runtime().status_update_interval);
                 let target = now + interval;
                 self.last_status_call = target;
 
@@ -2081,7 +2080,7 @@ impl TermWindow {
         if let Some(win) = self.window.as_ref() {
             let cursor = pos.pane.get_cursor_position();
             let top = pos.pane.get_dimensions().physical_top;
-            let tab_bar_height = if self.show_tab_bar && !self.config.tab_bar_at_bottom {
+            let tab_bar_height = if self.show_tab_bar && !self.config.tab_bar().tab_bar_at_bottom {
                 self.tab_bar_pixel_height().unwrap()
             } else {
                 0.0
@@ -2103,7 +2102,7 @@ impl TermWindow {
         }
     }
 
-    fn activate_window(&mut self, window_idx: usize) -> anyhow::Result<()> {
+    pub(crate) fn activate_window(&mut self, window_idx: usize) -> anyhow::Result<()> {
         let windows = front_end().gui_windows();
         if let Some(win) = windows.get(window_idx) {
             win.window.focus();
@@ -2111,7 +2110,11 @@ impl TermWindow {
         Ok(())
     }
 
-    fn activate_window_relative(&mut self, delta: isize, wrap: bool) -> anyhow::Result<()> {
+    pub(crate) fn activate_window_relative(
+        &mut self,
+        delta: isize,
+        wrap: bool,
+    ) -> anyhow::Result<()> {
         let windows = front_end().gui_windows();
         let my_idx = windows
             .iter()
@@ -2144,7 +2147,7 @@ impl TermWindow {
         Ok(())
     }
 
-    fn activate_tab(&mut self, tab_idx: isize) -> anyhow::Result<()> {
+    pub(crate) fn activate_tab(&mut self, tab_idx: isize) -> anyhow::Result<()> {
         let mux = Mux::get();
         let mut window = mux
             .get_window_mut(self.mux_window_id)
@@ -2175,7 +2178,7 @@ impl TermWindow {
         Ok(())
     }
 
-    fn activate_tab_relative(&mut self, delta: isize, wrap: bool) -> anyhow::Result<()> {
+    pub(crate) fn activate_tab_relative(&mut self, delta: isize, wrap: bool) -> anyhow::Result<()> {
         let mux = Mux::get();
         let window = mux
             .get_window(self.mux_window_id)
@@ -2204,7 +2207,7 @@ impl TermWindow {
         self.activate_tab(tab)
     }
 
-    fn activate_last_tab(&mut self) -> anyhow::Result<()> {
+    pub(crate) fn activate_last_tab(&mut self) -> anyhow::Result<()> {
         let mux = Mux::get();
         let window = mux
             .get_window(self.mux_window_id)
@@ -2218,7 +2221,7 @@ impl TermWindow {
         }
     }
 
-    fn move_tab(&mut self, tab_idx: usize) -> anyhow::Result<()> {
+    pub(crate) fn move_tab(&mut self, tab_idx: usize) -> anyhow::Result<()> {
         let mux = Mux::get();
         let mut window = mux
             .get_window_mut(self.mux_window_id)
@@ -2242,7 +2245,7 @@ impl TermWindow {
         Ok(())
     }
 
-    fn show_input_selector(&mut self, args: &config::keyassignment::InputSelector) {
+    pub(crate) fn show_input_selector(&mut self, args: &config::keyassignment::InputSelector) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
             Some(tab) => tab,
@@ -2268,7 +2271,7 @@ impl TermWindow {
         promise::spawn::spawn(future).detach();
     }
 
-    fn show_prompt_input_line(&mut self, args: &PromptInputLine) {
+    pub(crate) fn show_prompt_input_line(&mut self, args: &PromptInputLine) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
             Some(tab) => tab,
@@ -2292,7 +2295,7 @@ impl TermWindow {
         promise::spawn::spawn(future).detach();
     }
 
-    fn show_confirmation(&mut self, args: &Confirmation) {
+    pub(crate) fn show_confirmation(&mut self, args: &Confirmation) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
             Some(tab) => tab,
@@ -2316,7 +2319,7 @@ impl TermWindow {
         promise::spawn::spawn(future).detach();
     }
 
-    fn show_debug_overlay(&mut self) {
+    pub(crate) fn show_debug_overlay(&mut self) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
             Some(tab) => tab,
@@ -2335,7 +2338,7 @@ impl TermWindow {
         promise::spawn::spawn(future).detach();
     }
 
-    fn show_tab_navigator(&mut self) {
+    pub(crate) fn show_tab_navigator(&mut self) {
         let mux = Mux::get();
         let active_tab_idx = match mux.get_window(self.mux_window_id) {
             Some(mux_window) => mux_window.get_active_idx(),
@@ -2352,7 +2355,7 @@ impl TermWindow {
         self.show_launcher_impl(args, active_tab_idx);
     }
 
-    fn show_launcher(&mut self) {
+    pub(crate) fn show_launcher(&mut self) {
         let title = "Launcher".to_string();
         let args = LauncherActionArgs {
             title: Some(title),
@@ -2368,7 +2371,7 @@ impl TermWindow {
         self.show_launcher_impl(args, 0);
     }
 
-    fn show_launcher_impl(&mut self, args: LauncherActionArgs, initial_choice_idx: usize) {
+    pub(crate) fn show_launcher_impl(&mut self, args: LauncherActionArgs, initial_choice_idx: usize) {
         let mux_window_id = self.mux_window_id;
         let window = self.window.as_ref().unwrap().clone();
 
@@ -2401,7 +2404,7 @@ impl TermWindow {
             .unwrap_or("Fuzzy matching: ".to_string());
 
         let config = &self.config;
-        let alphabet = args.alphabet.unwrap_or(config.key_input.launcher_alphabet.clone());
+        let alphabet = args.alphabet.unwrap_or(config.key_input().launcher_alphabet.clone());
 
         promise::spawn::spawn(async move {
             let args = LauncherArgs::new(
@@ -2465,7 +2468,7 @@ impl TermWindow {
         &cache.zones
     }
 
-    fn scroll_to_prompt(&mut self, amount: isize, pane: &Arc<dyn Pane>) -> anyhow::Result<()> {
+    pub(crate) fn scroll_to_prompt(&mut self, amount: isize, pane: &Arc<dyn Pane>) -> anyhow::Result<()> {
         let dims = pane.get_dimensions();
         let position = self
             .get_viewport(pane.pane_id())
@@ -2488,7 +2491,7 @@ impl TermWindow {
         Ok(())
     }
 
-    fn scroll_by_page(&mut self, amount: f64, pane: &Arc<dyn Pane>) -> anyhow::Result<()> {
+    pub(crate) fn scroll_by_page(&mut self, amount: f64, pane: &Arc<dyn Pane>) -> anyhow::Result<()> {
         let dims = pane.get_dimensions();
         let position = self
             .get_viewport(pane.pane_id())
@@ -2501,7 +2504,10 @@ impl TermWindow {
         Ok(())
     }
 
-    fn scroll_by_current_event_wheel_delta(&mut self, pane: &Arc<dyn Pane>) -> anyhow::Result<()> {
+    pub(crate) fn scroll_by_current_event_wheel_delta(
+        &mut self,
+        pane: &Arc<dyn Pane>,
+    ) -> anyhow::Result<()> {
         if let Some(event) = &self.current_mouse_event {
             let amount = match event.kind {
                 MouseEventKind::VertWheel(amount) => -amount,
@@ -2512,7 +2518,7 @@ impl TermWindow {
         Ok(())
     }
 
-    fn scroll_by_line(&mut self, amount: isize, pane: &Arc<dyn Pane>) -> anyhow::Result<()> {
+    pub(crate) fn scroll_by_line(&mut self, amount: isize, pane: &Arc<dyn Pane>) -> anyhow::Result<()> {
         let dims = pane.get_dimensions();
         let position = self
             .get_viewport(pane.pane_id())
@@ -2525,7 +2531,7 @@ impl TermWindow {
         Ok(())
     }
 
-    fn move_tab_relative(&mut self, delta: isize) -> anyhow::Result<()> {
+    pub(crate) fn move_tab_relative(&mut self, delta: isize) -> anyhow::Result<()> {
         let mux = Mux::get();
         let window = mux
             .get_window(self.mux_window_id)
@@ -2548,13 +2554,102 @@ impl TermWindow {
         self.move_tab(tab)
     }
 
+    pub(crate) fn activate_key_table_effect(
+        &mut self,
+        name: &str,
+        timeout_milliseconds: Option<u64>,
+        replace_current: bool,
+        one_shot: bool,
+        until_unknown: bool,
+        prevent_fallback: bool,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.input_map.has_table(name),
+            "ActivateKeyTable: no key_table named {}",
+            name
+        );
+        self.key_table_state.activate(KeyTableArgs {
+            name,
+            timeout_milliseconds,
+            replace_current,
+            one_shot,
+            until_unknown,
+            prevent_fallback,
+        });
+        self.update_title();
+        Ok(())
+    }
+
+    pub(crate) fn pop_key_table_effect(&mut self) {
+        self.key_table_state.pop();
+        self.update_title();
+    }
+
+    pub(crate) fn clear_key_table_stack_effect(&mut self) {
+        self.key_table_state.clear_stack();
+        self.update_title();
+    }
+
+    pub(crate) fn activate_leader_effect(&mut self, timeout_ms: u64) {
+        let target = std::time::Instant::now() + Duration::from_millis(timeout_ms);
+        self.leader_is_down.replace(target);
+        self.update_title();
+        if let Some(window) = self.window.clone() {
+            promise::spawn::spawn(async move {
+                Timer::at(target).await;
+                window.invalidate();
+            })
+            .detach();
+        }
+    }
+
+    pub(crate) fn start_window_drag_effect(&mut self) {
+        self.window_drag_position = self.current_mouse_event.clone();
+    }
+
+    pub(crate) fn switch_to_workspace_effect(
+        &mut self,
+        name: Option<String>,
+        spawn: Option<SpawnCommand>,
+    ) {
+        let activity = crate::Activity::new();
+        let mux = Mux::get();
+        let name = name.unwrap_or_else(|| mux.generate_workspace_name());
+        let switcher = crate::frontend::WorkspaceSwitcher::new(&name);
+        mux.set_active_workspace(&name);
+
+        if mux.iter_windows_in_workspace(&name).is_empty() {
+            let spawn = spawn.unwrap_or_default();
+            let size = self.terminal_size;
+            let term_config = Arc::new(TermConfig::with_config(self.config.clone()));
+            let src_window_id = self.mux_window_id;
+
+            promise::spawn::spawn(async move {
+                if let Err(err) = crate::spawn::spawn_command_internal(
+                    spawn,
+                    SpawnWhere::NewWindow,
+                    size,
+                    Some(src_window_id),
+                    term_config,
+                )
+                .await
+                {
+                    log::error!("Failed to spawn: {:#}", err);
+                }
+                switcher.do_switch();
+                drop(activity);
+            })
+            .detach();
+        } else {
+            switcher.do_switch();
+        }
+    }
+
     pub fn perform_key_assignment(
         &mut self,
         pane: &Arc<dyn Pane>,
         assignment: &KeyAssignment,
     ) -> anyhow::Result<PerformAssignmentResult> {
-        use KeyAssignment::*;
-
         if let Some(modal) = self.get_modal() {
             if modal.perform_assignment(assignment, self) {
                 return Ok(PerformAssignmentResult::Handled);
@@ -2566,575 +2661,12 @@ impl TermWindow {
             result => return Ok(result),
         }
 
-        let window = self.window.as_ref().map(|w| w.clone());
-
-        match assignment {
-            ActivateKeyTable {
-                name,
-                timeout_milliseconds,
-                replace_current,
-                one_shot,
-                until_unknown,
-                prevent_fallback,
-            } => {
-                anyhow::ensure!(
-                    self.input_map.has_table(name),
-                    "ActivateKeyTable: no key_table named {}",
-                    name
-                );
-                self.key_table_state.activate(KeyTableArgs {
-                    name,
-                    timeout_milliseconds: *timeout_milliseconds,
-                    replace_current: *replace_current,
-                    one_shot: *one_shot,
-                    until_unknown: *until_unknown,
-                    prevent_fallback: *prevent_fallback,
-                });
-                self.update_title();
-            }
-            PopKeyTable => {
-                self.key_table_state.pop();
-                self.update_title();
-            }
-            ClearKeyTableStack => {
-                self.key_table_state.clear_stack();
-                self.update_title();
-            }
-            Multiple(actions) => {
-                for a in actions {
-                    self.perform_key_assignment(pane, a)?;
-                }
-            }
-            SpawnTab(spawn_where) => {
-                self.spawn_tab(spawn_where);
-            }
-            SpawnWindow => {
-                self.spawn_command(&SpawnCommand::default(), SpawnWhere::NewWindow);
-            }
-            SpawnCommandInNewTab(spawn) => {
-                self.spawn_command(spawn, SpawnWhere::NewTab);
-            }
-            SpawnCommandInNewWindow(spawn) => {
-                self.spawn_command(spawn, SpawnWhere::NewWindow);
-            }
-            SplitHorizontal(spawn) => {
-                log::trace!("SplitHorizontal {:?}", spawn);
-                self.spawn_command(
-                    spawn,
-                    SpawnWhere::SplitPane(SplitRequest {
-                        direction: SplitDirection::Horizontal,
-                        target_is_second: true,
-                        size: MuxSplitSize::Percent(50),
-                        top_level: false,
-                    }),
-                );
-            }
-            SplitVertical(spawn) => {
-                log::trace!("SplitVertical {:?}", spawn);
-                self.spawn_command(
-                    spawn,
-                    SpawnWhere::SplitPane(SplitRequest {
-                        direction: SplitDirection::Vertical,
-                        target_is_second: true,
-                        size: MuxSplitSize::Percent(50),
-                        top_level: false,
-                    }),
-                );
-            }
-            ToggleFullScreen => {
-                self.window.as_ref().unwrap().toggle_fullscreen();
-            }
-            ToggleAlwaysOnTop => {
-                let window = self.window.clone().unwrap();
-                let current_level = self.window_state.as_window_level();
-
-                match current_level {
-                    WindowLevel::AlwaysOnTop => {
-                        window.set_window_level(WindowLevel::Normal);
-                    }
-                    WindowLevel::AlwaysOnBottom | WindowLevel::Normal => {
-                        window.set_window_level(WindowLevel::AlwaysOnTop);
-                    }
-                }
-            }
-            ToggleAlwaysOnBottom => {
-                let window = self.window.clone().unwrap();
-                let current_level = self.window_state.as_window_level();
-
-                match current_level {
-                    WindowLevel::AlwaysOnBottom => {
-                        window.set_window_level(WindowLevel::Normal);
-                    }
-                    WindowLevel::AlwaysOnTop | WindowLevel::Normal => {
-                        window.set_window_level(WindowLevel::AlwaysOnBottom);
-                    }
-                }
-            }
-            SetWindowLevel(level) => {
-                let window = self.window.clone().unwrap();
-                window.set_window_level(level.clone());
-            }
-            CopyTo(dest) => {
-                let text = self.selection_text(pane);
-                self.copy_to_clipboard(*dest, text);
-            }
-            CopyTextTo { text, destination } => {
-                self.copy_to_clipboard(*destination, text.clone());
-            }
-            PasteFrom(source) => {
-                self.paste_from_clipboard(pane, *source);
-            }
-            ActivateTabRelative(n) => {
-                self.activate_tab_relative(*n, true)?;
-            }
-            ActivateTabRelativeNoWrap(n) => {
-                self.activate_tab_relative(*n, false)?;
-            }
-            ActivateLastTab => self.activate_last_tab()?,
-            DecreaseFontSize => self.decrease_font_size(),
-            IncreaseFontSize => self.increase_font_size(),
-            ResetFontSize => self.reset_font_size(),
-            ResetFontAndWindowSize => {
-                if let Some(w) = window.as_ref() {
-                    self.reset_font_and_window_size(&w)?
-                }
-            }
-            ActivateTab(n) => {
-                self.activate_tab(*n)?;
-            }
-            ActivateWindow(n) => {
-                self.activate_window(*n)?;
-            }
-            ActivateWindowRelative(n) => {
-                self.activate_window_relative(*n, true)?;
-            }
-            ActivateWindowRelativeNoWrap(n) => {
-                self.activate_window_relative(*n, false)?;
-            }
-            SendString(s) => pane.writer().write_all(s.as_bytes())?,
-            SendKey(key) => {
-                use keyevent::Key;
-                let mods = key.mods;
-                if let Key::Code(key) = self.win_key_code_to_termwiz_key_code(
-                    &key.key.resolve(self.config.key_input.key_map_preference),
-                ) {
-                    pane.key_down(key, mods)?;
-                }
-            }
-            Hide => {
-                if let Some(w) = window.as_ref() {
-                    w.hide();
-                }
-            }
-            Show => {
-                if let Some(w) = window.as_ref() {
-                    w.show();
-                }
-            }
-            CloseCurrentTab { confirm } => self.close_current_tab(*confirm),
-            CloseCurrentPane { confirm } => self.close_current_pane(*confirm),
-            Nop | DisableDefaultAssignment => {}
-            ReloadConfiguration => config::reload(),
-            MoveTab(n) => self.move_tab(*n)?,
-            MoveTabRelative(n) => self.move_tab_relative(*n)?,
-            ScrollByPage(n) => self.scroll_by_page(**n, pane)?,
-            ScrollByLine(n) => self.scroll_by_line(*n, pane)?,
-            ScrollByCurrentEventWheelDelta => self.scroll_by_current_event_wheel_delta(pane)?,
-            ScrollToPrompt(n) => self.scroll_to_prompt(*n, pane)?,
-            ScrollToTop => self.scroll_to_top(pane),
-            ScrollToBottom => self.scroll_to_bottom(pane),
-            ShowTabNavigator => self.show_tab_navigator(),
-            ShowDebugOverlay => self.show_debug_overlay(),
-            ShowLauncher => self.show_launcher(),
-            ShowLauncherArgs(args) => {
-                let title = args.title.clone().unwrap_or("Launcher".to_string());
-                let args = LauncherActionArgs {
-                    title: Some(title),
-                    flags: args.flags,
-                    help_text: args.help_text.clone(),
-                    fuzzy_help_text: args.fuzzy_help_text.clone(),
-                    alphabet: args.alphabet.clone(),
-                };
-                self.show_launcher_impl(args, 0);
-            }
-            HideApplication => {
-                let con = Connection::get().expect("call on gui thread");
-                con.hide_application();
-            }
-            QuitApplication => {
-                let mux = Mux::get();
-                let config = &self.config;
-                log::info!("QuitApplication over here (window)");
-
-                match config.window_config.window_close_confirmation {
-                    WindowCloseConfirmation::NeverPrompt => {
-                        let con = Connection::get().expect("call on gui thread");
-                        con.terminate_message_loop();
-                    }
-                    WindowCloseConfirmation::AlwaysPrompt => {
-                        let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-                            Some(tab) => tab,
-                            None => anyhow::bail!("no active tab!?"),
-                        };
-
-                        let window = self.window.clone().unwrap();
-                        let (overlay, future) = start_overlay(self, &tab, move |tab_id, term| {
-                            confirm_quit_program(term, window, tab_id)
-                        });
-                        self.assign_overlay(tab.tab_id(), overlay);
-                        promise::spawn::spawn(future).detach();
-                    }
-                }
-            }
-            SelectTextAtMouseCursor(mode) => self.select_text_at_mouse_cursor(*mode, pane),
-            ExtendSelectionToMouseCursor(mode) => {
-                self.extend_selection_at_mouse_cursor(*mode, pane)
-            }
-            ClearSelection => {
-                self.clear_selection(pane);
-            }
-            StartWindowDrag => {
-                self.window_drag_position = self.current_mouse_event.clone();
-            }
-            OpenLinkAtMouseCursor => {
-                self.do_open_link_at_mouse_cursor(pane);
-            }
-            EmitEvent(name) => {
-                self.emit_window_event(name, None);
-            }
-            CompleteSelectionOrOpenLinkAtMouseCursor(dest) => {
-                let text = self.selection_text(pane);
-                if !text.is_empty() {
-                    self.copy_to_clipboard(*dest, text);
-                    let window = self.window.as_ref().unwrap();
-                    window.invalidate();
-                } else {
-                    self.do_open_link_at_mouse_cursor(pane);
-                }
-            }
-            CompleteSelection(dest) => {
-                let text = self.selection_text(pane);
-                if !text.is_empty() {
-                    self.copy_to_clipboard(*dest, text);
-                    let window = self.window.as_ref().unwrap();
-                    window.invalidate();
-                }
-            }
-            ClearScrollback(erase_mode) => {
-                pane.erase_scrollback(*erase_mode);
-                let window = self.window.as_ref().unwrap();
-                window.invalidate();
-            }
-            Search(pattern) => {
-                if let Some(pane) = self.get_active_pane_or_overlay() {
-                    let mut replace_current = false;
-                    if let Some(existing) = pane.downcast_ref::<CopyOverlay>() {
-                        let mut params = existing.get_params();
-                        params.editing_search = true;
-                        if !pattern.is_empty() {
-                            params.pattern = self.resolve_search_pattern(pattern.clone(), &pane);
-                        }
-                        existing.apply_params(params);
-                        replace_current = true;
-                    } else {
-                        let search = CopyOverlay::with_pane(
-                            self,
-                            &pane,
-                            CopyModeParams {
-                                pattern: self.resolve_search_pattern(pattern.clone(), &pane),
-                                editing_search: true,
-                            },
-                        )?;
-                        self.assign_overlay_for_pane(pane.pane_id(), search);
-                    }
-                    self.pane_state(pane.pane_id())
-                        .overlay
-                        .as_mut()
-                        .map(|overlay| {
-                            overlay.key_table_state.activate(KeyTableArgs {
-                                name: "search_mode",
-                                timeout_milliseconds: None,
-                                replace_current,
-                                one_shot: false,
-                                until_unknown: false,
-                                prevent_fallback: false,
-                            });
-                        });
-                }
-            }
-            QuickSelect => {
-                if let Some(pane) = self.get_active_pane_no_overlay() {
-                    let qa = QuickSelectOverlay::with_pane(
-                        self,
-                        &pane,
-                        &QuickSelectArguments::default(),
-                    );
-                    self.assign_overlay_for_pane(pane.pane_id(), qa);
-                }
-            }
-            QuickSelectArgs(args) => {
-                if let Some(pane) = self.get_active_pane_no_overlay() {
-                    let qa = QuickSelectOverlay::with_pane(self, &pane, args);
-                    self.assign_overlay_for_pane(pane.pane_id(), qa);
-                }
-            }
-            ActivateCopyMode => {
-                if let Some(pane) = self.get_active_pane_or_overlay() {
-                    let mut replace_current = false;
-                    if let Some(existing) = pane.downcast_ref::<CopyOverlay>() {
-                        let mut params = existing.get_params();
-                        params.editing_search = false;
-                        existing.apply_params(params);
-                        replace_current = true;
-                    } else {
-                        let copy = CopyOverlay::with_pane(
-                            self,
-                            &pane,
-                            CopyModeParams {
-                                pattern: MuxPattern::default(),
-                                editing_search: false,
-                            },
-                        )?;
-                        self.assign_overlay_for_pane(pane.pane_id(), copy);
-                    }
-                    self.pane_state(pane.pane_id())
-                        .overlay
-                        .as_mut()
-                        .map(|overlay| {
-                            overlay.key_table_state.activate(KeyTableArgs {
-                                name: "copy_mode",
-                                timeout_milliseconds: None,
-                                replace_current,
-                                one_shot: false,
-                                until_unknown: false,
-                                prevent_fallback: false,
-                            });
-                        });
-                }
-            }
-            AdjustPaneSize(direction, amount) => {
-                let mux = Mux::get();
-                let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-                    Some(tab) => tab,
-                    None => return Ok(PerformAssignmentResult::Handled),
-                };
-
-                let tab_id = tab.tab_id();
-
-                if self.tab_state(tab_id).overlay.is_none() {
-                    tab.adjust_pane_size(*direction, *amount);
-                }
-            }
-            ActivatePaneByIndex(index) => {
-                let mux = Mux::get();
-                let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-                    Some(tab) => tab,
-                    None => return Ok(PerformAssignmentResult::Handled),
-                };
-
-                let tab_id = tab.tab_id();
-
-                if self.tab_state(tab_id).overlay.is_none() {
-                    let panes = tab.iter_panes();
-                    if panes.iter().position(|p| p.index == *index).is_some() {
-                        tab.set_active_idx(*index);
-                    }
-                }
-            }
-            ActivatePaneDirection(direction) => {
-                let mux = Mux::get();
-                let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-                    Some(tab) => tab,
-                    None => return Ok(PerformAssignmentResult::Handled),
-                };
-
-                let tab_id = tab.tab_id();
-
-                if self.tab_state(tab_id).overlay.is_none() {
-                    tab.activate_pane_direction(*direction);
-                }
-            }
-            TogglePaneZoomState => {
-                let mux = Mux::get();
-                let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-                    Some(tab) => tab,
-                    None => return Ok(PerformAssignmentResult::Handled),
-                };
-                tab.toggle_zoom();
-            }
-            SetPaneZoomState(zoomed) => {
-                let mux = Mux::get();
-                let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-                    Some(tab) => tab,
-                    None => return Ok(PerformAssignmentResult::Handled),
-                };
-                tab.set_zoomed(*zoomed);
-            }
-            SwitchWorkspaceRelative(delta) => {
-                let mux = Mux::get();
-                let workspace = mux.active_workspace();
-                let workspaces = mux.iter_workspaces();
-                let idx = workspaces.iter().position(|w| *w == workspace).unwrap_or(0);
-                let new_idx = idx as isize + delta;
-                let new_idx = if new_idx < 0 {
-                    workspaces.len() as isize + new_idx
-                } else {
-                    new_idx
-                };
-                let new_idx = new_idx as usize % workspaces.len();
-                if let Some(w) = workspaces.get(new_idx) {
-                    front_end().switch_workspace(w);
-                }
-            }
-            SwitchToWorkspace { name, spawn } => {
-                let activity = crate::Activity::new();
-                let mux = Mux::get();
-                let name = name
-                    .as_ref()
-                    .map(|name| name.to_string())
-                    .unwrap_or_else(|| mux.generate_workspace_name());
-                let switcher = crate::frontend::WorkspaceSwitcher::new(&name);
-                mux.set_active_workspace(&name);
-
-                if mux.iter_windows_in_workspace(&name).is_empty() {
-                    let spawn = spawn.as_ref().map(|s| s.clone()).unwrap_or_default();
-                    let size = self.terminal_size;
-                    let term_config = Arc::new(TermConfig::with_config(self.config.clone()));
-                    let src_window_id = self.mux_window_id;
-
-                    promise::spawn::spawn(async move {
-                        if let Err(err) = crate::spawn::spawn_command_internal(
-                            spawn,
-                            SpawnWhere::NewWindow,
-                            size,
-                            Some(src_window_id),
-                            term_config,
-                        )
-                        .await
-                        {
-                            log::error!("Failed to spawn: {:#}", err);
-                        }
-                        switcher.do_switch();
-                        drop(activity);
-                    })
-                    .detach();
-                } else {
-                    switcher.do_switch();
-                }
-            }
-            DetachDomain(domain) => {
-                let domain = Mux::get().resolve_spawn_tab_domain(Some(pane.pane_id()), domain)?;
-                domain.detach()?;
-            }
-            AttachDomain(domain) => {
-                let window = self.mux_window_id;
-                let domain = domain.to_string();
-                let dpi = self.dimensions.dpi as u32;
-
-                promise::spawn::spawn(async move {
-                    let mux = Mux::get();
-                    let domain = mux
-                        .get_domain_by_name(&domain)
-                        .ok_or_else(|| anyhow!("{} is not a valid domain name", domain))?;
-                    domain.attach(Some(window)).await?;
-
-                    let have_panes_in_domain = mux
-                        .iter_panes()
-                        .iter()
-                        .any(|p| p.domain_id() == domain.domain_id());
-
-                    if !have_panes_in_domain {
-                        let config = config::configuration();
-                        let _tab = domain
-                            .spawn(
-                                config.initial_size(
-                                    dpi,
-                                    Some(crate::cell_pixel_dims(&config, dpi as f64)?),
-                                ),
-                                None,
-                                None,
-                                window,
-                            )
-                            .await?;
-                    }
-
-                    Result::<(), anyhow::Error>::Ok(())
-                })
-                .detach();
-            }
-            CopyMode(_) => {
-                // NOP here; handled by the overlay directly
-            }
-            RotatePanes(direction) => {
-                let mux = Mux::get();
-                let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-                    Some(tab) => tab,
-                    None => return Ok(PerformAssignmentResult::Handled),
-                };
-                match direction {
-                    RotationDirection::Clockwise => tab.rotate_clockwise(),
-                    RotationDirection::CounterClockwise => tab.rotate_counter_clockwise(),
-                }
-            }
-            SplitPane(split) => {
-                log::trace!("SplitPane {:?}", split);
-                self.spawn_command(
-                    &split.command,
-                    SpawnWhere::SplitPane(SplitRequest {
-                        direction: match split.direction {
-                            PaneDirection::Down | PaneDirection::Up => SplitDirection::Vertical,
-                            PaneDirection::Left | PaneDirection::Right => {
-                                SplitDirection::Horizontal
-                            }
-                            PaneDirection::Next | PaneDirection::Prev => {
-                                log::error!(
-                                    "Invalid direction {:?} for SplitPane",
-                                    split.direction
-                                );
-                                return Ok(PerformAssignmentResult::Handled);
-                            }
-                        },
-                        target_is_second: match split.direction {
-                            PaneDirection::Down | PaneDirection::Right => true,
-                            PaneDirection::Up | PaneDirection::Left => false,
-                            PaneDirection::Next | PaneDirection::Prev => unreachable!(),
-                        },
-                        size: match split.size {
-                            SplitSize::Percent(n) => MuxSplitSize::Percent(n),
-                            SplitSize::Cells(n) => MuxSplitSize::Cells(n),
-                        },
-                        top_level: split.top_level,
-                    }),
-                );
-            }
-            PaneSelect(args) => {
-                let modal = crate::termwindow::paneselect::PaneSelector::new(self, args);
-                self.set_modal(Rc::new(modal));
-            }
-            CharSelect(args) => {
-                let modal = crate::termwindow::charselect::CharSelector::new(self, args);
-                self.set_modal(Rc::new(modal));
-            }
-            ResetTerminal => {
-                pane.perform_actions(vec![termwiz::escape::Action::Esc(
-                    termwiz::escape::Esc::Code(termwiz::escape::EscCode::FullReset),
-                )]);
-            }
-            OpenUri(link) => {
-                phaedra_open_url::open_url(link);
-            }
-            ActivateCommandPalette => {
-                let modal = crate::termwindow::palette::CommandPalette::new(self);
-                self.set_modal(Rc::new(modal));
-            }
-            PromptInputLine(args) => self.show_prompt_input_line(args),
-            InputSelector(args) => self.show_input_selector(args),
-            Confirmation(args) => self.show_confirmation(args),
-        };
+        let effects = crate::interpret::interpret_assignment(assignment);
+        self.execute_effects(effects, pane)?;
         Ok(PerformAssignmentResult::Handled)
     }
 
-    fn do_open_link_at_mouse_cursor(&self, pane: &Arc<dyn Pane>) {
+    pub(crate) fn do_open_link_at_mouse_cursor(&self, pane: &Arc<dyn Pane>) {
         // They clicked on a link, so let's open it!
         // We need to ensure that we spawn the `open` call outside of the context
         // of our window loop; on Windows it can cause a panic due to
@@ -3177,7 +2709,7 @@ impl TermWindow {
             .detach();
         }
     }
-    fn close_current_pane(&mut self, confirm: bool) {
+    pub(crate) fn close_current_pane(&mut self, confirm: bool) {
         let mux_window_id = self.mux_window_id;
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(mux_window_id) {
@@ -3233,7 +2765,7 @@ impl TermWindow {
         }
     }
 
-    fn close_current_tab(&mut self, confirm: bool) {
+    pub(crate) fn close_current_tab(&mut self, confirm: bool) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
             Some(tab) => tab,
@@ -3334,21 +2866,21 @@ impl TermWindow {
     }
 
     fn maybe_scroll_to_bottom_for_input(&mut self, pane: &Arc<dyn Pane>) {
-        if self.config.scroll_to_bottom_on_input {
+        if self.config.scroll().scroll_to_bottom_on_input {
             self.scroll_to_bottom(pane);
         }
     }
 
-    fn scroll_to_top(&mut self, pane: &Arc<dyn Pane>) {
+    pub(crate) fn scroll_to_top(&mut self, pane: &Arc<dyn Pane>) {
         let dims = pane.get_dimensions();
         self.set_viewport(pane.pane_id(), Some(dims.scrollback_top), dims);
     }
 
-    fn scroll_to_bottom(&mut self, pane: &Arc<dyn Pane>) {
+    pub(crate) fn scroll_to_bottom(&mut self, pane: &Arc<dyn Pane>) {
         self.pane_state(pane.pane_id()).viewport = None;
     }
 
-    fn get_active_pane_no_overlay(&self) -> Option<Arc<dyn Pane>> {
+    pub(crate) fn get_active_pane_no_overlay(&self) -> Option<Arc<dyn Pane>> {
         let mux = Mux::get();
         mux.get_active_tab_for_window(self.mux_window_id)
             .and_then(|tab| tab.get_active_pane())
@@ -3567,7 +3099,7 @@ impl TermWindow {
         self.update_title();
     }
 
-    fn resolve_search_pattern(&self, pattern: Pattern, pane: &Arc<dyn Pane>) -> MuxPattern {
+    pub(crate) fn resolve_search_pattern(&self, pattern: Pattern, pane: &Arc<dyn Pane>) -> MuxPattern {
         match pattern {
             Pattern::CaseSensitiveString(s) => MuxPattern::CaseSensitiveString(s),
             Pattern::CaseInSensitiveString(s) => MuxPattern::CaseInSensitiveString(s),

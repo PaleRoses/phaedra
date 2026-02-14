@@ -3,7 +3,7 @@
 use crate::locator::{FontDataSource, FontOrigin};
 use crate::parser::{load_built_in_fonts, parse_and_collect_font_info, ParsedFont};
 use anyhow::Context;
-use config::{Config, FontAttributes};
+use config::{observers::*, ConfigHandle, FontAttributes};
 use rangeset::RangeSet;
 use std::collections::{HashMap, HashSet};
 
@@ -35,9 +35,9 @@ impl FontDatabase {
 
     /// Build up the database from the fonts found in the configured font dirs
     /// and from the built-in selection of fonts
-    pub fn with_font_dirs(config: &Config) -> anyhow::Result<Self> {
+    pub fn with_font_dirs(config: &ConfigHandle) -> anyhow::Result<Self> {
         let mut font_info = vec![];
-        for path in &config.font_config.font_dirs {
+        for path in &config.font_config().font_dirs {
             for entry in walkdir::WalkDir::new(path).into_iter() {
                 let entry = match entry {
                     Ok(entry) => entry,

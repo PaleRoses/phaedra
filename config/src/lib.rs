@@ -1,6 +1,7 @@
 //! Configuration for the gui portion of the terminal
 
 use anyhow::{anyhow, bail, Context, Error};
+use crate::keyassignment::KeyTables;
 use lazy_static::lazy_static;
 use mlua::Lua;
 use ordered_float::NotNan;
@@ -18,10 +19,11 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use phaedra_dynamic::{FromDynamic, FromDynamicOptions, ToDynamic, UnknownFieldAction, Value};
-use phaedra_term::UnicodeVersion;
+use phaedra_term::{TerminalSize, UnicodeVersion};
 
 mod background;
 pub mod bell;
+pub mod cache_config;
 mod cell;
 mod color;
 mod config;
@@ -32,6 +34,7 @@ mod exec_domain;
 mod font;
 pub mod font_config;
 mod frontend;
+pub mod gpu_config;
 pub mod keyassignment;
 pub mod key_input_config;
 mod keys;
@@ -39,12 +42,16 @@ pub mod launch_config;
 pub mod lua;
 pub mod meta;
 pub mod mouse_config;
+pub mod mux_config;
+pub mod observers;
 pub mod color_config;
 mod scheme_data;
 pub mod scroll;
+pub mod runtime_config;
 mod ssh;
 pub mod tab_bar;
 mod terminal;
+pub mod terminal_feature_config;
 pub mod text_config;
 mod tls;
 mod units;
@@ -57,6 +64,7 @@ pub mod window_config;
 pub use crate::config::*;
 pub use background::*;
 pub use bell::*;
+pub use cache_config::CacheConfig;
 pub use cell::*;
 pub use color_config::ColorConfig;
 pub use color::*;
@@ -66,15 +74,20 @@ pub use cursor::CursorConfig;
 pub use exec_domain::*;
 pub use font::*;
 pub use font_config::FontConfig;
+pub use gpu_config::GpuConfig;
 pub use frontend::*;
 pub use key_input_config::KeyInputConfig;
 pub use keys::*;
 pub use launch_config::LaunchConfig;
 pub use mouse_config::MouseConfig;
+pub use mux_config::MuxConfig;
+pub use observers::*;
+pub use runtime_config::RuntimeConfig;
 pub use scroll::ScrollConfig;
 pub use ssh::*;
 pub use tab_bar::TabBarConfig;
 pub use terminal::*;
+pub use terminal_feature_config::TerminalFeatureConfig;
 pub use text_config::TextConfig;
 pub use tls::*;
 pub use units::*;
@@ -653,7 +666,10 @@ impl ConfigInner {
         }
 
         self.notify();
-        if self.config.automatically_reload_config {
+        if ConfigHandle::from_arc(Arc::clone(&self.config), self.generation)
+            .runtime()
+            .automatically_reload_config
+        {
             for path in watch_paths {
                 self.watch_path(path);
             }
@@ -797,108 +813,13 @@ impl Configuration {
 
 #[derive(Clone, Debug)]
 pub struct ConfigHandle {
-    pub visual_bell: VisualBell,
-    pub audible_bell: AudibleBell,
-    pub check_for_updates: bool,
-    pub check_for_updates_interval_seconds: u64,
-    pub scrollback_lines: usize,
-    pub enable_scroll_bar: bool,
-    pub min_scroll_bar_height: Dimension,
-    pub scroll_to_bottom_on_input: bool,
-    pub alternate_buffer_wheel_scroll_speed: u8,
-    pub cursor_thickness: Option<Dimension>,
-    pub cursor_blink_rate: u64,
-    pub cursor_blink_ease_in: EasingFunction,
-    pub cursor_blink_ease_out: EasingFunction,
-    pub default_cursor_style: DefaultCursorStyle,
-    pub force_reverse_video_cursor: bool,
-    pub reverse_video_cursor_min_contrast: f32,
-    pub xcursor_theme: Option<String>,
-    pub xcursor_size: Option<u32>,
-    pub tab_bar_style: TabBarStyle,
-    pub enable_tab_bar: bool,
-    pub use_fancy_tab_bar: bool,
-    pub tab_bar_at_bottom: bool,
-    pub mouse_wheel_scrolls_tabs: bool,
-    pub show_tab_index_in_tab_bar: bool,
-    pub show_tabs_in_tab_bar: bool,
-    pub show_new_tab_button_in_tab_bar: bool,
-    pub show_close_tab_button_in_tabs: bool,
-    pub tab_and_split_indices_are_zero_based: bool,
-    pub tab_max_width: usize,
-    pub hide_tab_bar_if_only_one_tab: bool,
-    pub switch_to_last_active_tab_when_closing_tab: bool,
-    pub mouse_bindings: Vec<Mouse>,
-    pub disable_default_mouse_bindings: bool,
-    pub bypass_mouse_reporting_modifiers: phaedra_input_types::Modifiers,
-    pub selection_word_boundary: String,
-    pub quick_select_patterns: Vec<String>,
-    pub quick_select_alphabet: String,
-    pub quick_select_remove_styling: bool,
-    pub disable_default_quick_select_patterns: bool,
-    pub hide_mouse_cursor_when_typing: bool,
-    pub swallow_mouse_click_on_pane_focus: bool,
-    pub swallow_mouse_click_on_window_focus: bool,
-    pub pane_focus_follows_mouse: bool,
-    pub quote_dropped_files: DroppedFileQuoting,
     config: Arc<Config>,
     generation: usize,
 }
 
 impl ConfigHandle {
     fn from_arc(config: Arc<Config>, generation: usize) -> Self {
-        Self {
-            visual_bell: config.bell.visual_bell.clone(),
-            audible_bell: config.bell.audible_bell.clone(),
-            check_for_updates: config.update_check.check_for_updates,
-            check_for_updates_interval_seconds: config
-                .update_check
-                .check_for_updates_interval_seconds,
-            scrollback_lines: config.scroll.scrollback_lines,
-            enable_scroll_bar: config.scroll.enable_scroll_bar,
-            min_scroll_bar_height: config.scroll.min_scroll_bar_height,
-            scroll_to_bottom_on_input: config.scroll.scroll_to_bottom_on_input,
-            alternate_buffer_wheel_scroll_speed: config.scroll.alternate_buffer_wheel_scroll_speed,
-            cursor_thickness: config.cursor.cursor_thickness,
-            cursor_blink_rate: config.cursor.cursor_blink_rate,
-            cursor_blink_ease_in: config.cursor.cursor_blink_ease_in,
-            cursor_blink_ease_out: config.cursor.cursor_blink_ease_out,
-            default_cursor_style: config.cursor.default_cursor_style,
-            force_reverse_video_cursor: config.cursor.force_reverse_video_cursor,
-            reverse_video_cursor_min_contrast: config.cursor.reverse_video_cursor_min_contrast,
-            xcursor_theme: config.cursor.xcursor_theme.clone(),
-            xcursor_size: config.cursor.xcursor_size,
-            tab_bar_style: config.tab_bar.tab_bar_style.clone(),
-            enable_tab_bar: config.tab_bar.enable_tab_bar,
-            use_fancy_tab_bar: config.tab_bar.use_fancy_tab_bar,
-            tab_bar_at_bottom: config.tab_bar.tab_bar_at_bottom,
-            mouse_wheel_scrolls_tabs: config.tab_bar.mouse_wheel_scrolls_tabs,
-            show_tab_index_in_tab_bar: config.tab_bar.show_tab_index_in_tab_bar,
-            show_tabs_in_tab_bar: config.tab_bar.show_tabs_in_tab_bar,
-            show_new_tab_button_in_tab_bar: config.tab_bar.show_new_tab_button_in_tab_bar,
-            show_close_tab_button_in_tabs: config.tab_bar.show_close_tab_button_in_tabs,
-            tab_and_split_indices_are_zero_based: config.tab_bar.tab_and_split_indices_are_zero_based,
-            tab_max_width: config.tab_bar.tab_max_width,
-            hide_tab_bar_if_only_one_tab: config.tab_bar.hide_tab_bar_if_only_one_tab,
-            switch_to_last_active_tab_when_closing_tab: config
-                .tab_bar
-                .switch_to_last_active_tab_when_closing_tab,
-            mouse_bindings: config.mouse.mouse_bindings.clone(),
-            disable_default_mouse_bindings: config.mouse.disable_default_mouse_bindings,
-            bypass_mouse_reporting_modifiers: config.mouse.bypass_mouse_reporting_modifiers,
-            selection_word_boundary: config.mouse.selection_word_boundary.clone(),
-            quick_select_patterns: config.mouse.quick_select_patterns.clone(),
-            quick_select_alphabet: config.mouse.quick_select_alphabet.clone(),
-            quick_select_remove_styling: config.mouse.quick_select_remove_styling,
-            disable_default_quick_select_patterns: config.mouse.disable_default_quick_select_patterns,
-            hide_mouse_cursor_when_typing: config.mouse.hide_mouse_cursor_when_typing,
-            swallow_mouse_click_on_pane_focus: config.mouse.swallow_mouse_click_on_pane_focus,
-            swallow_mouse_click_on_window_focus: config.mouse.swallow_mouse_click_on_window_focus,
-            pane_focus_follows_mouse: config.mouse.pane_focus_follows_mouse,
-            quote_dropped_files: config.mouse.quote_dropped_files,
-            config,
-            generation,
-        }
+        Self { config, generation }
     }
 
     /// Returns the generation number for the configuration,
@@ -914,20 +835,163 @@ impl ConfigHandle {
     }
 
     pub fn unicode_version(&self) -> UnicodeVersion {
+        let text = self.text();
         UnicodeVersion {
-            version: self.config.text.unicode_version,
-            ambiguous_are_wide: self.config.text.treat_east_asian_ambiguous_width_as_wide,
-            cell_widths: CellWidth::compile_to_map(self.config.text.cell_widths.clone()),
+            version: text.unicode_version,
+            ambiguous_are_wide: text.treat_east_asian_ambiguous_width_as_wide,
+            cell_widths: CellWidth::compile_to_map(text.cell_widths.clone()),
         }
+    }
+
+    pub fn ssh_domains(&self) -> Vec<SshDomain> {
+        self.config.ssh_domains()
+    }
+
+    pub fn key_bindings(&self) -> KeyTables {
+        self.config.key_bindings()
+    }
+
+    pub fn compute_extra_defaults(&self, config_path: Option<&Path>) -> Config {
+        self.config.compute_extra_defaults(config_path)
+    }
+
+    pub fn update_ulimit(&self) -> anyhow::Result<()> {
+        self.config.update_ulimit()
+    }
+
+    pub fn apply_cmd_defaults(
+        &self,
+        cmd: &mut portable_pty::CommandBuilder,
+        default_prog: Option<&Vec<String>>,
+        default_cwd: Option<&PathBuf>,
+    ) {
+        self.config
+            .apply_cmd_defaults(cmd, default_prog, default_cwd)
+    }
+
+    pub fn initial_size(&self, dpi: u32, cell_pixel_dims: Option<(usize, usize)>) -> TerminalSize {
+        self.config.initial_size(dpi, cell_pixel_dims)
+    }
+
+    pub fn build_prog(
+        &self,
+        prog: Option<Vec<&std::ffi::OsStr>>,
+        default_prog: Option<&Vec<String>>,
+        default_cwd: Option<&PathBuf>,
+    ) -> anyhow::Result<portable_pty::CommandBuilder> {
+        self.config.build_prog(prog, default_prog, default_cwd)
     }
 }
 
-impl std::ops::Deref for ConfigHandle {
-    type Target = Config;
-    fn deref(&self) -> &Config {
-        &*self.config
+impl BellObserver for ConfigHandle {
+    fn bell(&self) -> &BellConfig {
+        &self.config.bell
     }
 }
+
+impl UpdateCheckObserver for ConfigHandle {
+    fn update_check(&self) -> &UpdateConfig {
+        &self.config.update_check
+    }
+}
+
+impl ScrollObserver for ConfigHandle {
+    fn scroll(&self) -> &ScrollConfig {
+        &self.config.scroll
+    }
+}
+
+impl CursorObserver for ConfigHandle {
+    fn cursor(&self) -> &CursorConfig {
+        &self.config.cursor
+    }
+}
+
+impl TabBarObserver for ConfigHandle {
+    fn tab_bar(&self) -> &TabBarConfig {
+        &self.config.tab_bar
+    }
+}
+
+impl MouseObserver for ConfigHandle {
+    fn mouse(&self) -> &MouseConfig {
+        &self.config.mouse
+    }
+}
+
+impl LaunchObserver for ConfigHandle {
+    fn launch(&self) -> &LaunchConfig {
+        &self.config.launch
+    }
+}
+
+impl DomainObserver for ConfigHandle {
+    fn domain(&self) -> &DomainConfig {
+        &self.config.domain
+    }
+}
+
+impl KeyInputObserver for ConfigHandle {
+    fn key_input(&self) -> &KeyInputConfig {
+        &self.config.key_input
+    }
+}
+
+impl FontConfigObserver for ConfigHandle {
+    fn font_config(&self) -> &FontConfig {
+        &self.config.font_config
+    }
+}
+
+impl ColorConfigObserver for ConfigHandle {
+    fn color_config(&self) -> &ColorConfig {
+        &self.config.color_config
+    }
+}
+
+impl WindowConfigObserver for ConfigHandle {
+    fn window_config(&self) -> &WindowConfig {
+        &self.config.window_config
+    }
+}
+
+impl TextObserver for ConfigHandle {
+    fn text(&self) -> &TextConfig {
+        &self.config.text
+    }
+}
+
+impl GpuObserver for ConfigHandle {
+    fn gpu(&self) -> &GpuConfig {
+        &self.config.gpu
+    }
+}
+
+impl CacheObserver for ConfigHandle {
+    fn cache(&self) -> &CacheConfig {
+        &self.config.cache
+    }
+}
+
+impl TerminalFeaturesObserver for ConfigHandle {
+    fn terminal_features(&self) -> &TerminalFeatureConfig {
+        &self.config.terminal_features
+    }
+}
+
+impl MuxObserver for ConfigHandle {
+    fn mux_config(&self) -> &MuxConfig {
+        &self.config.mux
+    }
+}
+
+impl RuntimeObserver for ConfigHandle {
+    fn runtime(&self) -> &RuntimeConfig {
+        &self.config.runtime
+    }
+}
+
+impl FullConfigObserver for ConfigHandle {}
 
 pub struct LoadedConfig {
     pub config: anyhow::Result<Config>,

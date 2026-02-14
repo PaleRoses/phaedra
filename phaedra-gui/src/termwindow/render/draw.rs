@@ -1,4 +1,5 @@
 use crate::termwindow::webgpu::{PostProcessUniform, ShaderUniform};
+use config::observers::*;
 
 impl crate::TermWindow {
     pub fn call_draw(&mut self) -> anyhow::Result<()> {
@@ -82,7 +83,7 @@ impl crate::TermWindow {
             });
 
         let mut cleared = false;
-        let foreground_text_hsb = self.config.color_config.foreground_text_hsb;
+        let foreground_text_hsb = self.config.color_config().foreground_text_hsb;
         let foreground_text_hsb = [
             foreground_text_hsb.hue,
             foreground_text_hsb.saturation,

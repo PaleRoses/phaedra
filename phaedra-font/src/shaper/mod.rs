@@ -1,5 +1,6 @@
 use crate::parser::ParsedFont;
 use crate::units::PixelLength;
+use config::observers::*;
 use std::ops::Range;
 use termwiz::cell::Presentation;
 use termwiz::cellcluster::CellCluster;
@@ -141,7 +142,7 @@ pub fn new_shaper(
     config: &config::ConfigHandle,
     handles: &[ParsedFont],
 ) -> anyhow::Result<Box<dyn FontShaper>> {
-    match config.font_config.font_shaper {
+    match config.font_config().font_shaper {
         FontShaperSelection::Harfbuzz => {
             Ok(Box::new(harfbuzz::HarfbuzzShaper::new(config, handles)?))
         }

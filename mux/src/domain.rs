@@ -13,6 +13,7 @@ use crate::Mux;
 use anyhow::{bail, Context, Error};
 use async_trait::async_trait;
 use config::keyassignment::{SpawnCommand, SpawnTabDomain};
+use config::observers::*;
 use config::{configuration, ExecDomain, ValueOrFunc};
 use downcast_rs::{impl_downcast, Downcast};
 use parking_lot::Mutex;
@@ -211,7 +212,7 @@ impl LocalDomain {
 
     fn resolve_exec_domain(&self) -> Option<ExecDomain> {
         config::configuration()
-            .domain
+            .domain()
             .exec_domains
             .iter()
             .find(|ed| ed.name == self.name)
@@ -390,14 +391,14 @@ impl LocalDomain {
     ) -> anyhow::Result<CommandBuilder> {
         let config = configuration();
 
-        let default_prog = config.launch.default_prog.as_ref();
+        let default_prog = config.launch().default_prog.as_ref();
 
         let mut cmd = match command {
             Some(mut cmd) => {
-                config.apply_cmd_defaults(&mut cmd, default_prog, config.launch.default_cwd.as_ref());
+                config.apply_cmd_defaults(&mut cmd, default_prog, config.launch().default_cwd.as_ref());
                 cmd
             }
-            None => config.build_prog(None, default_prog, config.launch.default_cwd.as_ref())?,
+            None => config.build_prog(None, default_prog, config.launch().default_cwd.as_ref())?,
         };
         if let Some(dir) = command_dir {
             cmd.cwd(dir);

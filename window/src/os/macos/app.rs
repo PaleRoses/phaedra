@@ -7,6 +7,7 @@ use cocoa::appkit::NSApplicationTerminateReply;
 use cocoa::base::id;
 use cocoa::foundation::NSInteger;
 use config::keyassignment::KeyAssignment;
+use config::observers::*;
 use config::WindowCloseConfirmation;
 use objc::declare::ClassDecl;
 use objc::rc::StrongPtr;
@@ -22,7 +23,7 @@ extern "C" fn application_should_terminate(
 ) -> u64 {
     log::debug!("application termination requested");
     unsafe {
-        match config::configuration().window_config.window_close_confirmation {
+        match config::configuration().window_config().window_close_confirmation {
             WindowCloseConfirmation::NeverPrompt => terminate_now(),
             WindowCloseConfirmation::AlwaysPrompt => {
                 let alert: id = msg_send![class!(NSAlert), alloc];

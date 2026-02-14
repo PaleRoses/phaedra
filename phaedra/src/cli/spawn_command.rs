@@ -1,6 +1,7 @@
 use crate::cli::resolve_relative_cwd;
 use clap::{Parser, ValueHint};
 use config::keyassignment::SpawnTabDomain;
+use config::observers::*;
 use config::ConfigHandle;
 use mux::pane::PaneId;
 use mux::window::WindowId;
@@ -88,7 +89,7 @@ impl SpawnCommand {
             .as_deref()
             .unwrap_or(
                 config
-                    .launch.default_workspace
+                    .launch().default_workspace
                     .as_deref()
                     .unwrap_or(mux::DEFAULT_WORKSPACE),
             )

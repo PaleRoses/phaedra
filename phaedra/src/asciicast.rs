@@ -2,6 +2,7 @@ use anyhow::Context;
 use chrono::serde::ts_seconds_option;
 use chrono::{DateTime, Utc};
 use clap::Parser;
+use config::observers::*;
 use config::ConfigHandle;
 use filedescriptor::FileDescriptor;
 use portable_pty::{native_pty_system, PtySize};
@@ -61,7 +62,7 @@ pub struct Header {
 impl Header {
     fn new(config: &ConfigHandle, size: PtySize, prog: &[&OsStr]) -> Self {
         let mut env = HashMap::new();
-        env.insert("TERM".to_string(), config.launch.term.to_string());
+        env.insert("TERM".to_string(), config.launch().term.to_string());
         env.insert(
             "PHAEDRA_VERSION".to_string(),
             config::phaedra_version().to_string(),
@@ -77,7 +78,7 @@ impl Header {
             env.insert("LANG".to_string(), lang);
         }
 
-        let palette: ColorPalette = config.color_config.resolved_palette.clone().into();
+        let palette: ColorPalette = config.color_config().resolved_palette.clone().into();
         let ansi_colors: Vec<String> = palette.colors.0[0..16]
             .iter()
             .map(|c| c.to_rgb_string())
@@ -392,8 +393,8 @@ impl RecordCommand {
             } else {
                 Some(prog)
             },
-            config.launch.default_prog.as_ref(),
-            self.cwd.as_ref().or(config.launch.default_cwd.as_ref()),
+            config.launch().default_prog.as_ref(),
+            self.cwd.as_ref().or(config.launch().default_cwd.as_ref()),
         )?;
 
         let mut child = pair.slave.spawn_command(cmd)?;

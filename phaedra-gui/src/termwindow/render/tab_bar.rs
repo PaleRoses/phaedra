@@ -1,4 +1,5 @@
 use crate::quad::TripleLayerQuadAllocator;
+use config::observers::*;
 use crate::termwindow::render::RenderScreenLineParams;
 use crate::utilsprites::RenderMetrics;
 use config::ConfigHandle;
@@ -8,7 +9,7 @@ use window::color::LinearRgba;
 
 impl crate::TermWindow {
     pub fn paint_tab_bar(&mut self, layers: &mut TripleLayerQuadAllocator) -> anyhow::Result<()> {
-        if self.config.use_fancy_tab_bar {
+        if self.config.tab_bar().use_fancy_tab_bar {
             if self.fancy_tab_bar.is_none() {
                 let palette = self.palette().clone();
                 let tab_bar = self.build_fancy_tab_bar(&palette)?;
@@ -23,7 +24,7 @@ impl crate::TermWindow {
 
         let palette = self.palette().clone();
         let tab_bar_height = self.tab_bar_pixel_height()?;
-        let tab_bar_y = if self.config.tab_bar_at_bottom {
+        let tab_bar_y = if self.config.tab_bar().tab_bar_at_bottom {
             ((self.dimensions.pixel_height as f32) - (tab_bar_height + border.bottom.get() as f32))
                 .max(0.)
         } else {
@@ -47,7 +48,7 @@ impl crate::TermWindow {
             .mul_alpha(if window_is_transparent {
                 0.
             } else {
-                self.config.text.text_background_opacity
+                self.config.text().text_background_opacity
             });
 
         self.render_screen_line(
@@ -88,7 +89,7 @@ impl crate::TermWindow {
                 default_bg,
                 style: None,
                 font: None,
-                use_pixel_positioning: self.config.text.experimental_pixel_positioning,
+                use_pixel_positioning: self.config.text().experimental_pixel_positioning,
                 render_metrics: self.render_metrics,
                 shape_key: None,
                 password_input: false,
@@ -104,7 +105,7 @@ impl crate::TermWindow {
         fontconfig: &phaedra_font::FontConfiguration,
         render_metrics: &RenderMetrics,
     ) -> anyhow::Result<f32> {
-        if config.use_fancy_tab_bar {
+        if config.tab_bar().use_fancy_tab_bar {
             let font = fontconfig.title_font()?;
             Ok((font.metrics().cell_height.get() as f32 * 1.75).ceil())
         } else {

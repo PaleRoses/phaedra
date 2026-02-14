@@ -5,6 +5,7 @@ use crate::pane::{alloc_pane_id, Pane, PaneId};
 use crate::Mux;
 use anyhow::{anyhow, bail, Context};
 use async_trait::async_trait;
+use config::observers::*;
 use config::{Shell, SshBackend, SshDomain};
 use filedescriptor::{poll, pollfd, socketpair, AsRawSocketDescriptor, FileDescriptor, POLLIN};
 use portable_pty::cmdbuilder::CommandBuilder;
@@ -203,7 +204,7 @@ pub fn ssh_domain_to_ssh_config(ssh_dom: &SshDomain) -> anyhow::Result<ConfigMap
         "phaedra_ssh_backend".to_string(),
         match ssh_dom
             .ssh_backend
-            .unwrap_or_else(|| config::configuration().domain.ssh_backend)
+            .unwrap_or_else(|| config::configuration().domain().ssh_backend)
         {
             SshBackend::Ssh2 => "ssh2",
             SshBackend::LibSsh => "libssh",
@@ -650,7 +651,7 @@ fn connect_ssh_session(
                 // Our session has been authenticated: we can now
                 // set up the real pty for the pane
                 match smol::block_on(session.request_pty(
-                    &config::configuration().launch.term,
+                    &config::configuration().launch().term,
                     crate::terminal_size_to_pty_size(*size.lock().unwrap())?,
                     command_line.as_ref().map(|s| s.as_str()),
                     Some(env),
@@ -718,7 +719,7 @@ impl Domain for RemoteSshDomain {
         let StartNewSessionResult { pty, child, writer } = if let Some(session) = session.take() {
             match session
                 .request_pty(
-                    &config::configuration().launch.term,
+                    &config::configuration().launch().term,
                     crate::terminal_size_to_pty_size(size)
                         .context("compute pty size from terminal size")?,
                     command_line.as_ref().map(|s| s.as_str()),

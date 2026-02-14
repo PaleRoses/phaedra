@@ -1,4 +1,5 @@
 use crate::termwindow::render::TripleLayerQuadAllocator;
+use config::observers::*;
 use crate::termwindow::{UIItem, UIItemType};
 use mux::pane::Pane;
 use mux::tab::{PositionedSplit, SplitDirection};
@@ -17,7 +18,7 @@ impl crate::TermWindow {
         let cell_height = self.render_metrics.cell_size.height as f32;
 
         let border = self.get_os_border();
-        let first_row_offset = if self.show_tab_bar && !self.config.tab_bar_at_bottom {
+        let first_row_offset = if self.show_tab_bar && !self.config.tab_bar().tab_bar_at_bottom {
             self.tab_bar_pixel_height()?
         } else {
             0.

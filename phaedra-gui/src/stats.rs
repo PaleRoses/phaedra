@@ -1,4 +1,5 @@
 use config::configuration;
+use config::observers::*;
 use config::lua::get_or_create_sub_module;
 use config::lua::mlua::Lua;
 use hdrhistogram::Histogram;
@@ -204,7 +205,7 @@ impl Inner {
                 break;
             }
 
-            let seconds = configuration().periodic_stat_logging;
+            let seconds = configuration().runtime().periodic_stat_logging;
             if seconds == 0 {
                 continue;
             }

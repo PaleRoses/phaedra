@@ -1,5 +1,6 @@
 use clap::*;
 use config::configuration;
+use config::observers::*;
 use mux::activity::Activity;
 use mux::domain::{Domain, LocalDomain};
 use mux::Mux;
@@ -99,7 +100,7 @@ fn run() -> anyhow::Result<()> {
     let config = config::configuration();
 
     config.update_ulimit()?;
-    if let Some(value) = &config.domain.default_ssh_auth_sock {
+    if let Some(value) = &config.domain().default_ssh_auth_sock {
         std::env::set_var("SSH_AUTH_SOCK", value);
     }
 
@@ -160,8 +161,8 @@ fn run() -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            cmd.stdout(config.daemon_options.open_stdout()?);
-            cmd.stderr(config.daemon_options.open_stderr()?);
+            cmd.stdout(config.mux_config().daemon_options.open_stdout()?);
+            cmd.stderr(config.mux_config().daemon_options.open_stderr()?);
 
             cmd.creation_flags(winapi::um::winbase::DETACHED_PROCESS);
             let child = cmd.spawn();
@@ -200,7 +201,7 @@ fn run() -> anyhow::Result<()> {
     ] {
         std::env::remove_var(name);
     }
-    for name in &config::configuration().domain.mux_env_remove {
+    for name in &config::configuration().domain().mux_env_remove {
         std::env::remove_var(name);
     }
 
@@ -309,7 +310,7 @@ mod ossl;
 
 pub fn spawn_listener() -> anyhow::Result<()> {
     let config = configuration();
-    for unix_dom in &config.domain.unix_domains {
+    for unix_dom in &config.domain().unix_domains {
         std::env::set_var("PHAEDRA_UNIX_SOCKET", unix_dom.socket_path());
         let mut listener = phaedra_mux_server_impl::local::LocalListener::with_domain(unix_dom)?;
         thread::spawn(move || {
@@ -317,7 +318,7 @@ pub fn spawn_listener() -> anyhow::Result<()> {
         });
     }
 
-    for tls_server in &config.domain.tls_servers {
+    for tls_server in &config.domain().tls_servers {
         ossl::spawn_tls_listener(tls_server)?;
     }
 

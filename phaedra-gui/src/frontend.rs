@@ -1,4 +1,5 @@
 use crate::scripting::guiwin::GuiWin;
+use config::observers::*;
 use crate::spawn::SpawnWhere;
 use crate::termwindow::TermWindowNotif;
 use crate::TermWindow;
@@ -111,7 +112,7 @@ impl GuiFrontEnd {
                         if let Some((_fdomain, f_window, f_tab, f_pane)) =
                             mux.resolve_focused_pane(&client_id)
                         {
-                            let show = match config.notification_handling {
+                            let show = match config.terminal_features().notification_handling {
                                 NotificationHandling::NeverShow => false,
                                 NotificationHandling::AlwaysShow => true,
                                 NotificationHandling::SuppressFromFocusedPane => f_pane != pane_id,
@@ -150,7 +151,7 @@ impl GuiFrontEnd {
                         | Alert::SetUserVar { .. },
                 } => {}
                 MuxNotification::Empty => {
-                    if config::configuration().window_config.quit_when_all_windows_are_closed {
+                    if config::configuration().window_config().quit_when_all_windows_are_closed {
                         promise::spawn::spawn_into_main_thread(async move {
                             if mux::activity::Activity::count() == 0 {
                                 log::trace!("Mux is now empty, terminate gui");
@@ -161,7 +162,7 @@ impl GuiFrontEnd {
                     }
                 }
                 MuxNotification::SaveToDownloads { name, data } => {
-                    if !config::configuration().allow_download_protocols {
+                    if !config::configuration().terminal_features().allow_download_protocols {
                         log::error!(
                             "Ignoring download request for {:?}, \
                                  as allow_download_protocols=false",
@@ -279,7 +280,7 @@ impl GuiFrontEnd {
 
                 fn spawn_command(spawn: &SpawnCommand, spawn_where: SpawnWhere) {
                     let config = config::configuration();
-                    let dpi = config.font_config.dpi.unwrap_or_else(|| ::window::default_dpi());
+                    let dpi = config.font_config().dpi.unwrap_or_else(|| ::window::default_dpi());
                     let size =
                         config.initial_size(dpi as u32, crate::cell_pixel_dims(&config, dpi).ok());
                     let term_config = Arc::new(config::TermConfig::with_config(config));

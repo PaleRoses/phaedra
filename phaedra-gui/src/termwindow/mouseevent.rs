@@ -1,4 +1,5 @@
 use crate::tabbar::TabBarItem;
+use config::observers::*;
 use crate::termwindow::{
     GuiWin, MouseCapture, PositionedSplit, ScrollHit, TermWindowNotif, UIItem, UIItemType, TMB,
 };
@@ -69,7 +70,7 @@ impl super::TermWindow {
 
         let border = self.get_os_border();
 
-        let first_line_offset = if self.show_tab_bar && !self.config.tab_bar_at_bottom {
+        let first_line_offset = if self.show_tab_bar && !self.config.tab_bar().tab_bar_at_bottom {
             self.tab_bar_pixel_height().unwrap_or(0.) as isize
         } else {
             0
@@ -194,7 +195,7 @@ impl super::TermWindow {
 
             match (self.last_ui_item.take(), &ui_item) {
                 (Some(prior), Some(item)) => {
-                    if prior != *item || !self.config.use_fancy_tab_bar {
+                    if prior != *item || !self.config.tab_bar().use_fancy_tab_bar {
                         self.leave_ui_item(&prior);
                         self.enter_ui_item(item);
                         context.invalidate();
@@ -300,7 +301,7 @@ impl super::TermWindow {
         } else {
             0.
         };
-        let (top_bar_height, bottom_bar_height) = if self.config.tab_bar_at_bottom {
+        let (top_bar_height, bottom_bar_height) = if self.config.tab_bar().tab_bar_at_bottom {
             (0.0, tab_bar_height)
         } else {
             (tab_bar_height, 0.0)
@@ -472,7 +473,7 @@ impl super::TermWindow {
                         .window_state
                         .intersects(WindowState::MAXIMIZED | WindowState::FULL_SCREEN);
                     if let Some(ref window) = self.window {
-                        if self.config.window_config.window_decorations
+                        if self.config.window_config().window_decorations
                             == WindowDecorations::INTEGRATED_BUTTONS | WindowDecorations::RESIZE
                         {
                             if self.last_mouse_click.as_ref().map(|c| c.streak) == Some(2) {
@@ -553,7 +554,7 @@ impl super::TermWindow {
                 | TabBarItem::NewTabButton { .. } => {}
             },
             WMEK::VertWheel(n) => {
-                if self.config.mouse_wheel_scrolls_tabs {
+                if self.config.tab_bar().mouse_wheel_scrolls_tabs {
                     self.activate_tab_relative(if n < 1 { 1 } else { -1 }, true)
                         .ok();
                 }
@@ -686,7 +687,7 @@ impl super::TermWindow {
                             is_click_to_focus_pane = true;
                         }
                         WMEK::Move => {
-                            if self.config.pane_focus_follows_mouse {
+                            if self.config.mouse().pane_focus_follows_mouse {
                                 let mux = Mux::get();
                                 mux.get_active_tab_for_window(self.mux_window_id)
                                     .map(|tab| tab.set_active_idx(pos.index));
@@ -729,7 +730,7 @@ impl super::TermWindow {
         }
 
         let is_focused = if let Some(focused) = self.focused.as_ref() {
-            !self.config.swallow_mouse_click_on_window_focus
+            !self.config.mouse().swallow_mouse_click_on_window_focus
                 || (focused.elapsed() > Duration::from_millis(200))
         } else {
             false
@@ -737,7 +738,7 @@ impl super::TermWindow {
 
         if self.focused.is_some() && !is_focused {
             if matches!(&event.kind, WMEK::Press(_))
-                && self.config.swallow_mouse_click_on_window_focus
+                && self.config.mouse().swallow_mouse_click_on_window_focus
             {
                 // Entering click to focus state
                 self.is_click_to_focus_window = true;
@@ -785,7 +786,7 @@ impl super::TermWindow {
                 stable_row,
             ));
 
-        pane.apply_hyperlinks(stable_row..stable_row + 1, &self.config.hyperlink_rules);
+        pane.apply_hyperlinks(stable_row..stable_row + 1, &self.config.terminal_features().hyperlink_rules);
 
         struct FindCurrentLink {
             current: Option<Arc<Hyperlink>>,
@@ -923,8 +924,8 @@ impl super::TermWindow {
                 // that shift is not one of the mods when the mouse is grabbed.
                 let mut mouse_reporting = pane.is_mouse_grabbed();
                 if mouse_reporting {
-                    if modifiers.contains(self.config.bypass_mouse_reporting_modifiers) {
-                        modifiers.remove(self.config.bypass_mouse_reporting_modifiers);
+                    if modifiers.contains(self.config.mouse().bypass_mouse_reporting_modifiers) {
+                        modifiers.remove(self.config.mouse().bypass_mouse_reporting_modifiers);
                         mouse_reporting = false;
                     }
                 }
@@ -1030,7 +1031,7 @@ impl super::TermWindow {
         };
 
         if allow_action
-            && !(self.config.swallow_mouse_click_on_pane_focus && is_click_to_focus_pane)
+            && !(self.config.mouse().swallow_mouse_click_on_pane_focus && is_click_to_focus_pane)
         {
             pane.mouse_event(mouse_event).ok();
         }

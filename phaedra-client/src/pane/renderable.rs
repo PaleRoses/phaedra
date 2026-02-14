@@ -3,6 +3,7 @@ use crate::pane::clientpane::ClientPane;
 use anyhow::anyhow;
 use codec::*;
 use config::{configuration, ConfigHandle};
+use config::observers::*;
 use lru::LruCache;
 use mux::pane::PaneId;
 use mux::renderable::{RenderableDimensions, StableCursorPosition};
@@ -106,7 +107,7 @@ impl RenderableInner {
             cursor_position: StableCursorPosition::default(),
             dimensions,
             lines: LruCache::new(
-                NonZeroUsize::new(configuration().scrollback_lines.max(128)).unwrap(),
+                NonZeroUsize::new(configuration().scroll().scrollback_lines.max(128)).unwrap(),
             ),
             title: title.to_string(),
             working_dir: None,
@@ -452,7 +453,7 @@ impl RenderableInner {
         config: &ConfigHandle,
         fetch_start: Option<Instant>,
     ) {
-        line.scan_and_create_hyperlinks(&config.hyperlink_rules);
+        line.scan_and_create_hyperlinks(&config.terminal_features().hyperlink_rules);
 
         let entry = if let Some(fetch_start) = fetch_start {
             // If we're completing a fetch, only replace entries that were

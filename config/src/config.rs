@@ -1,28 +1,30 @@
 use crate::bell::{AudibleBell, BellConfig, EasingFunction, VisualBell};
+use crate::cache_config::CacheConfig;
 use crate::color::{ColorSchemeFile, Palette, TabBarStyle};
 use crate::color_config::ColorConfig;
 use crate::cursor::CursorConfig;
-use crate::daemon::DaemonOptions;
 use crate::domain_config::DomainConfig;
 use crate::font::StyleRule;
 use crate::font_config::FontConfig;
-use crate::frontend::FrontEndSelection;
+use crate::gpu_config::GpuConfig;
 use crate::key_input_config::KeyInputConfig;
 use crate::keyassignment::{KeyAssignment, KeyTable, KeyTableEntry, KeyTables, MouseEventTrigger};
 use crate::launch_config::LaunchConfig;
 use crate::lua::make_lua_context;
+use crate::mux_config::MuxConfig;
 use crate::mouse_config::MouseConfig;
+use crate::runtime_config::RuntimeConfig;
 use crate::scroll::ScrollConfig;
 use crate::ssh::SshDomain;
 use crate::tab_bar::TabBarConfig;
+use crate::terminal_feature_config::TerminalFeatureConfig;
 use crate::text_config::TextConfig;
 use crate::units::Dimension;
 use crate::update_check::UpdateConfig;
 use crate::window_config::WindowConfig;
 use crate::{
-    default_config_with_overrides_applied, default_true, GpuInfo, LoadedConfig,
-    MouseEventTriggerMods, WebGpuPowerPreference, CONFIG_DIRS, CONFIG_FILE_OVERRIDE, CONFIG_OVERRIDES,
-    CONFIG_SKIP, HOME_DIR,
+    default_config_with_overrides_applied, LoadedConfig, MouseEventTriggerMods, CONFIG_DIRS,
+    CONFIG_FILE_OVERRIDE, CONFIG_OVERRIDES, CONFIG_SKIP, HOME_DIR,
 };
 use anyhow::Context;
 use luahelper::impl_lua_conversion_dynamic;
@@ -34,7 +36,6 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
-use termwiz::hyperlink;
 use termwiz::surface::CursorShape;
 use phaedra_config_derive::ConfigMeta;
 use phaedra_dynamic::{FromDynamic, ToDynamic};
@@ -56,7 +57,7 @@ pub struct Config {
     pub window_config: WindowConfig,
 
     #[dynamic(default)]
-    pub log_unknown_escape_sequences: bool,
+    pub gpu: GpuConfig,
 
     #[dynamic(default)]
     pub color_config: ColorConfig,
@@ -70,64 +71,14 @@ pub struct Config {
     #[dynamic(default)]
     pub launch: LaunchConfig,
 
-    #[dynamic(default = "default_true")]
-    pub detect_password_input: bool,
-
-    #[dynamic(default = "default_true")]
-    pub enable_kitty_graphics: bool,
     #[dynamic(default)]
-    pub enable_kitty_keyboard: bool,
-
-    /// Whether the terminal should respond to requests to read the
-    /// title string.
-    /// Disabled by default for security concerns with shells that might
-    /// otherwise attempt to execute the response.
-    /// <https://marc.info/?l=bugtraq&m=104612710031920&w=2>
-    #[dynamic(default)]
-    pub enable_title_reporting: bool,
-
-    #[dynamic(default = "default_hyperlink_rules")]
-    pub hyperlink_rules: Vec<hyperlink::Rule>,
-
-    #[dynamic(default)]
-    pub front_end: FrontEndSelection,
-
-    /// Whether to select the higher powered discrete GPU when
-    /// the system has a choice of integrated or discrete.
-    /// Defaults to low power.
-    #[dynamic(default)]
-    pub webgpu_power_preference: WebGpuPowerPreference,
-
-    #[dynamic(default)]
-    pub webgpu_force_fallback_adapter: bool,
-
-    #[dynamic(default)]
-    pub webgpu_preferred_adapter: Option<GpuInfo>,
+    pub terminal_features: TerminalFeatureConfig,
 
     #[dynamic(default)]
     pub domain: DomainConfig,
 
-    /// Constrains the rate at which the multiplexer client will
-    /// speculatively fetch line data.
-    /// This helps to avoid saturating the link between the client
-    /// and server if the server is dumping a large amount of output
-    /// to the client.
-    #[dynamic(default = "default_ratelimit_line_prefetches_per_second")]
-    pub ratelimit_mux_line_prefetches_per_second: u32,
-
-    /// The buffer size used by parse_buffered_data in the mux module.
-    /// This should not be too large, otherwise the processing cost
-    /// of applying a batch of actions to the terminal will be too
-    /// high and the user experience will be laggy and less responsive.
-    #[dynamic(default = "default_mux_output_parser_buffer_size")]
-    pub mux_output_parser_buffer_size: usize,
-
-    /// How many ms to delay after reading a chunk of output
-    /// in order to try to coalesce fragmented writes into
-    /// a single bigger chunk of output and reduce the chances
-    /// observing "screen tearing" with un-synchronized output
-    #[dynamic(default = "default_mux_output_parser_coalesce_delay_ms")]
-    pub mux_output_parser_coalesce_delay_ms: u64,
+    #[dynamic(default)]
+    pub mux: MuxConfig,
 
     #[dynamic(default)]
     pub key_input: KeyInputConfig,
@@ -136,94 +87,18 @@ pub struct Config {
     pub mouse: MouseConfig,
 
     #[dynamic(default)]
-    pub daemon_options: DaemonOptions,
-
-    /// Specifies the path to a WGSL shader file that will be used
-    /// for post-processing the terminal output. The shader receives
-    /// the rendered terminal as a texture and can apply effects like
-    /// CRT simulation, bloom, scanlines, etc.
-    /// Requires front_end = "WebGpu" to be set.
-    #[dynamic(default)]
-    pub webgpu_shader: Option<PathBuf>,
-
-    /// When a custom webgpu_shader is configured, this controls the
-    /// frame rate for continuous shader updates (for animated shaders).
-    /// Set to 0 to disable continuous rendering (only re-render on changes).
-    /// Default is 0 (disabled). Set to 60 for smooth animations.
-    #[dynamic(default = "default_webgpu_shader_fps")]
-    pub webgpu_shader_fps: u8,
-
-    #[dynamic(default = "default_anim_fps")]
-    pub animation_fps: u8,
-
-    /// If non-zero, specifies the period (in seconds) at which various
-    /// statistics are logged.  Note that there is a minimum period of
-    /// 10 seconds.
-    #[dynamic(default)]
-    pub periodic_stat_logging: u64,
-
-    #[dynamic(default)]
-    pub notification_handling: NotificationHandling,
-
-    /// When true, watch the config file and reload it automatically
-    /// when it is detected as changing.
-    #[dynamic(default = "default_true")]
-    pub automatically_reload_config: bool,
+    pub runtime: RuntimeConfig,
 
     #[dynamic(default)]
     pub update_check: UpdateConfig,
 
-    #[dynamic(default = "default_enq_answerback")]
-    pub enq_answerback: String,
-
-    #[dynamic(default = "default_status_update_interval")]
-    pub status_update_interval: u64,
-
-    #[dynamic(default = "default_max_fps")]
-    pub max_fps: u64,
-
-    #[dynamic(default = "default_shape_cache_size")]
-    pub shape_cache_size: usize,
-    #[dynamic(default = "default_line_state_cache_size")]
-    pub line_state_cache_size: usize,
-    #[dynamic(default = "default_line_quad_cache_size")]
-    pub line_quad_cache_size: usize,
-    #[dynamic(default = "default_line_to_ele_shape_cache_size")]
-    pub line_to_ele_shape_cache_size: usize,
-    #[dynamic(default = "default_glyph_cache_image_cache_size")]
-    pub glyph_cache_image_cache_size: usize,
+    #[dynamic(default)]
+    pub cache: CacheConfig,
 
     #[dynamic(default)]
     pub bell: BellConfig,
-
-    #[dynamic(default = "default_true")]
-    pub allow_download_protocols: bool,
-
-    #[dynamic(default = "default_true")]
-    pub allow_win32_input_mode: bool,
-
-    #[dynamic(default = "default_one")]
-    pub palette_max_key_assigments_for_action: usize,
-
-    #[dynamic(default = "default_ulimit_nofile")]
-    pub ulimit_nofile: u64,
-
-    #[dynamic(default = "default_ulimit_nproc")]
-    pub ulimit_nproc: u64,
 }
 impl_lua_conversion_dynamic!(Config);
-
-fn default_one() -> usize {
-    1
-}
-
-fn default_ulimit_nofile() -> u64 {
-    2048
-}
-
-fn default_ulimit_nproc() -> u64 {
-    2048
-}
 
 impl Default for Config {
     fn default() -> Self {
@@ -262,10 +137,10 @@ impl Config {
 
             let (no_file_soft, no_file_hard) = getrlimit(Resource::RLIMIT_NOFILE)?;
 
-            let ulimit_nofile: rlim_t = self.ulimit_nofile.try_into().with_context(|| {
+            let ulimit_nofile: rlim_t = self.runtime.ulimit_nofile.try_into().with_context(|| {
                 format!(
                     "ulimit_nofile value {} is out of range for this system",
-                    self.ulimit_nofile
+                    self.runtime.ulimit_nofile
                 )
             })?;
 
@@ -291,10 +166,10 @@ impl Config {
 
             let (nproc_soft, nproc_hard) = getrlimit(Resource::RLIMIT_NPROC)?;
 
-            let ulimit_nproc: rlim_t = self.ulimit_nproc.try_into().with_context(|| {
+            let ulimit_nproc: rlim_t = self.runtime.ulimit_nproc.try_into().with_context(|| {
                 format!(
                     "ulimit_nproc value {} is out of range for this system",
-                    self.ulimit_nproc
+                    self.runtime.ulimit_nproc
                 )
             })?;
 
@@ -807,9 +682,9 @@ impl Config {
                 }
             }
 
-            if let Some(path) = &self.webgpu_shader {
+            if let Some(path) = &self.gpu.webgpu_shader {
                 if !path.is_absolute() {
-                    cfg.webgpu_shader.replace(config_dir.join(path));
+                    cfg.gpu.webgpu_shader.replace(config_dir.join(path));
                 }
             }
         }
@@ -1087,35 +962,6 @@ pub fn running_under_wsl() -> bool {
     false
 }
 
-fn default_mux_output_parser_coalesce_delay_ms() -> u64 {
-    3
-}
-
-fn default_mux_output_parser_buffer_size() -> usize {
-    128 * 1024
-}
-
-fn default_ratelimit_line_prefetches_per_second() -> u32 {
-    50
-}
-
-pub fn default_hyperlink_rules() -> Vec<hyperlink::Rule> {
-    vec![
-        // First handle URLs wrapped with punctuation (i.e. brackets)
-        // e.g. [http://foo] (http://foo) <http://foo>
-        hyperlink::Rule::with_highlight(r"\((\w+://\S+)\)", "$1", 1).unwrap(),
-        hyperlink::Rule::with_highlight(r"\[(\w+://\S+)\]", "$1", 1).unwrap(),
-        hyperlink::Rule::with_highlight(r"<(\w+://\S+)>", "$1", 1).unwrap(),
-        // Then handle URLs not wrapped in brackets that
-        // 1) have a balanced ending parenthesis or
-        hyperlink::Rule::new(hyperlink::CLOSING_PARENTHESIS_HYPERLINK_PATTERN, "$0").unwrap(),
-        // 2) include terminating _, / or - characters, if any
-        hyperlink::Rule::new(hyperlink::GENERIC_HYPERLINK_PATTERN, "$0").unwrap(),
-        // implicit mailto link
-        hyperlink::Rule::new(r"\b\w+@[\w-]+(\.[\w-]+)+\b", "mailto:$0").unwrap(),
-    ]
-}
-
 pub(crate) fn compute_cache_dir() -> anyhow::Result<PathBuf> {
     if let Some(runtime) = dirs_next::cache_dir() {
         return Ok(runtime.join("phaedra"));
@@ -1154,26 +1000,6 @@ pub fn default_write_timeout() -> Duration {
 
 pub fn default_local_echo_threshold_ms() -> Option<u64> {
     Some(100)
-}
-
-fn default_anim_fps() -> u8 {
-    10
-}
-
-fn default_webgpu_shader_fps() -> u8 {
-    0
-}
-
-fn default_max_fps() -> u64 {
-    60
-}
-
-fn default_status_update_interval() -> u64 {
-    1_000
-}
-
-fn default_enq_answerback() -> String {
-    "".to_string()
 }
 
 #[derive(FromDynamic, ToDynamic, Clone, Copy, Debug, Default)]
@@ -1358,26 +1184,6 @@ impl DroppedFileQuoting {
             Self::WindowsAlwaysQuoted => format!("\"{}\"", s),
         }
     }
-}
-
-fn default_glyph_cache_image_cache_size() -> usize {
-    256
-}
-
-fn default_shape_cache_size() -> usize {
-    1024
-}
-
-fn default_line_state_cache_size() -> usize {
-    1024
-}
-
-fn default_line_quad_cache_size() -> usize {
-    1024
-}
-
-fn default_line_to_ele_shape_cache_size() -> usize {
-    1024
 }
 
 #[derive(Debug, ToDynamic, Clone, Copy, PartialEq, Eq, Default)]

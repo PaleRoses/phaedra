@@ -1,4 +1,5 @@
 use crate::ICON_DATA;
+use config::observers::*;
 use anyhow::anyhow;
 use config::{configuration, phaedra_version};
 use http_req::request::{HttpVersion, Request};
@@ -69,7 +70,7 @@ lazy_static::lazy_static! {
 }
 
 pub fn load_last_release_info_and_set_banner() {
-    if !configuration().check_for_updates {
+    if !configuration().update_check().check_for_updates {
         return;
     }
 
@@ -154,7 +155,7 @@ fn update_checker() {
     // if we've never checked, give it a few seconds after the first
     // launch, otherwise compute the interval based on the time of
     // the last check.
-    let update_interval = Duration::from_secs(configuration().check_for_updates_interval_seconds);
+    let update_interval = Duration::from_secs(configuration().update_check().check_for_updates_interval_seconds);
     let initial_interval = Duration::from_secs(10);
 
     let force_ui = std::env::var_os("PHAEDRA_ALWAYS_SHOW_UPDATE_UI").is_some();
@@ -183,7 +184,7 @@ fn update_checker() {
         // running, we don't spam the user with a lot of notifications.
         let socks = phaedra_client::discovery::discover_gui_socks();
 
-        if configuration().check_for_updates {
+        if configuration().update_check().check_for_updates {
             if let Ok(latest) = get_latest_release_info() {
                 schedule_set_banner_from_release_info(&latest);
                 let current = phaedra_version();
@@ -223,7 +224,7 @@ fn update_checker() {
         }
 
         std::thread::sleep(Duration::from_secs(
-            configuration().check_for_updates_interval_seconds,
+            configuration().update_check().check_for_updates_interval_seconds,
         ));
     }
 }

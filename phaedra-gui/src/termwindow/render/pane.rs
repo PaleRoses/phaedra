@@ -1,4 +1,5 @@
 use crate::quad::{HeapQuadAllocator, QuadTrait, TripleLayerQuadAllocator};
+use config::observers::*;
 use crate::selection::SelectionRange;
 use crate::termwindow::box_model::*;
 use crate::termwindow::render::{
@@ -34,7 +35,7 @@ impl crate::TermWindow {
         pos: &PositionedPane,
         layers: &mut TripleLayerQuadAllocator,
     ) -> anyhow::Result<()> {
-        if self.config.text.use_box_model_render {
+        if self.config.text().use_box_model_render {
             return self.paint_pane_box_model(pos);
         }
 
@@ -68,7 +69,7 @@ impl crate::TermWindow {
         } else {
             0.
         };
-        let (top_bar_height, bottom_bar_height) = if self.config.tab_bar_at_bottom {
+        let (top_bar_height, bottom_bar_height) = if self.config.tab_bar().tab_bar_at_bottom {
             (0.0, tab_bar_height)
         } else {
             (tab_bar_height, 0.0)
@@ -101,7 +102,7 @@ impl crate::TermWindow {
             .mul_alpha(if window_is_transparent {
                 0.
             } else {
-                config.text.text_background_opacity
+                config.text().text_background_opacity
             });
 
         let cell_width = self.render_metrics.cell_size.width as f32;
@@ -167,7 +168,7 @@ impl crate::TermWindow {
             quad.set_hsv(if pos.is_active {
                 None
             } else {
-                Some(config.color_config.inactive_pane_hsb)
+                Some(config.color_config().inactive_pane_hsb)
             });
         }
 
@@ -181,7 +182,7 @@ impl crate::TermWindow {
             ) {
                 // target background color
                 let LinearRgba(r, g, b, _) = config
-                    .color_config.resolved_palette
+                    .color_config().resolved_palette
                     .visual_bell
                     .as_deref()
                     .unwrap_or(&palette.foreground)
@@ -215,7 +216,7 @@ impl crate::TermWindow {
                 quad.set_hsv(if pos.is_active {
                     None
                 } else {
-                    Some(config.color_config.inactive_pane_hsb)
+                    Some(config.color_config().inactive_pane_hsb)
                 });
             }
         }
@@ -308,7 +309,7 @@ impl crate::TermWindow {
             };
 
             pos.pane
-                .apply_hyperlinks(stable_range.clone(), &self.config.hyperlink_rules);
+                .apply_hyperlinks(stable_range.clone(), &self.config.terminal_features().hyperlink_rules);
 
             struct LineRender<'a, 'b> {
                 term_window: &'a mut crate::TermWindow,
@@ -401,7 +402,7 @@ impl crate::TermWindow {
                                 }
                                 _ => None,
                             },
-                            if self.term_window.config.detect_password_input {
+                            if self.term_window.config.terminal_features().detect_password_input {
                                 match self.pos.pane.get_metadata() {
                                     Value::Object(obj) => {
                                         match obj.get(&Value::String("password_input".to_string()))
@@ -518,7 +519,7 @@ impl crate::TermWindow {
                                 use_pixel_positioning: self
                                     .term_window
                                     .config
-                                    .text.experimental_pixel_positioning,
+                                    .text().experimental_pixel_positioning,
                                 render_metrics: self.term_window.render_metrics,
                                 shape_key: Some(shape_key),
                                 password_input,
@@ -592,7 +593,7 @@ impl crate::TermWindow {
         } else {
             0.
         };
-        let (top_bar_height, _bottom_bar_height) = if self.config.tab_bar_at_bottom {
+        let (top_bar_height, _bottom_bar_height) = if self.config.tab_bar().tab_bar_at_bottom {
             (0.0, tab_bar_height)
         } else {
             (tab_bar_height, 0.0)

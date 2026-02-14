@@ -5,6 +5,7 @@ use crate::{Mux, MuxNotification, WindowId};
 use bintree::PathBranch;
 use config::configuration;
 use config::keyassignment::PaneDirection;
+use config::observers::*;
 use parking_lot::Mutex;
 use rangeset::intersects_range;
 use serde::{Deserialize, Serialize};
@@ -1438,7 +1439,7 @@ impl TabInner {
 
     fn activate_pane_direction(&mut self, direction: PaneDirection) {
         if self.zoomed.is_some() {
-            if !configuration().window_config.unzoom_on_switch_pane {
+            if !configuration().window_config().unzoom_on_switch_pane {
                 return;
             }
             self.toggle_zoom();
@@ -1755,7 +1756,7 @@ impl TabInner {
         }
 
         if self.zoomed.is_some() {
-            if !configuration().window_config.unzoom_on_switch_pane {
+            if !configuration().window_config().unzoom_on_switch_pane {
                 return;
             }
             self.toggle_zoom();

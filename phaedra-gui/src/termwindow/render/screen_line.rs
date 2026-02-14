@@ -1,4 +1,5 @@
 use crate::quad::{QuadTrait, TripleLayerQuadAllocator, TripleLayerQuadAllocatorTrait};
+use config::observers::*;
 use crate::termwindow::render::{
     resolve_fg_color_attr, same_hyperlink, update_next_frame_time, ClusterStyleCache,
     ComputeCellFgBgParams, ComputeCellFgBgResult, LineToElementParams, LineToElementShape,
@@ -44,7 +45,7 @@ impl crate::TermWindow {
         let hsv = if params.is_active {
             None
         } else {
-            Some(params.config.color_config.inactive_pane_hsb)
+            Some(params.config.color_config().inactive_pane_hsb)
         };
 
         let width_scale = if !params.line.is_single_width() {
@@ -222,7 +223,7 @@ impl crate::TermWindow {
                 }
 
                 (
-                    bg.mul_alpha(self.config.text.text_background_opacity),
+                    bg.mul_alpha(self.config.text().text_background_opacity),
                     bg_default,
                 )
             };
@@ -494,7 +495,7 @@ impl crate::TermWindow {
                             - (glyph.y_offset + glyph.bearing_y).get() as f32)
                             * height_scale;
 
-                    if self.config.text.custom_block_glyphs {
+                    if self.config.text().custom_block_glyphs {
                         if let Some(block) = &info.block_key {
                             texture.replace(
                                 gl_state
@@ -797,10 +798,10 @@ impl crate::TermWindow {
                     let blink_rate = match attrs.blink() {
                         Blink::None => None,
                         Blink::Slow => {
-                            Some((params.config.text.text_blink_rate, self.blink_state.borrow_mut()))
+                            Some((params.config.text().text_blink_rate, self.blink_state.borrow_mut()))
                         }
                         Blink::Rapid => Some((
-                            params.config.text.text_blink_rate_rapid,
+                            params.config.text().text_blink_rate_rapid,
                             self.rapid_blink_state.borrow_mut(),
                         )),
                     };
@@ -839,7 +840,7 @@ impl crate::TermWindow {
                     if params.window_is_transparent && bg_is_default {
                         0.0
                     } else {
-                        params.config.text.text_background_opacity
+                        params.config.text().text_background_opacity
                     },
                 );
 

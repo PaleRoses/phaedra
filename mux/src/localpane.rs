@@ -9,6 +9,7 @@ use crate::{Domain, Mux, MuxNotification};
 use anyhow::Error;
 use async_trait::async_trait;
 use config::keyassignment::ScrollbackEraseMode;
+use config::observers::*;
 use config::{configuration, ExitBehavior, ExitBehaviorMessaging};
 use fancy_regex::Regex;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
@@ -290,14 +291,14 @@ impl Pane for LocalPane {
                     let success = match status.success() {
                         true => true,
                         false => configuration()
-                            .launch
+                            .launch()
                             .clean_exit_codes
                             .contains(&status.exit_code()),
                     };
 
                     match (
                         self.exit_behavior()
-                            .unwrap_or_else(|| configuration().launch.exit_behavior),
+                            .unwrap_or_else(|| configuration().launch().exit_behavior),
                         success,
                         killed,
                     ) {
@@ -338,7 +339,7 @@ impl Pane for LocalPane {
 
         let mut notify = None;
         if !terse.is_empty() {
-            match configuration().launch.exit_behavior_messaging {
+            match configuration().launch().exit_behavior_messaging {
                 ExitBehaviorMessaging::Verbose => {
                     if terse == "done" {
                         notify = Some(format!("\r\n{brief}\r\n{trailer}"));
@@ -596,7 +597,7 @@ impl Pane for LocalPane {
                     .collect::<HashSet<_>>();
 
                 let skip = configuration()
-                    .launch
+                    .launch()
                     .skip_close_confirmation_for_processes_named
                     .iter()
                     .cloned()
@@ -880,7 +881,7 @@ impl phaedra_term::DeviceControlHandler for LocalPaneDCSHandler {
                 // TODO: do we need to proactively list available tabs here?
                 // if so we should arrange to call domain.attach() and make
                 // it do the right thing.
-                } else if configuration().log_unknown_escape_sequences {
+                } else if configuration().runtime().log_unknown_escape_sequences {
                     log::warn!("unknown DeviceControlMode::Enter {:?}", mode,);
                 }
             }
@@ -895,7 +896,7 @@ impl phaedra_term::DeviceControlHandler for LocalPaneDCSHandler {
                 }
             }
             DeviceControlMode::Data(c) => {
-                if configuration().log_unknown_escape_sequences {
+                if configuration().runtime().log_unknown_escape_sequences {
                     log::warn!(
                         "unhandled DeviceControlMode::Data {:x} {}",
                         c,
@@ -911,7 +912,7 @@ impl phaedra_term::DeviceControlHandler for LocalPaneDCSHandler {
                 }
             }
             _ => {
-                if configuration().log_unknown_escape_sequences {
+                if configuration().runtime().log_unknown_escape_sequences {
                     log::warn!("unhandled: {:?}", control);
                 }
             }

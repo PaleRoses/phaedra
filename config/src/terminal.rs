@@ -1,6 +1,7 @@
 //! Bridge our gui config into the terminal crate configuration
 
 use crate::{configuration, ConfigHandle, NewlineCanon};
+use crate::observers::*;
 use std::sync::Mutex;
 use termwiz::cell::UnicodeVersion;
 use phaedra_term::color::ColorPalette;
@@ -49,11 +50,11 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
     }
 
     fn scrollback_size(&self) -> usize {
-        self.configuration().scroll.scrollback_lines
+        self.configuration().scroll().scrollback_lines
     }
 
     fn enable_csi_u_key_encoding(&self) -> bool {
-        self.configuration().key_input.enable_csi_u_key_encoding
+        self.configuration().key_input().enable_csi_u_key_encoding
     }
 
     fn color_palette(&self) -> ColorPalette {
@@ -63,31 +64,31 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
         }
         let config = self.configuration();
 
-        config.color_config.resolved_palette.clone().into()
+        config.color_config().resolved_palette.clone().into()
     }
 
     fn alternate_buffer_wheel_scroll_speed(&self) -> u8 {
-        self.configuration().scroll.alternate_buffer_wheel_scroll_speed
+        self.configuration().scroll().alternate_buffer_wheel_scroll_speed
     }
 
     fn enq_answerback(&self) -> String {
-        configuration().enq_answerback.clone()
+        configuration().terminal_features().enq_answerback.clone()
     }
 
     fn enable_kitty_graphics(&self) -> bool {
-        self.configuration().enable_kitty_graphics
+        self.configuration().terminal_features().enable_kitty_graphics
     }
 
     fn enable_title_reporting(&self) -> bool {
-        self.configuration().enable_title_reporting
+        self.configuration().terminal_features().enable_title_reporting
     }
 
     fn enable_kitty_keyboard(&self) -> bool {
-        self.configuration().enable_kitty_keyboard
+        self.configuration().terminal_features().enable_kitty_keyboard
     }
 
     fn canonicalize_pasted_newlines(&self) -> phaedra_term::config::NewlineCanon {
-        match self.configuration().text.canonicalize_pasted_newlines {
+        match self.configuration().text().canonicalize_pasted_newlines {
             None => phaedra_term::config::NewlineCanon::default(),
             Some(NewlineCanon::None) => phaedra_term::config::NewlineCanon::None,
             Some(NewlineCanon::LineFeed) => phaedra_term::config::NewlineCanon::LineFeed,
@@ -106,22 +107,22 @@ impl phaedra_term::TerminalConfiguration for TermConfig {
     }
 
     fn debug_key_events(&self) -> bool {
-        self.configuration().key_input.debug_key_events
+        self.configuration().key_input().debug_key_events
     }
 
     fn log_unknown_escape_sequences(&self) -> bool {
-        self.configuration().log_unknown_escape_sequences
+        self.configuration().runtime().log_unknown_escape_sequences
     }
 
     fn normalize_output_to_unicode_nfc(&self) -> bool {
-        self.configuration().text.normalize_output_to_unicode_nfc
+        self.configuration().text().normalize_output_to_unicode_nfc
     }
 
     fn bidi_mode(&self) -> BidiMode {
         let config = self.configuration();
         BidiMode {
-            enabled: config.text.bidi_enabled,
-            hint: config.text.bidi_direction,
+            enabled: config.text().bidi_enabled,
+            hint: config.text().bidi_direction,
         }
     }
 }
