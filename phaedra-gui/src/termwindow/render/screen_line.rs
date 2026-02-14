@@ -1,4 +1,8 @@
 use crate::quad::{QuadTrait, TripleLayerQuadAllocator, TripleLayerQuadAllocatorTrait};
+use crate::render_command::{
+    HsbTransform as CmdHsbTransform, QuadMode, RectF as CmdRectF, RenderCommand,
+    TextureCoords as CmdTextureCoords,
+};
 use config::observers::*;
 use crate::termwindow::render::{
     resolve_fg_color_attr, same_hyperlink, update_next_frame_time, ClusterStyleCache,
@@ -716,6 +720,659 @@ impl crate::TermWindow {
         Ok(RenderScreenLineResult {
             invalidate_on_hover_change,
         })
+    }
+
+    pub fn describe_screen_line(
+        &self,
+        params: RenderScreenLineParams,
+    ) -> anyhow::Result<(Vec<RenderCommand>, RenderScreenLineResult)> {
+        fn cmd_rect(rect: CmdRectF) -> CmdRectF {
+            CmdRectF::new(
+                euclid::point2(rect.min_x(), rect.min_y()),
+                euclid::size2(rect.width(), rect.height()),
+            )
+        }
+
+        fn cmd_texture_coords(texture: ::window::bitmaps::TextureRect) -> CmdTextureCoords {
+            CmdTextureCoords {
+                left: texture.min_x(),
+                top: texture.min_y(),
+                right: texture.max_x(),
+                bottom: texture.max_y(),
+            }
+        }
+
+        fn cmd_alt_color(color: LinearRgba, mix: f32) -> Option<(LinearRgba, f32)> {
+            if mix > 0.0 {
+                Some((color, mix))
+            } else {
+                None
+            }
+        }
+
+        let cmd_hsv = |hsv: Option<HsbTransform>| {
+            hsv.map(|h| CmdHsbTransform {
+                hue: h.hue,
+                saturation: h.saturation,
+                brightness: h.brightness,
+            })
+        };
+
+        if params.line.is_double_height_bottom() {
+            return Ok((
+                vec![],
+                RenderScreenLineResult {
+                    invalidate_on_hover_change: false,
+                },
+            ));
+        }
+
+        let gl_state = self.render_state.as_ref().unwrap();
+
+        let num_cols = params.dims.cols;
+
+        let hsv = if params.is_active {
+            None
+        } else {
+            Some(params.config.color_config().inactive_pane_hsb)
+        };
+
+        let width_scale = if !params.line.is_single_width() {
+            2.0
+        } else {
+            1.0
+        };
+
+        let height_scale = if params.line.is_double_height_top() {
+            2.0
+        } else {
+            1.0
+        };
+
+        let cell_width = params.render_metrics.cell_size.width as f32 * width_scale;
+        let cell_height = params.render_metrics.cell_size.height as f32 * height_scale;
+
+        let start = Instant::now();
+
+        let cursor_idx = if params.pane.is_some()
+            && params.is_active
+            && params.stable_line_idx == Some(params.cursor.y)
+        {
+            Some(params.cursor.x)
+        } else {
+            None
+        };
+
+        let composing = if cursor_idx.is_some() {
+            if let DeadKeyStatus::Composing(composing) = &self.dead_key_status {
+                Some(composing)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut composition_width = 0;
+
+        let (_bidi_enabled, bidi_direction) = params.line.bidi_info();
+        let direction = bidi_direction.direction();
+
+        if let Some(composing) = composing {
+            composition_width = unicode_column_width(composing, None);
+        }
+
+        let cursor_cell = if params.stable_line_idx == Some(params.cursor.y) {
+            params.line.get_cell(params.cursor.x)
+        } else {
+            None
+        };
+
+        let cursor_range = if composition_width > 0 {
+            params.cursor.x..params.cursor.x + composition_width
+        } else if params.stable_line_idx == Some(params.cursor.y) {
+            params.cursor.x..params.cursor.x + cursor_cell.as_ref().map(|c| c.width()).unwrap_or(1)
+        } else {
+            0..0
+        };
+
+        let cursor_range_pixels = params.left_pixel_x + cursor_range.start as f32 * cell_width
+            ..params.left_pixel_x + cursor_range.end as f32 * cell_width;
+
+        let mut shaped = None;
+        let mut invalidate_on_hover_change = false;
+
+        if let Some(shape_key) = &params.shape_key {
+            let mut cache = self.line_to_ele_shape_cache.borrow_mut();
+            if let Some(entry) = cache.get(shape_key) {
+                let expired = entry.expires.map(|i| Instant::now() >= i).unwrap_or(false);
+                let hover_changed = if entry.invalidate_on_hover_change {
+                    !same_hyperlink(
+                        entry.current_highlight.as_ref(),
+                        self.current_highlight.as_ref(),
+                    )
+                } else {
+                    false
+                };
+
+                if !expired && !hover_changed {
+                    self.update_next_frame_time(entry.expires);
+                    shaped.replace(Rc::clone(&entry.shaped));
+                }
+
+                invalidate_on_hover_change = entry.invalidate_on_hover_change;
+            }
+        }
+
+        let shaped = if let Some(shaped) = shaped {
+            shaped
+        } else {
+            let params = LineToElementParams {
+                config: params.config,
+                line: params.line,
+                palette: params.palette,
+                window_is_transparent: params.window_is_transparent,
+                reverse_video: params.dims.reverse_video,
+                shape_key: &params.shape_key,
+            };
+
+            let (shaped, invalidate_on_hover) = self.build_line_element_shape(params)?;
+            invalidate_on_hover_change = invalidate_on_hover;
+            shaped
+        };
+
+        let bounding_rect = euclid::rect(
+            params.left_pixel_x,
+            params.top_pixel_y,
+            params.pixel_width,
+            cell_height,
+        );
+
+        fn phys(x: usize, num_cols: usize, direction: Direction) -> usize {
+            match direction {
+                Direction::LeftToRight => x,
+                Direction::RightToLeft => num_cols - x,
+            }
+        }
+
+        let mut commands = vec![];
+
+        if params.dims.reverse_video {
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: 0,
+                rect: cmd_rect(euclid::rect(
+                    params.left_pixel_x,
+                    params.top_pixel_y,
+                    params.pixel_width,
+                    cell_height,
+                )),
+                color: params.foreground,
+                hsv: cmd_hsv(hsv),
+            });
+        }
+
+        let is_tab_bar = params.stable_line_idx.is_none();
+
+        for item in shaped.iter() {
+            let cluster = &item.cluster;
+            let attrs = &cluster.attrs;
+            let cluster_width = cluster.width;
+
+            let bg_is_default = attrs.background() == ColorAttribute::Default;
+            let bg_color = params.palette.resolve_bg(attrs.background()).to_linear();
+
+            let fg_color = resolve_fg_color_attr(
+                &attrs,
+                attrs.foreground(),
+                &params.palette,
+                &params.config,
+                &Default::default(),
+            );
+
+            let (bg_color, bg_is_default) = {
+                let mut fg = fg_color;
+                let mut bg = bg_color;
+                let mut bg_default = bg_is_default;
+
+                if attrs.reverse() == !params.dims.reverse_video {
+                    std::mem::swap(&mut fg, &mut bg);
+                    bg_default = false;
+                }
+
+                (
+                    bg.mul_alpha(self.config.text().text_background_opacity),
+                    bg_default,
+                )
+            };
+
+            if !bg_is_default {
+                let x = params.left_pixel_x
+                    + if params.use_pixel_positioning {
+                        item.x_pos
+                    } else {
+                        phys(cluster.first_cell_idx, num_cols, direction) as f32 * cell_width
+                    };
+
+                let mut width = if params.use_pixel_positioning {
+                    item.pixel_width
+                } else {
+                    cluster_width as f32 * cell_width
+                };
+
+                if is_tab_bar && (x + width + cell_width) > params.pixel_width {
+                    width += cell_width;
+                }
+
+                let rect = euclid::rect(x, params.top_pixel_y, width, cell_height);
+                if let Some(rect) = rect.intersection(&bounding_rect) {
+                    commands.push(RenderCommand::FillRect {
+                        layer: 0,
+                        zindex: 0,
+                        rect: cmd_rect(rect),
+                        color: bg_color,
+                        hsv: cmd_hsv(hsv),
+                    });
+                }
+            }
+
+            if item.underline_tex_rect != params.white_space {
+                for i in 0..cluster_width {
+                    let x = params.left_pixel_x
+                        + if params.use_pixel_positioning {
+                            item.x_pos
+                        } else {
+                            phys(cluster.first_cell_idx + i, num_cols, direction) as f32
+                                * cell_width
+                        };
+
+                    commands.push(RenderCommand::DrawQuad {
+                        layer: 0,
+                        zindex: 0,
+                        position: cmd_rect(euclid::rect(x, params.top_pixel_y, cell_width, cell_height)),
+                        texture: cmd_texture_coords(item.underline_tex_rect),
+                        fg_color: item.underline_color,
+                        alt_color: None,
+                        hsv: cmd_hsv(hsv),
+                        mode: QuadMode::Glyph,
+                    });
+                }
+            }
+        }
+
+        let selection_pixel_range = if !params.selection.is_empty() {
+            let start = params.left_pixel_x + (params.selection.start as f32 * cell_width);
+            let width = (params.selection.end - params.selection.start) as f32 * cell_width;
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: 0,
+                rect: cmd_rect(euclid::rect(start, params.top_pixel_y, width, cell_height)),
+                color: params.selection_bg,
+                hsv: cmd_hsv(hsv),
+            });
+
+            start..start + width
+        } else {
+            0.0..0.0
+        };
+
+        if !cursor_range.is_empty() {
+            let (fg_color, bg_color) = if let Some(c) = &cursor_cell {
+                let attrs = c.attrs();
+
+                let bg_color = params.palette.resolve_bg(attrs.background()).to_linear();
+
+                let fg_color = resolve_fg_color_attr(
+                    &attrs,
+                    attrs.foreground(),
+                    &params.palette,
+                    &params.config,
+                    &Default::default(),
+                );
+
+                (fg_color, bg_color)
+            } else {
+                (params.foreground, params.default_bg)
+            };
+
+            let ComputeCellFgBgResult {
+                cursor_shape,
+                cursor_border_color,
+                cursor_border_color_alt,
+                cursor_border_mix,
+                ..
+            } = self.compute_cell_fg_bg(ComputeCellFgBgParams {
+                cursor: Some(params.cursor),
+                selected: false,
+                fg_color,
+                bg_color,
+                is_active_pane: params.is_active,
+                config: params.config,
+                selection_fg: params.selection_fg,
+                selection_bg: params.selection_bg,
+                cursor_fg: params.cursor_fg,
+                cursor_bg: params.cursor_bg,
+                cursor_is_default_color: params.cursor_is_default_color,
+                cursor_border_color: params.cursor_border_color,
+                pane: params.pane,
+            });
+            let pos_x = params.left_pixel_x
+                + (phys(params.cursor.x, num_cols, direction) as f32 * cell_width);
+
+            if let Some(shape) = cursor_shape {
+                let cursor_layer = match shape {
+                    CursorShape::BlinkingBar | CursorShape::SteadyBar => 2,
+                    _ => 0,
+                };
+
+                let mut draw_basic = true;
+                let mut cursor_position = None;
+                let mut cursor_texture = None;
+
+                if params.password_input {
+                    let attrs = cursor_cell
+                        .as_ref()
+                        .map(|cell| cell.attrs().clone())
+                        .unwrap_or_else(|| CellAttributes::blank());
+
+                    let glyph = self
+                        .resolve_lock_glyph(
+                            &TextStyle::default(),
+                            &attrs,
+                            params.font.as_ref(),
+                            gl_state,
+                            &params.render_metrics,
+                        )
+                        .context("resolve_lock_glyph")?;
+
+                    if let Some(sprite) = &glyph.texture {
+                        let width = sprite.coords.size.width as f32 * glyph.scale as f32;
+                        let height =
+                            sprite.coords.size.height as f32 * glyph.scale as f32 * height_scale;
+
+                        let pos_y = params.top_pixel_y
+                            + cell_height
+                            + (params.render_metrics.descender.get() as f32
+                                - (glyph.y_offset + glyph.bearing_y).get() as f32)
+                                * height_scale;
+
+                        let glyph_pos_x = pos_x + (glyph.x_offset + glyph.bearing_x).get() as f32;
+                        cursor_position
+                            .replace(cmd_rect(euclid::rect(glyph_pos_x, pos_y, width, height)));
+                        cursor_texture.replace(cmd_texture_coords(sprite.texture_coords()));
+                        draw_basic = false;
+                    }
+                }
+
+                if draw_basic {
+                    let cursor_width = (cursor_range.end - cursor_range.start) as f32 * cell_width;
+                    let texture = gl_state
+                        .glyph_cache
+                        .borrow_mut()
+                        .cursor_sprite(
+                            Some(shape),
+                            &params.render_metrics,
+                            (cursor_range.end - cursor_range.start) as u8,
+                        )?
+                        .texture_coords();
+                    cursor_position
+                        .replace(cmd_rect(euclid::rect(pos_x, params.top_pixel_y, cursor_width, cell_height)));
+                    cursor_texture.replace(cmd_texture_coords(texture));
+                }
+
+                if let (Some(position), Some(texture)) = (cursor_position, cursor_texture) {
+                    commands.push(RenderCommand::DrawQuad {
+                        layer: cursor_layer,
+                        zindex: 0,
+                        position,
+                        texture,
+                        fg_color: cursor_border_color,
+                        alt_color: cmd_alt_color(cursor_border_color_alt, cursor_border_mix),
+                        hsv: cmd_hsv(hsv),
+                        mode: QuadMode::Glyph,
+                    });
+                }
+            }
+        }
+
+        let mut visual_cell_idx = 0;
+
+        let mut cluster_x_pos = match direction {
+            Direction::LeftToRight => 0.,
+            Direction::RightToLeft => params.pixel_width,
+        };
+
+        for item in shaped.iter() {
+            let cluster = &item.cluster;
+            let glyph_info = &item.glyph_info;
+            let images = cluster.attrs.images().unwrap_or_else(|| vec![]);
+            let valign_adjust = match cluster.attrs.vertical_align() {
+                termwiz::cell::VerticalAlign::BaseLine => 0.,
+                termwiz::cell::VerticalAlign::SuperScript => {
+                    params.render_metrics.cell_size.height as f32 * -0.25
+                }
+                termwiz::cell::VerticalAlign::SubScript => {
+                    params.render_metrics.cell_size.height as f32 * 0.25
+                }
+            };
+
+            if direction == Direction::RightToLeft {
+                cluster_x_pos -= if params.use_pixel_positioning {
+                    item.pixel_width
+                } else {
+                    cluster.width as f32 * cell_width
+                };
+            }
+
+            for info in glyph_info.iter() {
+                let glyph = &info.glyph;
+
+                if params.use_pixel_positioning
+                    && params.left_pixel_x + cluster_x_pos + glyph.x_advance.get() as f32
+                        >= params.left_pixel_x + params.pixel_width
+                {
+                    break;
+                }
+
+                for glyph_idx in 0..info.pos.num_cells as usize {
+                    for img in &images {
+                        if img.z_index() < 0 {
+                            let _ = (img, glyph_idx);
+                        }
+                    }
+                }
+
+                {
+                    let mut texture = glyph.texture.as_ref().cloned();
+
+                    let mut top = cell_height
+                        + (params.render_metrics.descender.get() as f32 + valign_adjust
+                            - (glyph.y_offset + glyph.bearing_y).get() as f32)
+                            * height_scale;
+
+                    if self.config.text().custom_block_glyphs {
+                        if let Some(block) = &info.block_key {
+                            texture.replace(
+                                gl_state
+                                    .glyph_cache
+                                    .borrow_mut()
+                                    .cached_block(*block, &params.render_metrics)
+                                    .context("cached_block")?,
+                            );
+                            top = 0.;
+                        }
+                    }
+
+                    if let Some(texture) = texture {
+                        let pos_x = cluster_x_pos
+                            + if params.use_pixel_positioning {
+                                (glyph.x_offset + glyph.bearing_x).get() as f32
+                            } else {
+                                0.
+                            };
+
+                        if pos_x > params.pixel_width {
+                            log::trace!("breaking on overflow {} > {}", pos_x, params.pixel_width);
+                            break;
+                        }
+                        let pos_x = pos_x + params.left_pixel_x;
+
+                        fn intersection(r1: &Range<f32>, r2: &Range<f32>) -> Range<f32> {
+                            let start = r1.start.max(r2.start);
+                            let end = r1.end.min(r2.end);
+                            if end > start {
+                                start..end
+                            } else {
+                                start..start
+                            }
+                        }
+
+                        fn range3(
+                            r: &Range<f32>,
+                            within: &Range<f32>,
+                        ) -> (Range<f32>, Range<f32>, Range<f32>) {
+                            if r.is_empty() {
+                                return (r.clone(), r.clone(), r.clone());
+                            }
+                            let i = intersection(r, within);
+                            if i.is_empty() {
+                                return (r.clone(), i.clone(), i.clone());
+                            }
+
+                            let left = if i.start > r.start {
+                                r.start..i.start
+                            } else {
+                                r.start..r.start
+                            };
+
+                            let right = if i.end < r.end {
+                                i.end..r.end
+                            } else {
+                                r.end..r.end
+                            };
+
+                            (left, i, right)
+                        }
+
+                        let adjust = (glyph.x_offset + glyph.bearing_x).get() as f32;
+                        let texture_range = pos_x + adjust
+                            ..pos_x + adjust + (texture.coords.size.width as f32 * width_scale);
+
+                        let (left, mid, right) = range3(&texture_range, &cursor_range_pixels);
+                        let (la, lb, lc) = range3(&left, &selection_pixel_range);
+                        let (ra, rb, rc) = range3(&right, &selection_pixel_range);
+
+                        for range in [la, lb, lc, mid, ra, rb, rc] {
+                            if range.is_empty() {
+                                continue;
+                            }
+
+                            let is_cursor = cursor_range_pixels.contains(&range.start);
+                            let selected =
+                                !is_cursor && selection_pixel_range.contains(&range.start);
+
+                            let ComputeCellFgBgResult {
+                                fg_color: glyph_color,
+                                bg_color,
+                                fg_color_alt,
+                                fg_color_mix,
+                                ..
+                            } = self.compute_cell_fg_bg(ComputeCellFgBgParams {
+                                cursor: if is_cursor { Some(params.cursor) } else { None },
+                                selected,
+                                fg_color: item.fg_color,
+                                bg_color: item.bg_color,
+                                is_active_pane: params.is_active,
+                                config: params.config,
+                                selection_fg: params.selection_fg,
+                                selection_bg: params.selection_bg,
+                                cursor_fg: params.cursor_fg,
+                                cursor_bg: params.cursor_bg,
+                                cursor_is_default_color: params.cursor_is_default_color,
+                                cursor_border_color: params.cursor_border_color,
+                                pane: params.pane,
+                            });
+
+                            if glyph_color == bg_color || cluster.attrs.invisible() {
+                                continue;
+                            }
+
+                            let pixel_rect = euclid::rect(
+                                texture.coords.origin.x + (range.start - (pos_x + adjust)) as isize,
+                                texture.coords.origin.y,
+                                ((range.end - range.start) / width_scale) as isize,
+                                texture.coords.size.height,
+                            );
+
+                            let texture_rect = texture.texture.to_texture_coords(pixel_rect);
+                            let quad_hsv = if glyph.brightness_adjust != 1.0 {
+                                let hsv = hsv.unwrap_or_else(|| HsbTransform::default());
+                                Some(HsbTransform {
+                                    brightness: hsv.brightness * glyph.brightness_adjust,
+                                    ..hsv
+                                })
+                            } else {
+                                hsv
+                            };
+
+                            commands.push(RenderCommand::DrawQuad {
+                                layer: 1,
+                                zindex: 0,
+                                position: cmd_rect(euclid::rect(
+                                    range.start,
+                                    params.top_pixel_y + top,
+                                    range.end - range.start,
+                                    texture.coords.size.height as f32 * height_scale,
+                                )),
+                                texture: cmd_texture_coords(texture_rect),
+                                fg_color: glyph_color,
+                                alt_color: cmd_alt_color(fg_color_alt, fg_color_mix),
+                                hsv: cmd_hsv(quad_hsv),
+                                mode: if glyph.has_color {
+                                    QuadMode::ColorEmoji
+                                } else {
+                                    QuadMode::Glyph
+                                },
+                            });
+                        }
+                    }
+                }
+
+                for glyph_idx in 0..info.pos.num_cells as usize {
+                    for img in &images {
+                        if img.z_index() >= 0 {
+                            let _ = (img, visual_cell_idx + glyph_idx, item.fg_color);
+                        }
+                    }
+                }
+                visual_cell_idx += info.pos.num_cells as usize;
+                cluster_x_pos += if params.use_pixel_positioning {
+                    glyph.x_advance.get() as f32 * width_scale
+                } else {
+                    info.pos.num_cells as f32 * cell_width
+                };
+            }
+
+            match direction {
+                Direction::RightToLeft => {
+                    cluster_x_pos -= if params.use_pixel_positioning {
+                        item.pixel_width * width_scale
+                    } else {
+                        cluster.width as f32 * cell_width
+                    };
+                }
+                Direction::LeftToRight => {}
+            }
+        }
+
+        metrics::histogram!("describe_screen_line").record(start.elapsed());
+
+        Ok((
+            commands,
+            RenderScreenLineResult {
+                invalidate_on_hover_change,
+            },
+        ))
     }
 
     fn build_line_element_shape(

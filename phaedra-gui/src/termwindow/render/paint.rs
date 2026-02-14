@@ -1,4 +1,5 @@
 use crate::termwindow::TermWindowNotif;
+use crate::execute_render::execute_frame;
 use config::observers::*;
 use ::window::bitmaps::atlas::OutOfTextureSpace;
 use ::window::WindowOps;
@@ -190,6 +191,29 @@ impl crate::TermWindow {
 
         // Clear out UI item positions; we'll rebuild these as we render
         self.ui_items.clear();
+
+        if self.config.gpu().use_algebraic_render {
+            let panes = self.get_panes_to_render();
+            let focused = self.focused.is_some();
+            for pos in &panes {
+                if pos.is_active {
+                    self.update_text_cursor(pos);
+                    if focused {
+                        pos.pane.advise_focus();
+                        mux::Mux::get().record_focus_for_current_identity(pos.pane.pane_id());
+                    }
+                }
+            }
+
+            let frame = self.describe_frame()?;
+            let pixel_dims = (
+                self.dimensions.pixel_width as f32,
+                self.dimensions.pixel_height as f32,
+            );
+            execute_frame(&frame, self.render_state.as_ref().unwrap(), pixel_dims)?;
+            self.ui_items = frame.ui_items;
+            return Ok(());
+        }
 
         let panes = self.get_panes_to_render();
         let focused = self.focused.is_some();

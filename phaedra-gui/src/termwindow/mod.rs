@@ -5,6 +5,7 @@ use super::utilsprites::RenderMetrics;
 use crate::colorease::ColorEase;
 use crate::frontend::{front_end, try_front_end};
 use crate::inputmap::InputMap;
+use crate::observers::{PaneLayoutObserver, TransientRenderObserver, WindowGeometryObserver};
 use crate::overlay::{
     confirm_close_pane, confirm_close_tab, confirm_close_window, launcher, start_overlay,
     start_overlay_pane, CopyOverlay, LauncherArgs, LauncherFlags,
@@ -3125,5 +3126,78 @@ impl Drop for TermWindow {
                 fe.forget_known_window(&window);
             }
         }
+    }
+}
+
+impl WindowGeometryObserver for TermWindow {
+    fn pixel_dimensions(&self) -> (f32, f32) {
+        (self.dimensions.pixel_width as f32, self.dimensions.pixel_height as f32)
+    }
+
+    fn padding(&self) -> (f32, f32, f32, f32) {
+        let h_context = DimensionContext {
+            dpi: self.dimensions.dpi as f32,
+            pixel_max: self.terminal_size.pixel_width as f32,
+            pixel_cell: self.render_metrics.cell_size.width as f32,
+        };
+        let v_context = DimensionContext {
+            dpi: self.dimensions.dpi as f32,
+            pixel_max: self.terminal_size.pixel_height as f32,
+            pixel_cell: self.render_metrics.cell_size.height as f32,
+        };
+
+        let left = self
+            .config
+            .window_config().window_padding
+            .left
+            .evaluate_as_pixels(h_context);
+        let right = if self.show_scroll_bar
+            && self.config.window_config().window_padding.right.is_zero()
+        {
+            h_context.pixel_cell
+        } else {
+            self.config
+                .window_config().window_padding
+                .right
+                .evaluate_as_pixels(h_context)
+        };
+        let top = self.config.window_config().window_padding.top.evaluate_as_pixels(v_context);
+        let bottom = self
+            .config
+            .window_config().window_padding
+            .bottom
+            .evaluate_as_pixels(v_context);
+
+        (left, top, right, bottom)
+    }
+}
+
+impl PaneLayoutObserver for TermWindow {
+    fn get_panes_to_render(&self) -> Vec<PositionedPane> {
+        TermWindow::get_panes_to_render(self)
+    }
+
+    fn get_viewport(&self, pane_id: PaneId) -> Option<StableRowIndex> {
+        TermWindow::get_viewport(self, pane_id)
+    }
+
+    fn is_zoomed(&self) -> bool {
+        TermWindow::get_panes_to_render(self)
+            .into_iter()
+            .any(|pane| pane.is_zoomed)
+    }
+}
+
+impl TransientRenderObserver for TermWindow {
+    fn allow_images(&self) -> AllowImage {
+        self.allow_images
+    }
+
+    fn shape_generation(&self) -> usize {
+        self.shape_generation
+    }
+
+    fn created_elapsed_ms(&self) -> u32 {
+        self.created.elapsed().as_millis() as u32
     }
 }

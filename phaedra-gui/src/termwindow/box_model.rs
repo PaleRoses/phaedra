@@ -3,6 +3,9 @@ use crate::color::LinearRgba;
 use crate::customglyph::{BlockKey, Poly};
 use crate::glyphcache::CachedGlyph;
 use crate::quad::{QuadImpl, QuadTrait, TripleLayerQuadAllocator, TripleLayerQuadAllocatorTrait};
+use crate::render_command::{
+    HsbTransform, QuadMode, RectF as CmdRectF, RenderCommand, TextureCoords as CmdTextureCoords,
+};
 use crate::termwindow::{
     ColorEase, MouseCapture, RenderState, TermWindowNotif, UIItem, UIItemType,
 };
@@ -945,6 +948,146 @@ impl super::TermWindow {
         Ok(())
     }
 
+    pub fn describe_element(
+        &self,
+        element: &ComputedElement,
+        inherited_colors: Option<&ElementColors>,
+    ) -> anyhow::Result<Vec<RenderCommand>> {
+        let colors = match &element.hover_colors {
+            Some(hc) => {
+                let hovering =
+                    match &self.current_mouse_event {
+                        Some(event) => {
+                            let mouse_x = event.coords.x as f32;
+                            let mouse_y = event.coords.y as f32;
+                            mouse_x >= element.bounds.min_x()
+                                && mouse_x <= element.bounds.max_x()
+                                && mouse_y >= element.bounds.min_y()
+                                && mouse_y <= element.bounds.max_y()
+                        }
+                        None => false,
+                    } && matches!(self.current_mouse_capture, None | Some(MouseCapture::UI));
+                if hovering {
+                    hc
+                } else {
+                    &element.colors
+                }
+            }
+            None => &element.colors,
+        };
+
+        let mut commands = self.describe_element_background(element, colors, inherited_colors)?;
+        match &element.content {
+            ComputedElementContent::Text(cells) => {
+                let mut pos_x = element.content_rect.min_x();
+                for cell in cells {
+                    if pos_x >= element.content_rect.max_x() {
+                        break;
+                    }
+                    match cell {
+                        ElementCell::Sprite(sprite) => {
+                            let width = sprite.coords.width() as f32;
+                            let height = sprite.coords.height() as f32;
+                            let pos_y = element.content_rect.min_y();
+
+                            if pos_x + width > element.content_rect.max_x() {
+                                break;
+                            }
+
+                            let resolved = self.resolve_text(colors, inherited_colors);
+                            commands.push(RenderCommand::DrawQuad {
+                                layer: 2,
+                                zindex: element.zindex,
+                                position: Self::command_rect(euclid::rect(pos_x, pos_y, width, height)),
+                                texture: Self::command_texture_coords(sprite.texture_coords()),
+                                fg_color: resolved.color,
+                                alt_color: Self::command_alt_color(&resolved),
+                                hsv: Self::no_hsv(),
+                                mode: QuadMode::Glyph,
+                            });
+                            pos_x += width;
+                        }
+                        ElementCell::Glyph(glyph) => {
+                            if let Some(texture) = glyph.texture.as_ref() {
+                                let pos_y = element.content_rect.min_y()
+                                    - (glyph.y_offset + glyph.bearing_y).get() as f32
+                                    + element.baseline;
+
+                                if pos_x + glyph.x_advance.get() as f32
+                                    > element.content_rect.max_x()
+                                {
+                                    break;
+                                }
+                                let pos_x =
+                                    pos_x + (glyph.x_offset + glyph.bearing_x).get() as f32;
+                                let width = texture.coords.size.width as f32 * glyph.scale as f32;
+                                let height = texture.coords.size.height as f32 * glyph.scale as f32;
+                                let resolved = self.resolve_text(colors, inherited_colors);
+
+                                commands.push(RenderCommand::DrawQuad {
+                                    layer: 1,
+                                    zindex: element.zindex,
+                                    position: Self::command_rect(euclid::rect(pos_x, pos_y, width, height)),
+                                    texture: Self::command_texture_coords(texture.texture_coords()),
+                                    fg_color: resolved.color,
+                                    alt_color: Self::command_alt_color(&resolved),
+                                    hsv: Self::no_hsv(),
+                                    mode: if glyph.has_color {
+                                        QuadMode::ColorEmoji
+                                    } else {
+                                        QuadMode::Glyph
+                                    },
+                                });
+                            }
+                            pos_x += glyph.x_advance.get() as f32;
+                        }
+                    }
+                }
+            }
+            ComputedElementContent::Children(kids) => {
+                for kid in kids {
+                    commands.extend(self.describe_element(kid, Some(colors))?);
+                }
+            }
+            ComputedElementContent::Poly { poly, line_width } => {
+                if element.content_rect.width() >= poly.width {
+                    let sprite = self
+                        .render_state
+                        .as_ref()
+                        .unwrap()
+                        .glyph_cache
+                        .borrow_mut()
+                        .cached_block(
+                            BlockKey::PolyWithCustomMetrics {
+                                polys: poly.poly,
+                                underline_height: *line_width,
+                                cell_size: euclid::size2(poly.width as isize, poly.height as isize),
+                            },
+                            &self.render_metrics,
+                        )?;
+                    let resolved = self.resolve_text(colors, inherited_colors);
+                    commands.push(RenderCommand::DrawQuad {
+                        layer: 1,
+                        zindex: element.zindex,
+                        position: Self::command_rect(euclid::rect(
+                            element.content_rect.origin.x,
+                            element.content_rect.origin.y,
+                            poly.width,
+                            poly.height,
+                        )),
+                        texture: Self::command_texture_coords(sprite.texture_coords()),
+                        fg_color: resolved.color,
+                        alt_color: Self::command_alt_color(&resolved),
+                        hsv: Self::no_hsv(),
+                        mode: QuadMode::Glyph,
+                    });
+                }
+            }
+        }
+
+        Ok(commands)
+    }
+
     fn resolve_text(
         &self,
         colors: &ElementColors,
@@ -1005,6 +1148,327 @@ impl super::TermWindow {
                 }
             }
         }
+    }
+
+    fn no_hsv() -> Option<HsbTransform> {
+        None
+    }
+
+    fn command_rect(rect: RectF) -> CmdRectF {
+        CmdRectF::new(
+            euclid::point2(rect.min_x(), rect.min_y()),
+            euclid::size2(rect.width(), rect.height()),
+        )
+    }
+
+    fn command_texture_coords(texture: ::window::bitmaps::TextureRect) -> CmdTextureCoords {
+        CmdTextureCoords {
+            left: texture.min_x(),
+            top: texture.min_y(),
+            right: texture.max_x(),
+            bottom: texture.max_y(),
+        }
+    }
+
+    fn command_alt_color(resolved: &ResolvedColor) -> Option<(LinearRgba, f32)> {
+        if resolved.mix_value > 0.0 {
+            Some((resolved.alt_color, resolved.mix_value))
+        } else {
+            None
+        }
+    }
+
+    fn describe_element_background(
+        &self,
+        element: &ComputedElement,
+        colors: &ElementColors,
+        inherited_colors: Option<&ElementColors>,
+    ) -> anyhow::Result<Vec<RenderCommand>> {
+        let mut commands = vec![];
+        let mut top_left_width = 0.;
+        let mut top_left_height = 0.;
+        let mut top_right_width = 0.;
+        let mut top_right_height = 0.;
+
+        let mut bottom_left_width = 0.;
+        let mut bottom_left_height = 0.;
+        let mut bottom_right_width = 0.;
+        let mut bottom_right_height = 0.;
+
+        if let Some(c) = &element.border_corners {
+            top_left_width = c.top_left.width;
+            top_left_height = c.top_left.height;
+            top_right_width = c.top_right.width;
+            top_right_height = c.top_right.height;
+
+            bottom_left_width = c.bottom_left.width;
+            bottom_left_height = c.bottom_left.height;
+            bottom_right_width = c.bottom_right.width;
+            bottom_right_height = c.bottom_right.height;
+
+            if top_left_width > 0. && top_left_height > 0. {
+                let sprite = self
+                    .render_state
+                    .as_ref()
+                    .unwrap()
+                    .glyph_cache
+                    .borrow_mut()
+                    .cached_block(
+                        BlockKey::PolyWithCustomMetrics {
+                            polys: c.top_left.poly,
+                            underline_height: element.border.top as isize,
+                            cell_size: euclid::size2(top_left_width as isize, top_left_height as isize),
+                        },
+                        &self.render_metrics,
+                    )?;
+                commands.push(RenderCommand::DrawQuad {
+                    layer: 0,
+                    zindex: element.zindex,
+                    position: Self::command_rect(euclid::rect(
+                        element.border_rect.origin.x,
+                        element.border_rect.origin.y,
+                        top_left_width,
+                        top_left_height,
+                    )),
+                    texture: Self::command_texture_coords(sprite.texture_coords()),
+                    fg_color: colors.border.top,
+                    alt_color: None,
+                    hsv: Self::no_hsv(),
+                    mode: QuadMode::GrayScale,
+                });
+            }
+            if top_right_width > 0. && top_right_height > 0. {
+                let sprite = self
+                    .render_state
+                    .as_ref()
+                    .unwrap()
+                    .glyph_cache
+                    .borrow_mut()
+                    .cached_block(
+                        BlockKey::PolyWithCustomMetrics {
+                            polys: c.top_right.poly,
+                            underline_height: element.border.top as isize,
+                            cell_size: euclid::size2(top_right_width as isize, top_right_height as isize),
+                        },
+                        &self.render_metrics,
+                    )?;
+                commands.push(RenderCommand::DrawQuad {
+                    layer: 0,
+                    zindex: element.zindex,
+                    position: Self::command_rect(euclid::rect(
+                        element.border_rect.max_x() - top_right_width,
+                        element.border_rect.min_y(),
+                        top_right_width,
+                        top_right_height,
+                    )),
+                    texture: Self::command_texture_coords(sprite.texture_coords()),
+                    fg_color: colors.border.top,
+                    alt_color: None,
+                    hsv: Self::no_hsv(),
+                    mode: QuadMode::GrayScale,
+                });
+            }
+            if bottom_left_width > 0. && bottom_left_height > 0. {
+                let sprite = self
+                    .render_state
+                    .as_ref()
+                    .unwrap()
+                    .glyph_cache
+                    .borrow_mut()
+                    .cached_block(
+                        BlockKey::PolyWithCustomMetrics {
+                            polys: c.bottom_left.poly,
+                            underline_height: element.border.bottom as isize,
+                            cell_size: euclid::size2(bottom_left_width as isize, bottom_left_height as isize),
+                        },
+                        &self.render_metrics,
+                    )?;
+                commands.push(RenderCommand::DrawQuad {
+                    layer: 0,
+                    zindex: element.zindex,
+                    position: Self::command_rect(euclid::rect(
+                        element.border_rect.min_x(),
+                        element.border_rect.max_y() - bottom_left_height,
+                        bottom_left_width,
+                        bottom_left_height,
+                    )),
+                    texture: Self::command_texture_coords(sprite.texture_coords()),
+                    fg_color: colors.border.bottom,
+                    alt_color: None,
+                    hsv: Self::no_hsv(),
+                    mode: QuadMode::GrayScale,
+                });
+            }
+            if bottom_right_width > 0. && bottom_right_height > 0. {
+                let sprite = self
+                    .render_state
+                    .as_ref()
+                    .unwrap()
+                    .glyph_cache
+                    .borrow_mut()
+                    .cached_block(
+                        BlockKey::PolyWithCustomMetrics {
+                            polys: c.bottom_right.poly,
+                            underline_height: element.border.bottom as isize,
+                            cell_size: euclid::size2(bottom_right_width as isize, bottom_right_height as isize),
+                        },
+                        &self.render_metrics,
+                    )?;
+                commands.push(RenderCommand::DrawQuad {
+                    layer: 0,
+                    zindex: element.zindex,
+                    position: Self::command_rect(euclid::rect(
+                        element.border_rect.max_x() - bottom_right_width,
+                        element.border_rect.max_y() - bottom_right_height,
+                        bottom_right_width,
+                        bottom_right_height,
+                    )),
+                    texture: Self::command_texture_coords(sprite.texture_coords()),
+                    fg_color: colors.border.bottom,
+                    alt_color: None,
+                    hsv: Self::no_hsv(),
+                    mode: QuadMode::GrayScale,
+                });
+            }
+
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.min_x() + top_left_width,
+                    element.border_rect.min_y(),
+                    element.border_rect.width() - (top_left_width + top_right_width),
+                    top_left_height.max(top_right_height),
+                )),
+                color: self.resolve_bg(colors, inherited_colors).color,
+                hsv: Self::no_hsv(),
+            });
+
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.min_x() + bottom_left_width,
+                    element.border_rect.max_y() - bottom_left_height.max(bottom_right_height),
+                    element.border_rect.width() - (bottom_left_width + bottom_right_width),
+                    bottom_left_height.max(bottom_right_height),
+                )),
+                color: self.resolve_bg(colors, inherited_colors).color,
+                hsv: Self::no_hsv(),
+            });
+
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.min_x(),
+                    element.border_rect.min_y() + top_left_height,
+                    top_left_width.max(bottom_left_width),
+                    element.border_rect.height() - (top_left_height + bottom_left_height),
+                )),
+                color: self.resolve_bg(colors, inherited_colors).color,
+                hsv: Self::no_hsv(),
+            });
+
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.max_x() - top_right_width,
+                    element.border_rect.min_y() + top_right_height,
+                    top_right_width.max(bottom_right_width),
+                    element.border_rect.height() - (top_right_height + bottom_right_height),
+                )),
+                color: self.resolve_bg(colors, inherited_colors).color,
+                hsv: Self::no_hsv(),
+            });
+
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.min_x() + top_left_width,
+                    element.border_rect.min_y() + top_right_height.min(top_left_height),
+                    element.border_rect.width() - (top_left_width + top_right_width),
+                    element.border_rect.height()
+                        - (top_right_height.min(top_left_height)
+                            + bottom_right_height.min(bottom_left_height)),
+                )),
+                color: self.resolve_bg(colors, inherited_colors).color,
+                hsv: Self::no_hsv(),
+            });
+        } else if colors.bg != InheritableColor::Color(LinearRgba::TRANSPARENT) {
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(element.padding),
+                color: self.resolve_bg(colors, inherited_colors).color,
+                hsv: Self::no_hsv(),
+            });
+        }
+
+        if element.border_rect == element.padding {
+            return Ok(commands);
+        }
+
+        if element.border.top > 0. && colors.border.top != LinearRgba::TRANSPARENT {
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.min_x() + top_left_width,
+                    element.border_rect.min_y(),
+                    element.border_rect.width() - (top_left_width + top_right_width),
+                    element.border.top,
+                )),
+                color: colors.border.top,
+                hsv: Self::no_hsv(),
+            });
+        }
+        if element.border.bottom > 0. && colors.border.bottom != LinearRgba::TRANSPARENT {
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.min_x() + bottom_left_width,
+                    element.border_rect.max_y() - element.border.bottom,
+                    element.border_rect.width() - (bottom_left_width + bottom_right_width),
+                    element.border.bottom,
+                )),
+                color: colors.border.bottom,
+                hsv: Self::no_hsv(),
+            });
+        }
+        if element.border.left > 0. && colors.border.left != LinearRgba::TRANSPARENT {
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.min_x(),
+                    element.border_rect.min_y() + top_left_height,
+                    element.border.left,
+                    element.border_rect.height() - (top_left_height + bottom_left_height),
+                )),
+                color: colors.border.left,
+                hsv: Self::no_hsv(),
+            });
+        }
+        if element.border.right > 0. && colors.border.right != LinearRgba::TRANSPARENT {
+            commands.push(RenderCommand::FillRect {
+                layer: 0,
+                zindex: element.zindex,
+                rect: Self::command_rect(euclid::rect(
+                    element.border_rect.max_x() - element.border.right,
+                    element.border_rect.min_y() + top_right_height,
+                    element.border.left,
+                    element.border_rect.height() - (top_right_height + bottom_right_height),
+                )),
+                color: colors.border.right,
+                hsv: Self::no_hsv(),
+            });
+        }
+
+        Ok(commands)
     }
 
     fn render_element_background<'a>(

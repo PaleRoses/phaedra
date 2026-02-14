@@ -34,11 +34,14 @@ pub enum RenderCommand {
     },
     FillRect {
         layer: usize,
+        zindex: i8,
         rect: RectF,
         color: LinearRgba,
+        hsv: Option<HsbTransform>,
     },
     DrawQuad {
         layer: usize,
+        zindex: i8,
         position: RectF,
         texture: TextureCoords,
         fg_color: LinearRgba,
@@ -49,6 +52,7 @@ pub enum RenderCommand {
     SetClipRect(Option<RectF>),
     BeginPostProcess,
     Batch(Vec<RenderCommand>),
+    Nop,
 }
 
 impl RenderCommand {
@@ -65,15 +69,24 @@ impl RenderCommand {
     {
         match self {
             RenderCommand::Clear { color } => RenderCommand::Clear { color: f(color) },
-            RenderCommand::FillRect { layer, rect, color } => {
+            RenderCommand::FillRect {
+                layer,
+                zindex,
+                rect,
+                color,
+                hsv,
+            } => {
                 RenderCommand::FillRect {
                     layer,
+                    zindex,
                     rect,
                     color: f(color),
+                    hsv,
                 }
             }
             RenderCommand::DrawQuad {
                 layer,
+                zindex,
                 position,
                 texture,
                 fg_color,
@@ -82,6 +95,7 @@ impl RenderCommand {
                 mode,
             } => RenderCommand::DrawQuad {
                 layer,
+                zindex,
                 position,
                 texture,
                 fg_color: f(fg_color),
@@ -101,9 +115,7 @@ impl RenderCommand {
         F: Fn(T, &RenderCommand) -> T,
     {
         match self {
-            RenderCommand::Batch(cmds) => {
-                cmds.iter().fold(f(init, self), |acc, cmd| cmd.fold(acc, f))
-            }
+            RenderCommand::Batch(cmds) => cmds.iter().fold(init, |acc, cmd| cmd.fold(acc, f)),
             _ => f(init, self),
         }
     }

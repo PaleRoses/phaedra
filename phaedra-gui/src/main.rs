@@ -43,6 +43,8 @@ mod frontend;
 mod glyphcache;
 mod inputmap;
 pub mod execute;
+pub mod execute_render;
+pub mod frame;
 pub mod input_effect;
 pub mod interpret;
 pub mod observers;

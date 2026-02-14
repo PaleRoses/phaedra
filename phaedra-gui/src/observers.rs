@@ -1,5 +1,9 @@
+use crate::termwindow::render::paint::AllowImage;
 use crate::termwindow::TermWindow;
 use config::ConfigHandle;
+use mux::pane::PaneId;
+use mux::tab::PositionedPane;
+use phaedra_term::StableRowIndex;
 use window::Dimensions;
 
 pub trait WindowObserver {
@@ -13,6 +17,33 @@ pub trait ConfigObserver {
 
 pub trait RenderMetricsObserver {
     fn render_metrics(&self) -> &crate::utilsprites::RenderMetrics;
+}
+
+pub trait WindowGeometryObserver {
+    fn pixel_dimensions(&self) -> (f32, f32);
+    fn padding(&self) -> (f32, f32, f32, f32);
+}
+
+pub trait PaneLayoutObserver {
+    fn get_panes_to_render(&self) -> Vec<PositionedPane>;
+    fn get_viewport(&self, pane_id: PaneId) -> Option<StableRowIndex>;
+    fn is_zoomed(&self) -> bool;
+}
+
+pub trait TransientRenderObserver {
+    fn allow_images(&self) -> AllowImage;
+    fn shape_generation(&self) -> usize;
+    fn created_elapsed_ms(&self) -> u32;
+}
+
+pub trait FrameObserver:
+    WindowObserver
+    + ConfigObserver
+    + RenderMetricsObserver
+    + WindowGeometryObserver
+    + PaneLayoutObserver
+    + TransientRenderObserver
+{
 }
 
 impl WindowObserver for TermWindow {
@@ -36,3 +67,5 @@ impl RenderMetricsObserver for TermWindow {
         &self.render_metrics
     }
 }
+
+impl FrameObserver for TermWindow {}
