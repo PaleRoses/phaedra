@@ -378,7 +378,7 @@ impl CharSelector {
     }
 
     fn compute(
-        term_window: &mut TermWindow,
+        term_window: &TermWindow,
         selection: &str,
         group: CharSelectGroup,
         aliases: &[Alias],
@@ -696,7 +696,7 @@ impl Modal for CharSelector {
 
     fn computed_element(
         &self,
-        term_window: &mut TermWindow,
+        term_window: &TermWindow,
     ) -> anyhow::Result<Ref<'_, [ComputedElement]>> {
         let selection = self.selection.borrow();
         let selection = selection.as_str();
@@ -747,7 +747,7 @@ impl Modal for CharSelector {
         }))
     }
 
-    fn reconfigure(&self, _term_window: &mut TermWindow) {
+    fn reconfigure(&self, _term_window: &TermWindow) {
         self.element.borrow_mut().take();
     }
 }

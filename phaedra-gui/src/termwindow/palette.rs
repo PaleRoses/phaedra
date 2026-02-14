@@ -247,7 +247,7 @@ impl CommandPalette {
     }
 
     fn compute(
-        term_window: &mut TermWindow,
+        term_window: &TermWindow,
         selection: &str,
         commands: &[ExpandedCommand],
         matches: &MatchResults,
@@ -651,7 +651,7 @@ impl Modal for CommandPalette {
 
     fn computed_element(
         &self,
-        term_window: &mut TermWindow,
+        term_window: &TermWindow,
     ) -> anyhow::Result<Ref<'_, [ComputedElement]>> {
         let selection = self.selection.borrow();
         let selection = selection.as_str();
@@ -701,7 +701,7 @@ impl Modal for CommandPalette {
         }))
     }
 
-    fn reconfigure(&self, _term_window: &mut TermWindow) {
+    fn reconfigure(&self, _term_window: &TermWindow) {
         self.element.borrow_mut().take();
     }
 }

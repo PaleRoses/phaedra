@@ -192,13 +192,35 @@ impl crate::TermWindow {
         (commands, ui_items)
     }
 
-    pub fn describe_window_background(&self, panes: &[PositionedPane]) -> Vec<RenderCommand> {
+    pub fn describe_window_background(
+        &self,
+        panes: &[PositionedPane],
+    ) -> anyhow::Result<Vec<RenderCommand>> {
         let window_is_transparent = !self.window_background.is_empty();
         let mut paint_terminal_background = false;
 
         match (self.window_background.is_empty(), self.allow_images) {
             (false, AllowImage::Yes | AllowImage::Scale(_)) => {
-                return Vec::new();
+                let bg_color = self
+                    .palette
+                    .as_ref()
+                    .map(|palette| palette.background)
+                    .unwrap_or_else(|| config::TermConfig::new().color_palette().background)
+                    .to_linear();
+                let top = panes
+                    .iter()
+                    .find(|p| p.is_active)
+                    .map(|p| match self.get_viewport(p.pane.pane_id()) {
+                        Some(top) => top,
+                        None => p.pane.get_dimensions().physical_top,
+                    })
+                    .unwrap_or(0);
+
+                let (commands, loaded_any) = self.describe_backgrounds(bg_color, top)?;
+                if loaded_any {
+                    return Ok(commands);
+                }
+                paint_terminal_background = true;
             }
             _ if window_is_transparent => {}
             _ => {
@@ -207,7 +229,7 @@ impl crate::TermWindow {
         }
 
         if !paint_terminal_background {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let background = if panes.len() == 1 {
@@ -228,13 +250,13 @@ impl crate::TermWindow {
             self.dimensions.pixel_height as f32,
         );
 
-        vec![RenderCommand::FillRect {
+        Ok(vec![RenderCommand::FillRect {
             layer: 0,
             zindex: 0,
             rect,
             color: background,
             hsv: None,
-        }]
+        }])
     }
 
     pub fn describe_pane(&self, pos: &PositionedPane) -> anyhow::Result<PaneFrame> {
@@ -818,12 +840,24 @@ impl crate::TermWindow {
     }
 
     pub fn describe_modal(&self) -> anyhow::Result<(Vec<RenderCommand>, Vec<UIItem>)> {
-        Ok((Vec::new(), Vec::new()))
+        let mut commands = Vec::new();
+        let mut ui_items = Vec::new();
+
+        if let Some(modal) = self.get_modal() {
+            for computed in modal.computed_element(self)?.iter() {
+                let mut element_ui_items = computed.ui_items();
+                let mut element_commands = self.describe_element(computed, None)?;
+                commands.append(&mut element_commands);
+                ui_items.append(&mut element_ui_items);
+            }
+        }
+
+        Ok((commands, ui_items))
     }
 
     pub fn describe_frame(&self) -> anyhow::Result<Frame> {
         let panes = self.get_panes_to_render();
-        let background = self.describe_window_background(&panes);
+        let background = self.describe_window_background(&panes)?;
 
         let mut pane_frames = Vec::with_capacity(panes.len());
         let mut ui_items = Vec::new();

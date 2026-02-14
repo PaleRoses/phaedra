@@ -52,7 +52,7 @@ impl PaneSelector {
     }
 
     fn compute(
-        term_window: &mut TermWindow,
+        term_window: &TermWindow,
         alphabet: &str,
         show_pane_ids: bool,
     ) -> anyhow::Result<(Vec<ComputedElement>, Vec<String>)> {
@@ -278,7 +278,7 @@ impl Modal for PaneSelector {
 
     fn computed_element(
         &self,
-        term_window: &mut TermWindow,
+        term_window: &TermWindow,
     ) -> anyhow::Result<Ref<'_, [ComputedElement]>> {
         if self.element.borrow().is_none() {
             let (element, labels) = Self::compute(term_window, &self.alphabet, self.show_pane_ids)?;
@@ -290,7 +290,7 @@ impl Modal for PaneSelector {
         }))
     }
 
-    fn reconfigure(&self, _term_window: &mut TermWindow) {
+    fn reconfigure(&self, _term_window: &TermWindow) {
         self.element.borrow_mut().take();
     }
 }
