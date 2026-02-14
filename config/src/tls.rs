@@ -1,6 +1,6 @@
 use crate::config::validate_domain_name;
 use crate::*;
-use wezterm_dynamic::{FromDynamic, ToDynamic};
+use phaedra_dynamic::{FromDynamic, ToDynamic};
 
 #[derive(Default, Debug, Clone, FromDynamic, ToDynamic)]
 pub struct TlsDomainServer {
@@ -86,7 +86,7 @@ pub struct TlsDomainClient {
     pub local_echo_threshold_ms: Option<u64>,
 
     /// The path to the wezterm binary on the remote host
-    pub remote_wezterm_path: Option<String>,
+    pub remote_phaedra_path: Option<String>,
 
     /// Show time since last response when waiting for a response.
     /// It is recommended to use

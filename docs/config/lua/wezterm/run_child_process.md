@@ -1,11 +1,11 @@
 ---
-title: wezterm.run_child_process
+title: phaedra.run_child_process
 tags:
  - utility
  - open
  - spawn
 ---
-# `wezterm.run_child_process(args)`
+# `phaedra.run_child_process(args)`
 
 {{since('20200503-171512-b13ef15f')}}
 
@@ -14,9 +14,9 @@ and will return a tuple consisting of the boolean success of the invocation,
 the stdout data and the stderr data.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local success, stdout, stderr = wezterm.run_child_process { 'ls', '-l' }
+local success, stdout, stderr = phaedra.run_child_process { 'ls', '-l' }
 ```
 
 See also [background_child_process](background_child_process.md)

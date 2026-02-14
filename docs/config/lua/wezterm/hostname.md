@@ -1,20 +1,20 @@
 ---
-title: wezterm.hostname
+title: phaedra.hostname
 tags:
  - utility
 ---
 
-# `wezterm.hostname()`
+# `phaedra.hostname()`
 
-This function returns the current hostname of the system that is running wezterm.
+This function returns the current hostname of the system that is running phaedra.
 This can be useful to adjust configuration based on the host.
 
 Note that environments that use DHCP and have many clients and short leases may
 make it harder to rely on the hostname for this purpose.
 
 ```lua
-local wezterm = require 'wezterm'
-local hostname = wezterm.hostname()
+local phaedra = require 'phaedra'
+local hostname = phaedra.hostname()
 
 local font_size
 if hostname == 'pixelbookgo-localdomain' then

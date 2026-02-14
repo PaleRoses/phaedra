@@ -1,20 +1,20 @@
 ---
-title: wezterm.on
+title: phaedra.on
 tags:
  - utility
  - event
 ---
-# `wezterm.on(event_name, callback)`
+# `phaedra.on(event_name, callback)`
 
 {{since('20201031-154415-9614e117')}}
 
 This function follows the html/javascript naming for defining event handlers.
 
-`wezterm.on` causes your specified `callback` to be called when `event_name`
-is emitted.  Events can be emitted by wezterm itself, or through code/configuration
+`phaedra.on` causes your specified `callback` to be called when `event_name`
+is emitted.  Events can be emitted by phaedra itself, or through code/configuration
 that you specify.
 
-`wezterm.on` can register multiple callbacks for the same event; internally
+`phaedra.on` can register multiple callbacks for the same event; internally
 an ordered list of callbacks is maintained for each event.  When the event
 is emitted, each of the registered callbacks is called in the order that
 they were registered.
@@ -32,7 +32,7 @@ There is no way to de-register an event handler.  However, since the Lua
 state is built from scratch when the configuration is reloaded, simply
 reloading the configuration will clear any existing event handlers.
 
-See [wezterm.action_callback](./action_callback.md) for a helper to define a custom action callback.
+See [phaedra.action_callback](./action_callback.md) for a helper to define a custom action callback.
 
 ## Predefined Events
 
@@ -41,12 +41,12 @@ events.
 
 ## Custom Events
 
-You may register handlers for arbitrary events for which wezterm itself
+You may register handlers for arbitrary events for which phaedra itself
 has no special knowledge.  It is recommended that you avoid event names
-that are likely to be used future versions of wezterm in order to avoid
+that are likely to be used future versions of phaedra in order to avoid
 unexpected behavior if/when those names might be used in future.
 
-The [wezterm.emit](emit.md) function and the [EmitEvent](../keyassignment/EmitEvent.md) key assignment can be used to
+The [phaedra.emit](emit.md) function and the [EmitEvent](../keyassignment/EmitEvent.md) key assignment can be used to
 emit events.
 
 # Example: opening whole scrollback in vim
@@ -56,12 +56,12 @@ and visible area of the active pane, write it to a file and then open that file
 in the `vim` editor:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 local io = require 'io'
 local os = require 'os'
-local act = wezterm.action
+local act = phaedra.action
 
-wezterm.on('trigger-vim-with-scrollback', function(window, pane)
+phaedra.on('trigger-vim-with-scrollback', function(window, pane)
   -- Retrieve the text from the pane
   local text = pane:get_lines_as_text(pane:get_dimensions().scrollback_rows)
 
@@ -86,7 +86,7 @@ wezterm.on('trigger-vim-with-scrollback', function(window, pane)
   --
   -- Note: We don't strictly need to remove this file, but it is nice
   -- to avoid cluttering up the temporary directory.
-  wezterm.sleep_ms(1000)
+  phaedra.sleep_ms(1000)
   os.remove(name)
 end)
 

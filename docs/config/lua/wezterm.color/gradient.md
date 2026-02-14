@@ -1,4 +1,4 @@
-# `wezterm.color.gradient(gradient, num_colors)`
+# `phaedra.color.gradient(gradient, num_colors)`
 
 {{since('20220807-113146-c2fee766')}}
 
@@ -19,7 +19,7 @@ based on the time of the day.
 This example is what you'd see if you opened up the [debug overlay](../keyassignment/ShowDebugOverlay.md) to try this out in the repl:
 
 ```
-> wezterm.color.gradient({preset="Rainbow"}, 4)
+> phaedra.color.gradient({preset="Rainbow"}, 4)
 ["#6e40aa", "#ff8c38", "#5dea8d", "#6e40aa"]
 ```
 

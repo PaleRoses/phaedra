@@ -4,19 +4,19 @@ search:
 keywords: font
 tags:
  - font
-title: wezterm.font
+title: phaedra.font
 ---
 
-# `wezterm.font(family [, attributes])`
+# `phaedra.font(family [, attributes])`
 
 This function constructs a lua table that corresponds to the internal `FontAttributes`
 struct that is used to select a single named font:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
-  font = wezterm.font 'JetBrains Mono',
+  font = phaedra.font 'JetBrains Mono',
 }
 ```
 
@@ -81,30 +81,30 @@ When attributes are specified, the font must match both the family name and
 attributes in order to be selected.
 
 With the exception of being able to synthesize basic bold and italics (really,
-oblique) for non-bitmap fonts, wezterm can only select and use fonts that you
+oblique) for non-bitmap fonts, phaedra can only select and use fonts that you
 have installed on your system.  The attributes that you specify are used to
 match a font from those that are available, so if you'd like to use a condensed
 font, for example, then you must install the condensed variant of that family.
 
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
-  font = wezterm.font('JetBrains Mono', { weight = 'Bold' }),
+  font = phaedra.font('JetBrains Mono', { weight = 'Bold' }),
 }
 ```
 
-When resolving fonts from [font_dirs](../config/font_dirs.md), wezterm follows CSS Fonts
+When resolving fonts from [font_dirs](../config/font_dirs.md), phaedra follows CSS Fonts
 Level 3 compatible font matching, which tries to exactly match the specified
 attributes, but allows for locating a close match within the specified font
 family.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
-  font = wezterm.font(
+  font = phaedra.font(
     'Iosevka Term',
     { stretch = 'Expanded', weight = 'Regular' }
   ),
@@ -113,14 +113,14 @@ return {
 
 An alternative form of specifying the font can be used, where the family and the attributes
 are combined in the same lua table.  This form is most useful when used together with
-[wezterm.font_with_fallback](font_with_fallback.md) when you want to specify precise
+[phaedra.font_with_fallback](font_with_fallback.md) when you want to specify precise
 weights for the different fallback fonts:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
-  font = wezterm.font {
+  font = phaedra.font {
     family = 'Iosevka Term',
     stretch = 'Expanded',
     weight = 'Regular',
@@ -135,9 +135,9 @@ settings just for the specified font; this examples shows how to disable the
 default ligature feature just for this particular font:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 return {
-  font = wezterm.font {
+  font = phaedra.font {
     family = 'JetBrains Mono',
     harfbuzz_features = { 'calt=0', 'clig=0', 'liga=0' },
   },

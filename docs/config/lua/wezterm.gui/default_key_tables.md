@@ -1,4 +1,4 @@
-# `wezterm.gui.default_key_tables()`
+# `phaedra.gui.default_key_tables()`
 
 {{since('20221119-145034-49b9839f')}}
 
@@ -12,12 +12,12 @@ This example shows how to add a key assignment for `Backspace` to `copy_mode`,
 without having to manually specify the entire key table:
 
 ```lua
-local wezterm = require 'wezterm'
-local act = wezterm.action
+local phaedra = require 'phaedra'
+local act = phaedra.action
 
 local copy_mode = nil
-if wezterm.gui then
-  copy_mode = wezterm.gui.default_key_tables().copy_mode
+if phaedra.gui then
+  copy_mode = phaedra.gui.default_key_tables().copy_mode
   table.insert(
     copy_mode,
     { key = 'Backspace', mods = 'NONE', action = act.CopyMode 'MoveLeft' }

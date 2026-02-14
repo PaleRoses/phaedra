@@ -24,8 +24,8 @@ use std::ptr::NonNull;
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex};
 use url::Url;
-use wezterm_font::FontConfiguration;
-use wezterm_input_types::{KeyCode, KeyEvent, KeyboardLedStatus, Modifiers};
+use phaedra_font::FontConfiguration;
+use phaedra_input_types::{KeyCode, KeyEvent, KeyboardLedStatus, Modifiers};
 use xcb::x::{Atom, PropMode};
 use xcb::{Event, Xid};
 
@@ -158,39 +158,6 @@ impl HasWindowHandle for XWindowInner {
 }
 
 impl XWindowInner {
-    fn enable_opengl(&mut self) -> anyhow::Result<Rc<glium::backend::Context>> {
-        let conn = self.conn();
-
-        let gl_state = match conn.gl_connection.borrow().as_ref() {
-            None => crate::egl::GlState::create(
-                Some(conn.conn.get_raw_dpy() as *const _),
-                self.child_id.resource_id() as *mut _,
-            ),
-            Some(glconn) => crate::egl::GlState::create_with_existing_connection(
-                glconn,
-                self.child_id.resource_id() as *mut _,
-            ),
-        };
-
-        // Don't chain on the end of the above to avoid borrowing gl_connection twice.
-        let gl_state = gl_state.map(Rc::new).and_then(|state| unsafe {
-            conn.gl_connection
-                .borrow_mut()
-                .replace(Rc::clone(state.get_connection()));
-            Ok(glium::backend::Context::new(
-                Rc::clone(&state),
-                true,
-                if cfg!(debug_assertions) {
-                    glium::debug::DebugCallbackBehavior::DebugMessageOnError
-                } else {
-                    glium::debug::DebugCallbackBehavior::Ignore
-                },
-            )?)
-        })?;
-
-        Ok(gl_state)
-    }
-
     /// Add a region to the list of exposed/damaged/dirty regions.
     /// Note that a window resize will likely invalidate the entire window.
     /// If the new region intersects with the prior region, then we expand
@@ -1946,19 +1913,6 @@ impl HasWindowHandle for XWindow {
 
 #[async_trait(?Send)]
 impl WindowOps for XWindow {
-    async fn enable_opengl(&self) -> anyhow::Result<Rc<glium::backend::Context>> {
-        let window = self.0;
-        promise::spawn::spawn(async move {
-            if let Some(handle) = Connection::get().unwrap().x11().window_by_id(window) {
-                let mut inner = handle.lock().unwrap();
-                inner.enable_opengl()
-            } else {
-                anyhow::bail!("invalid window");
-            }
-        })
-        .await
-    }
-
     fn notify<T: Any + Send + Sync>(&self, t: T)
     where
         Self: Sized,

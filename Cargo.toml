@@ -5,22 +5,22 @@ members = [
   "strip-ansi-escapes",
   "sync-color-schemes",
   "deps/cairo",
-  "wezterm",
-  "wezterm-blob-leases",
-  "wezterm-cell",
-  "wezterm-escape-parser",
-  "wezterm-dynamic",
-  "wezterm-gui",
-  "wezterm-mux-server",
-  "wezterm-open-url",
-  "wezterm-ssh",
-  "wezterm-surface",
-  "wezterm-uds",
+  "phaedra",
+  "phaedra-blob-leases",
+  "phaedra-cell",
+  "phaedra-escape-parser",
+  "phaedra-dynamic",
+  "phaedra-gui",
+  "phaedra-mux-server",
+  "phaedra-open-url",
+  "phaedra-ssh",
+  "phaedra-surface",
+  "phaedra-uds",
 ]
 resolver = "2"
 exclude = [
   "termwiz/codegen",
-  "wezterm-char-props/codegen",
+  "phaedra-char-props/codegen",
 ]
 
 [profile.release]
@@ -48,7 +48,7 @@ base91 = { path = "base91" }
 battery = { path = "lua-api-crates/battery" }
 benchmarking = "0.4"
 bintree = { path = "bintree" }
-bitflags = "1.3"
+bitflags = "2.0"
 block2 = "0.6"
 bstr = "1.0"
 bytemuck = { version="1.4", features=["derive"]}
@@ -57,20 +57,19 @@ cairo-rs = {version="0.18", default-features=false} # See patch.crates-io sectio
 camino = "1.0"
 cassowary = "0.3"
 cc = {version="1.0", features = ["parallel"]}
-cgl = "0.3"
 chrono = {version="0.4", default-features=false, features=["unstable-locales", "serde"]}
 clap = {version="4.0", features=["derive"]}
 clap_complete = "4.4"
 clap_complete_fig = "4.0"
 clipboard-win = "2.2"
-cocoa = "=0.25.0"
+cocoa = "0.25"
 codec = { path = "codec" }
 color-funcs = { path = "lua-api-crates/color-funcs" }
 colorgrad = "0.6"
 config = { path = "config" }
-core-foundation = "=0.10.0"
-core-graphics = "=0.24.0"
-core-text = "=21.0.0"
+core-foundation = "0.10"
+core-graphics = "0.24"
+core-text = "21.0"
 criterion = "0.5"
 crossbeam = "0.8"
 csscolorparser = "0.6"
@@ -106,8 +105,6 @@ futures-util = "0.3"
 gethostname = "0.5"
 getrandom = "0.3.1"
 git2 = { version = "0.20", default-features = false, features = ["https"] }
-gl_generator = "0.14"
-glium = { version = "0.35", default-features = false }
 governor = {version="0.5", default-features=false, features=["std"]}
 guillotiere = "0.6"
 harfbuzz = { path = "deps/harfbuzz" }
@@ -116,7 +113,6 @@ hdrhistogram = "7.1"
 hex = {version="0.4", default-features=false}
 hostname = "0.4"
 http_req = "0.11"
-human-sort = "0.2"
 humansize = "2.1"
 humantime = "2.1"
 image = "0.25"
@@ -164,7 +160,6 @@ percent-encoding = "2.3"
 pest = "2.7"
 pest_derive = "2.7"
 phf = {version="0.11", default-features=false}
-phf_codegen = "0.10"
 pkg-config = "0.3"
 plist = "1.7"
 plugin = { path = "lua-api-crates/plugin" }
@@ -181,7 +176,6 @@ raw-window-handle = "0.6"
 rayon = "1.10"
 rcgen = "0.12"
 regex = "1"
-reqwest = "0.12"
 resize = "0.5"
 rstest = "0.21"
 rusqlite = "0.32"
@@ -239,27 +233,27 @@ wayland-client = "0.31"
 wayland-egl = "0.32"
 wayland-protocols = "0.32"
 wayland-protocols-plasma = { version="0.3.6", features=["client"] }
-wezterm-bidi = { version="0.2.3", path = "bidi", default-features=false}
-wezterm-blob-leases = { version="0.1.1", path = "wezterm-blob-leases"}
-wezterm-cell = { path = "wezterm-cell"}
-wezterm-char-props = { path = "wezterm-char-props", default-features=false }
-wezterm-client = { path = "wezterm-client" }
-wezterm-color-types = { version="0.3", path = "color-types", default-features=false }
-wezterm-config-derive = { version="0.1", path="config/derive" }
-wezterm-dynamic = { version = "0.2.1", path = "wezterm-dynamic", default-features=false }
-wezterm-dynamic-derive = { version="0.1.1", path="wezterm-dynamic/derive" }
-wezterm-escape-parser = { version="0.1.0", path="wezterm-escape-parser" }
-wezterm-font = { path = "wezterm-font" }
-wezterm-gui-subcommands = { path = "wezterm-gui-subcommands" }
-wezterm-input-types = { version="0.1", path = "wezterm-input-types", default-features=false }
-wezterm-mux-server-impl = { path = "wezterm-mux-server-impl" }
-wezterm-open-url = { path = "wezterm-open-url" }
-wezterm-ssh = { path = "wezterm-ssh" }
-wezterm-surface = { path = "wezterm-surface" }
-wezterm-term = { path = "term" }
-wezterm-toast-notification = { path = "wezterm-toast-notification" }
-wezterm-uds = { path = "wezterm-uds" }
-wezterm-version = { path = "wezterm-version" }
+phaedra-bidi = { version="0.2.3", path = "bidi", default-features=false}
+phaedra-blob-leases = { version="0.1.1", path = "phaedra-blob-leases"}
+phaedra-cell = { path = "phaedra-cell"}
+phaedra-char-props = { path = "phaedra-char-props", default-features=false }
+phaedra-client = { path = "phaedra-client" }
+phaedra-color-types = { version="0.3", path = "color-types", default-features=false }
+phaedra-config-derive = { version="0.1", path="config/derive" }
+phaedra-dynamic = { version = "0.2.1", path = "phaedra-dynamic", default-features=false }
+phaedra-dynamic-derive = { version="0.1.1", path="phaedra-dynamic/derive" }
+phaedra-escape-parser = { version="0.1.0", path="phaedra-escape-parser" }
+phaedra-font = { path = "phaedra-font" }
+phaedra-gui-subcommands = { path = "phaedra-gui-subcommands" }
+phaedra-input-types = { version="0.1", path = "phaedra-input-types", default-features=false }
+phaedra-mux-server-impl = { path = "phaedra-mux-server-impl" }
+phaedra-open-url = { path = "phaedra-open-url" }
+phaedra-ssh = { path = "phaedra-ssh" }
+phaedra-surface = { path = "phaedra-surface" }
+phaedra-term = { path = "term" }
+phaedra-toast-notification = { path = "phaedra-toast-notification" }
+phaedra-uds = { path = "phaedra-uds" }
+phaedra-version = { path = "phaedra-version" }
 wgpu = "25.0.2"
 whoami = "1.5"
 winapi = "0.3.9"
@@ -269,7 +263,7 @@ windows = "0.33.0"
 winreg = "0.10"
 x11 = "2.21"
 xcb = "1.3"
-xcb-imdkit = { version="0.3", git="https://github.com/wezterm/xcb-imdkit-rs.git", rev="212330f7c6c37794d78061a773e8f4f9e4785bbb"}
+xcb-imdkit = { version="0.3", git="https://github.com/wez/xcb-imdkit-rs.git", rev="212330f7c6c37794d78061a773e8f4f9e4785bbb"}
 xkbcommon = "0.7.0"
 xml-rs = "0.8"
 zbus = "4.2"

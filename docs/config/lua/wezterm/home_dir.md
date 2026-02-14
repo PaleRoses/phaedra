@@ -1,17 +1,17 @@
 ---
-title: wezterm.home_dir
+title: phaedra.home_dir
 tags:
  - utility
  - filesystem
 ---
 
-# `wezterm.home_dir`
+# `phaedra.home_dir`
 
-This constant is set to the home directory of the user running `wezterm`.
+This constant is set to the home directory of the user running `phaedra`.
 
 ```lua
-local wezterm = require 'wezterm'
-wezterm.log_error('Home ' .. wezterm.home_dir)
+local phaedra = require 'phaedra'
+phaedra.log_error('Home ' .. phaedra.home_dir)
 ```
 
 

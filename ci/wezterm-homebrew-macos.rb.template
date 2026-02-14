@@ -17,21 +17,21 @@ cask "wezterm" do
   # Unclear what the minimal OS version is
   # depends_on macos: ">= :sierra"
 
-  app "WezTerm.app"
+  app "Phaedra.app"
   [
     "wezterm",
     "wezterm-gui",
     "wezterm-mux-server",
     "strip-ansi-escapes"
   ].each do |tool|
-    binary "#{appdir}/WezTerm.app/Contents/MacOS/#{tool}"
+    binary "#{appdir}/Phaedra.app/Contents/MacOS/#{tool}"
   end
 
   preflight do
-    # Move "WezTerm-macos-#{version}/WezTerm.app" out of the subfolder
+    # Move "WezTerm-macos-#{version}/Phaedra.app" out of the subfolder
     staged_subfolder = staged_path.glob(["WezTerm-*", "wezterm-*"]).first
     if staged_subfolder
-      FileUtils.mv(staged_subfolder/"WezTerm.app", staged_path)
+      FileUtils.mv(staged_subfolder/"Phaedra.app", staged_path)
       FileUtils.rm_rf(staged_subfolder)
     end
   end

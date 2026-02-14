@@ -1,4 +1,4 @@
-# `wezterm.time.call_after(interval_seconds, function)`
+# `phaedra.time.call_after(interval_seconds, function)`
 
 {{since('20220807-113146-c2fee766')}}
 
@@ -15,15 +15,15 @@ a background color by extracting the current minute value and scaing
 it to the range 0-255 and using that to assign a background color:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 -- Reload the configuration every minute
-wezterm.time.call_after(60, function()
-  wezterm.reload_configuration()
+phaedra.time.call_after(60, function()
+  phaedra.reload_configuration()
 end)
 
 local amount =
-  math.ceil((tonumber(wezterm.time.now():format '%M') / 60) * 255)
+  math.ceil((tonumber(phaedra.time.now():format '%M') / 60) * 255)
 
 return {
   colors = {

@@ -1,5 +1,5 @@
-# `wezterm start`
+# `phaedra start`
 
 ```console
-{% include "../examples/cmd-synopsis-wezterm-start--help.txt" %}
+{% include "../examples/cmd-synopsis-phaedra-start--help.txt" %}
 ```

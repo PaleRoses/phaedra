@@ -1,4 +1,4 @@
-# `wezterm.gui.enumerate_gpus()`
+# `phaedra.gui.enumerate_gpus()`
 
 {{since('20221119-145034-49b9839f')}}
 
@@ -7,7 +7,7 @@ Returns the list of available Gpus supported by WebGpu.
 This is useful in conjunction with [webgpu_preferred_adapter](../config/webgpu_preferred_adapter.md)
 
 ```
-> wezterm.gui.enumerate_gpus()
+> phaedra.gui.enumerate_gpus()
 [
     {
         "backend": "Vulkan",

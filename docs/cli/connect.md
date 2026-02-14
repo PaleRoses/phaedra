@@ -1,6 +1,6 @@
-# `wezterm connect`
+# `phaedra connect`
 
 ```console
-{% include "../examples/cmd-synopsis-wezterm-connect--help.txt" %}
+{% include "../examples/cmd-synopsis-phaedra-connect--help.txt" %}
 ```
 

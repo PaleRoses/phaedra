@@ -1,12 +1,12 @@
 ---
-title: wezterm.background_child_process
+title: phaedra.background_child_process
 tags:
  - utility
  - open
  - spawn
 ---
 
-# `wezterm.background_child_process(args)`
+# `phaedra.background_child_process(args)`
 
 {{since('20211204-082213-a66c61ee9')}}
 
@@ -23,7 +23,7 @@ This example shows how you might set up a custom key assignment that opens
 the terminal background image in a separate image viewer process:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
   window_background_image = '/home/wez/Downloads/sunset-american-fork-canyon.jpg',
@@ -31,8 +31,8 @@ return {
     {
       mods = 'CTRL|SHIFT',
       key = 'm',
-      action = wezterm.action_callback(function(win, pane)
-        wezterm.background_child_process {
+      action = phaedra.action_callback(function(win, pane)
+        phaedra.background_child_process {
           'xdg-open',
           win:effective_config().window_background_image,
         }

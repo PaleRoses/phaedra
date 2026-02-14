@@ -4,7 +4,7 @@
 
 Returns a lua table representing the effective configuration for the Window.
 The table is in the same format as that used to specify the config in
-the `wezterm.lua` file, but represents the fully-populated state of the
+the `phaedra.lua` file, but represents the fully-populated state of the
 configuration, including any CLI or per-window configuration overrides.
 
 Note: changing the config table will NOT change the effective window config;
@@ -15,10 +15,10 @@ If you want to change the configuration in a window, look at [set_config_overrid
 This example will log the configured font size when `CTRL-SHIFT-E` is pressed:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-wezterm.on('show-font-size', function(window, pane)
-  wezterm.log_error(window:effective_config().font_size)
+phaedra.on('show-font-size', function(window, pane)
+  phaedra.log_error(window:effective_config().font_size)
 end)
 
 return {
@@ -26,7 +26,7 @@ return {
     {
       key = 'E',
       mods = 'CTRL',
-      action = wezterm.action.EmitEvent 'show-font-size',
+      action = phaedra.action.EmitEvent 'show-font-size',
     },
   },
 }

@@ -1,0 +1,38 @@
+[package]
+authors = ["Wez Furlong"]
+name = "phaedra-surface"
+version = "0.1.0"
+edition = "2018"
+repository = "https://github.com/PaleRoses/phaedra"
+description = "Surface and Line types for terminals"
+license = "MIT"
+documentation = "https://docs.rs/phaedra-surface"
+keywords = ["terminal", "surface", "line"]
+
+[dependencies]
+bitflags.workspace = true
+fancy-regex.workspace = true
+finl_unicode.workspace = true
+fixedbitset.workspace = true
+ordered-float.workspace = true
+serde = {workspace=true, optional=true}
+siphasher.workspace = true
+unicode-segmentation.workspace = true
+phaedra-bidi.workspace = true
+phaedra-blob-leases = {workspace=true, optional=true}
+phaedra-cell = {workspace = true}
+phaedra-char-props.workspace = true
+phaedra-color-types = {workspace = true}
+phaedra-dynamic = {workspace = true}
+phaedra-escape-parser = {workspace = true}
+phaedra-input-types.workspace = true
+
+[features]
+default = []
+std = ["fancy-regex/std", "phaedra-cell/std", "phaedra-dynamic/std", "phaedra-escape-parser/std", "fixedbitset/std", "fancy-regex/perf", "fancy-regex/unicode"]
+appdata = ["std"]
+use_serde = ["serde"] #, "phaedra-color-types/use_serde", "phaedra-blob-leases/serde", "bitflags/serde", "phaedra-input-types/serde", "phaedra-escape-parser/use_serde", "phaedra-cell/use_serde"]
+use_image = ["phaedra-cell/use_image"] # "image", "dep:image", "phaedra-escape-parser/use_image", "phaedra-escape-parser/kitty-shm", "phaedra-cell/use_image"]
+
+[dev-dependencies]
+k9.workspace = true

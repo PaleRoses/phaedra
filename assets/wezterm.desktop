@@ -1,11 +1,11 @@
 [Desktop Entry]
-Name=WezTerm
-Comment=Wez's Terminal Emulator
+Name=Phaedra
+Comment=Phaedra Terminal Emulator
 Keywords=shell;prompt;command;commandline;cmd;
-Icon=org.wezfurlong.wezterm
-StartupWMClass=org.wezfurlong.wezterm
-TryExec=wezterm
-Exec=wezterm start --cwd .
+Icon=org.wezfurlong.phaedra
+StartupWMClass=org.wezfurlong.phaedra
+TryExec=phaedra
+Exec=phaedra start --cwd .
 Type=Application
 Categories=System;TerminalEmulator;Utility;
 Terminal=false

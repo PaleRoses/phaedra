@@ -1,4 +1,4 @@
-# `wezterm.gui.gui_windows()`
+# `phaedra.gui.gui_windows()`
 
 {{since('20230320-124340-559cb7b0')}}
 

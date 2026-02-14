@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::Arc;
 use url::Url;
-use wezterm_term::{StableRowIndex, TerminalSize};
+use phaedra_term::{StableRowIndex, TerminalSize};
 
 pub type Tree = bintree::Tree<Arc<dyn Pane>, SplitDirectionAndSize>;
 pub type Cursor = bintree::Cursor<Arc<dyn Pane>, SplitDirectionAndSize>;
@@ -2204,8 +2204,8 @@ mod test {
     use std::ops::Range;
     use termwiz::surface::SequenceNo;
     use url::Url;
-    use wezterm_term::color::ColorPalette;
-    use wezterm_term::{KeyCode, KeyModifiers, Line, MouseEvent, StableRowIndex};
+    use phaedra_term::color::ColorPalette;
+    use phaedra_term::{KeyCode, KeyModifiers, Line, MouseEvent, StableRowIndex};
 
     struct FakePane {
         id: PaneId,

@@ -1,11 +1,11 @@
 ---
-title: wezterm.column_width
+title: phaedra.column_width
 tags:
  - utility
  - string
 ---
 
-# wezterm.column_width(string)
+# phaedra.column_width(string)
 
 {{since('20210502-130208-bff6815d')}}
 

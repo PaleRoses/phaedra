@@ -1,10 +1,10 @@
 ---
-title: wezterm.add_to_config_reload_watch_list
+title: phaedra.add_to_config_reload_watch_list
 tags:
  - reload
 ---
 
-# wezterm.add_to_config_reload_watch_list(path)
+# phaedra.add_to_config_reload_watch_list(path)
 
 {{since('20210814-124438-54e29167')}}
 

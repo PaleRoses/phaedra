@@ -5,12 +5,10 @@ use config::{ConfigHandle, Dimension, GeometryOrigin};
 use promise::Future;
 use std::any::Any;
 use std::path::PathBuf;
-use std::rc::Rc;
 use thiserror::Error;
 use url::Url;
 pub mod bitmaps;
-pub use wezterm_color_types as color;
-mod configuration;
+pub use phaedra_color_types as color;
 pub mod connection;
 pub mod os;
 pub mod screen;
@@ -30,13 +28,10 @@ pub fn default_dpi() -> f64 {
     }
 }
 
-mod egl;
-
 pub use bitmaps::{BitmapImage, Image};
 pub use connection::*;
-pub use glium;
 pub use os::*;
-pub use wezterm_input_types::*;
+pub use phaedra_input_types::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Clipboard {
@@ -102,7 +97,7 @@ impl std::string::ToString for Appearance {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     pub struct WindowState: u8 {
         /// Occupies the whole screen; cannot be resized while in this state.
         const FULL_SCREEN = 1<<1;
@@ -255,14 +250,6 @@ pub trait WindowOps {
     fn notify<T: Any + Send + Sync>(&self, t: T)
     where
         Self: Sized;
-
-    /// Setup opengl for rendering
-    async fn enable_opengl(&self) -> anyhow::Result<Rc<glium::backend::Context>>;
-    /// Advise the window that a frame is finished
-    fn finish_frame(&self, frame: glium::Frame) -> anyhow::Result<()> {
-        frame.finish()?;
-        Ok(())
-    }
 
     /// Hide a visible window
     fn hide(&self);

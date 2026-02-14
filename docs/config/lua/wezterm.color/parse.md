@@ -1,4 +1,4 @@
-# `wezterm.color.parse(string)`
+# `phaedra.color.parse(string)`
 
 {{since('20220807-113146-c2fee766')}}
 
@@ -8,7 +8,7 @@ have a number of methods that allow transforming and comparing
 colors.
 
 ```
-> wezterm.color.parse("black")
+> phaedra.color.parse("black")
 #000000
 ```
 
@@ -17,9 +17,9 @@ the "artist's color wheel" to produce a purple color and then
 darkens it to use it as a background color:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local fg = wezterm.color.parse 'yellow'
+local fg = phaedra.color.parse 'yellow'
 local bg = fg:complement_ryb():darken(0.2)
 
 return {

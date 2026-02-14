@@ -1,4 +1,4 @@
-# Contributing to wezterm
+# Contributing to phaedra
 
 Thanks for considering donating your time and energy!  I value any contribution,
 even if it is just to highlight a typo.
@@ -44,11 +44,11 @@ If you are new to the Rust language check out <https://doc.rust-lang.org/rust-by
 The `term` directory holds the core terminal model code. This is agnostic
 of any windowing system. If you want to add support for terminal escape
 sequences and that sort of thing, you probably want to be in the `term` directory.
-Keep in mind that for maximal compatibility and utility `wezterm` aims to
+Keep in mind that for maximal compatibility and utility `phaedra` aims to
 be compatible with the `xterm` behavior.
 https://invisible-island.net/xterm/ctlseqs/ctlseqs.html is a useful resource!
 
-The `src` directory holds the code for the `wezterm` program. This is
+The `src` directory holds the code for the `phaedra` program. This is
 the GUI renderer for the terminal model.  If you want to change something
 about the GUI you want to be in the `src` dir.
 
@@ -76,7 +76,7 @@ If you get a panic and want to examine local variables, you'll need to use gdb:
 
 ```console
 $ cargo build
-$ gdb ./target/debug/wezterm
+$ gdb ./target/debug/phaedra
 $ break rust_panic               # hit tab to complete the name of the panic symbol!
 $ run
 $ bt

@@ -1,10 +1,10 @@
 ---
-title: wezterm.permute_any_or_no_mods
+title: phaedra.permute_any_or_no_mods
 tags:
  - utility
  - keys
 ---
-# `wezterm.permute_any_or_no_mods(table)`
+# `phaedra.permute_any_or_no_mods(table)`
 
 {{since('20201031-154415-9614e117')}}
 
@@ -24,11 +24,11 @@ An array holding all of those combinations is returned.
 If this is your only binding, or it is the _last_ binding, the resulting array can be unpacked into a lua table initializer and used like this:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
   mouse_bindings = {
-    table.unpack(wezterm.permute_any_or_no_mods {
+    table.unpack(phaedra.permute_any_or_no_mods {
       event = { Down = { streak = 1, button = 'Middle' } },
       action = 'PastePrimarySelection',
     }),

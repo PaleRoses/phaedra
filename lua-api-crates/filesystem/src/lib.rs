@@ -4,9 +4,9 @@ use config::lua::mlua::{self, Lua};
 use smol::prelude::*;
 
 pub fn register(lua: &Lua) -> anyhow::Result<()> {
-    let wezterm_mod = get_or_create_module(lua, "wezterm")?;
-    wezterm_mod.set("read_dir", lua.create_async_function(read_dir)?)?;
-    wezterm_mod.set("glob", lua.create_async_function(glob)?)?;
+    let phaedra_mod = get_or_create_module(lua, "phaedra")?;
+    phaedra_mod.set("read_dir", lua.create_async_function(read_dir)?)?;
+    phaedra_mod.set("glob", lua.create_async_function(glob)?)?;
     Ok(())
 }
 

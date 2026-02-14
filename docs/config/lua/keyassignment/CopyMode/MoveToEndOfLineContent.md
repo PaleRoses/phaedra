@@ -6,8 +6,8 @@ Moves the CopyMode cursor position to the last non-space cell in the current
 line.
 
 ```lua
-local wezterm = require 'wezterm'
-local act = wezterm.action
+local phaedra = require 'phaedra'
+local act = phaedra.action
 
 return {
   key_tables = {

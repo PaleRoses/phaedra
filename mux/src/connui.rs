@@ -10,7 +10,7 @@ use termwiz::cell::{unicode_column_width, CellAttributes};
 use termwiz::lineedit::*;
 use termwiz::surface::{Change, Position};
 use termwiz::terminal::*;
-use wezterm_term::TerminalSize;
+use phaedra_term::TerminalSize;
 
 #[derive(Default)]
 struct PasswordPromptHost {

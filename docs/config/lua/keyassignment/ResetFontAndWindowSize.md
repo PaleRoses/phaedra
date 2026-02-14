@@ -10,7 +10,7 @@ config.keys = {
   {
     key = '0',
     mods = 'CTRL',
-    action = wezterm.action.ResetFontAndWindowSize,
+    action = phaedra.action.ResetFontAndWindowSize,
   },
 }
 ```

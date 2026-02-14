@@ -14,16 +14,16 @@ use std::sync::Arc;
 use terminfo::{Database, Value};
 use termwiz::input::KeyboardEncoding;
 use url::Url;
-use wezterm_bidi::ParagraphDirectionHint;
-use wezterm_cell::image::ImageData;
-use wezterm_cell::UnicodeVersion;
-use wezterm_escape_parser::csi::{
+use phaedra_bidi::ParagraphDirectionHint;
+use phaedra_cell::image::ImageData;
+use phaedra_cell::UnicodeVersion;
+use phaedra_escape_parser::csi::{
     Cursor, CursorStyle, DecPrivateMode, DecPrivateModeCode, Device, Edit, EraseInDisplay,
     EraseInLine, Mode, Sgr, TabulationClear, TerminalMode, TerminalModeCode, Window, XtSmGraphics,
     XtSmGraphicsAction, XtSmGraphicsItem, XtSmGraphicsStatus, XtermKeyModifierResource,
 };
-use wezterm_escape_parser::{OneBased, OperatingSystemCommand, CSI};
-use wezterm_surface::{CursorShape, CursorVisibility, SequenceNo};
+use phaedra_escape_parser::{OneBased, OperatingSystemCommand, CSI};
+use phaedra_surface::{CursorShape, CursorVisibility, SequenceNo};
 
 mod image;
 mod iterm;
@@ -552,7 +552,7 @@ impl TerminalState {
             newline_mode: false,
             current_mouse_buttons: vec![],
             tabs: TabStop::new(size.cols, 8),
-            title: "wezterm".to_string(),
+            title: "phaedra".to_string(),
             icon_title: None,
             palette: None,
             pixel_height: size.pixel_height,

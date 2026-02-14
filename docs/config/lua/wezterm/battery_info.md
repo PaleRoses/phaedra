@@ -1,10 +1,10 @@
 ---
-title: wezterm.battery_info
+title: phaedra.battery_info
 tags:
  - utility
 ---
 
-# `wezterm.battery_info()`
+# `phaedra.battery_info()`
 
 {{since('20210314-114017-04b7cedd')}}
 
@@ -25,18 +25,18 @@ The return value is an array of objects with the following fields:
 This example shows the battery status for each battery, along with the date and time in the status bar:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-wezterm.on('update-right-status', function(window, pane)
+phaedra.on('update-right-status', function(window, pane)
   -- "Wed Mar 3 08:14"
-  local date = wezterm.strftime '%a %b %-d %H:%M '
+  local date = phaedra.strftime '%a %b %-d %H:%M '
 
   local bat = ''
-  for _, b in ipairs(wezterm.battery_info()) do
+  for _, b in ipairs(phaedra.battery_info()) do
     bat = '🔋 ' .. string.format('%.0f%%', b.state_of_charge * 100)
   end
 
-  window:set_right_status(wezterm.format {
+  window:set_right_status(phaedra.format {
     { Text = bat .. '   ' .. date },
   })
 end)

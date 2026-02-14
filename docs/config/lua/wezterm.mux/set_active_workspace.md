@@ -1,4 +1,4 @@
-# `wezterm.mux.set_active_workspace(WORKSPACE)`
+# `phaedra.mux.set_active_workspace(WORKSPACE)`
 
 {{since('20220624-141144-bd1b7c5d')}}
 

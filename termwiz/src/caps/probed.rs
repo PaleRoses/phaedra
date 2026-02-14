@@ -47,7 +47,7 @@ mod test {
     #[test]
     fn test_xtversion_name() {
         for (input, result) in [
-            ("WezTerm something", Some(("WezTerm", "something"))),
+            ("Phaedra something", Some(("Phaedra", "something"))),
             ("xterm(something)", Some(("xterm", "something"))),
             ("something-else", None),
         ] {

@@ -12,7 +12,7 @@ The function takes a single string parameter, the Git repo URL
 Only HTTP(S) or local filesystem repos are allowed for the git URL.
 
 ```lua
-local remote_plugin = wezterm.plugin.require 'https://github.com/owner/repo'
+local remote_plugin = phaedra.plugin.require 'https://github.com/owner/repo'
 local local_plugin =
-  wezterm.plugin.require 'file:///Users/developer/projects/my.Plugin'
+  phaedra.plugin.require 'file:///Users/developer/projects/my.Plugin'
 ```

@@ -1,4 +1,4 @@
-# `wezterm.color.extract_colors_from_image(filename [,params])`
+# `phaedra.color.extract_colors_from_image(filename [,params])`
 
 {{since('20220807-113146-c2fee766')}}
 
@@ -14,7 +14,7 @@ an image, for example.
 The default is to extract 16 colors from an image:
 
 ```
-> wezterm.color.extract_colors_from_image("/wallpapers/neon-nights.jpeg")
+> phaedra.color.extract_colors_from_image("/wallpapers/neon-nights.jpeg")
 [
     "#060a14",
     "#7393d4",
@@ -36,7 +36,7 @@ The default is to extract 16 colors from an image:
 ```
 
 The analysis is relatively expensive and can take several seconds if
-used on a full 4K image file.  To reduce the runtime, wezterm will by
+used on a full 4K image file.  To reduce the runtime, phaedra will by
 default scale down the image and skip over nearby pixels.  The results
 of the analysis will be cached to avoid repeating the same work each
 time the configuration is re-evaluated.
@@ -44,7 +44,7 @@ time the configuration is re-evaluated.
 You can specify optional parameters in a parameter table:
 
 ```
-> wezterm.color.extract_colors_from_image("/wallpaper/neon-nights.jpeg", {
+> phaedra.color.extract_colors_from_image("/wallpaper/neon-nights.jpeg", {
   num_colors=16,
   threshold=75
 })
@@ -105,9 +105,9 @@ found, `min_contrast` is *not* automatically relaxed when retrying with a lower
 This example computes a color palette for the terminal based on some other image file:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local colors = wezterm.color.extract_colors_from_image '/path/to/image/jpeg'
+local colors = phaedra.color.extract_colors_from_image '/path/to/image/jpeg'
 local ansi = {}
 local brights = {}
 

@@ -1,17 +1,17 @@
 ---
-title: wezterm.config_dir
+title: phaedra.config_dir
 tags:
  - filesystem
 ---
 
-# `wezterm.config_dir`
+# `phaedra.config_dir`
 
-This constant is set to the path to the directory in which your `wezterm.lua`
+This constant is set to the path to the directory in which your `phaedra.lua`
 configuration file was found.
 
 ```lua
-local wezterm = require 'wezterm'
-wezterm.log_error('Config Dir ' .. wezterm.config_dir)
+local phaedra = require 'phaedra'
+phaedra.log_error('Config Dir ' .. phaedra.config_dir)
 ```
 
 

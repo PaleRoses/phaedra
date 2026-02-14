@@ -11,7 +11,7 @@ config.keys = {
   {
     key = '%',
     mods = 'CTRL|SHIFT|ALT',
-    action = wezterm.action.SplitHorizontal { domain = 'CurrentPaneDomain' },
+    action = phaedra.action.SplitHorizontal { domain = 'CurrentPaneDomain' },
   },
 }
 ```
@@ -25,7 +25,7 @@ config.keys = {
   {
     key = '%',
     mods = 'CTRL|SHIFT|ALT',
-    action = wezterm.action.SplitHorizontal {
+    action = phaedra.action.SplitHorizontal {
       args = { 'top' },
     },
   },

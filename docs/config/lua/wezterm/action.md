@@ -1,10 +1,10 @@
 ---
-title: wezterm.action
+title: phaedra.action
 tags:
  - keys
 ---
 
-# `wezterm.action`
+# `phaedra.action`
 
 Helper for defining key assignment actions in your configuration file.
 This is really just sugar for the underlying Lua -> Rust deserialation
@@ -15,17 +15,17 @@ exist in your configuration file.
 
 {{since('20220624-141144-bd1b7c5d')}}
 
-`wezterm.action` is a special enum constructor type that makes it bit
+`phaedra.action` is a special enum constructor type that makes it bit
 more ergonomic to express the various actions than in earlier releases.
 The older syntax is still supported, so you needn't scramble to update
 your configuration files.
 
-Indexing `wezterm.action` with a valid
+Indexing `phaedra.action` with a valid
 [KeyAssignment](../keyassignment/index.md) name will act as a constructor for
 that key assignment type.  For example, the lua expression:
 
 ```
-wezterm.action.QuickSelectArgs
+phaedra.action.QuickSelectArgs
 ```
 
 is a constructor for [QuickSelectArgs](../keyassignment/QuickSelectArgs.md).
@@ -37,13 +37,13 @@ reference the constructor directly to have it evaluate as that value without
 having to add any extra punctuation:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 return {
   keys = {
     {
       key = ' ',
       mods = 'CTRL|SHIFT',
-      action = wezterm.action.QuickSelectArgs,
+      action = phaedra.action.QuickSelectArgs,
     },
   },
 }
@@ -53,13 +53,13 @@ You may pass the optional parameters to `QuickSelectArgs` as you need
 them, like this:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 return {
   keys = {
     {
       key = ' ',
       mods = 'CTRL|SHIFT',
-      action = wezterm.action.QuickSelectArgs {
+      action = phaedra.action.QuickSelectArgs {
         alphabet = 'abc',
       },
     },
@@ -72,9 +72,9 @@ such as [ActivatePaneByIndex](../keyassignment/ActivatePaneByIndex.md), then
 you can pass those by calling the constructor:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 -- shortcut to save typing below
-local act = wezterm.action
+local act = phaedra.action
 
 return {
   keys = {
@@ -101,20 +101,20 @@ return {
 For versions before *20220624-141144-bd1b7c5d*, usage looks like this:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 return {
   keys = {
     {
       key = '{',
       mods = 'CTRL',
-      action = wezterm.action {
+      action = phaedra.action {
         ActivateTabRelative = -1,
       },
     },
     {
       key = '}',
       mods = 'CTRL',
-      action = wezterm.action {
+      action = phaedra.action {
         ActivateTabRelative = 1,
       },
     },

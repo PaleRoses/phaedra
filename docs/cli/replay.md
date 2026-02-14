@@ -1,7 +1,7 @@
-# `wezterm replay`
+# `phaedra replay`
 
 ```console
-{% include "../examples/cmd-synopsis-wezterm-replay--help.txt" %}
+{% include "../examples/cmd-synopsis-phaedra-replay--help.txt" %}
 ```
 
 

@@ -1,12 +1,12 @@
 ---
-title: wezterm.open_with
+title: phaedra.open_with
 tags:
  - utility
  - open
  - spawn
 ---
 
-# `wezterm.open_with(path_or_url [, application])`
+# `phaedra.open_with(path_or_url [, application])`
 
 {{since('20220101-133340-7edc5b5a')}}
 
@@ -16,9 +16,9 @@ in.
 
 ```lua
 -- Opens a URL in your default browser
-wezterm.open_with 'http://example.com'
+phaedra.open_with 'http://example.com'
 
 -- Opens a URL specifically in firefox
-wezterm.open_with('http://example.com', 'firefox')
+phaedra.open_with('http://example.com', 'firefox')
 ```
 

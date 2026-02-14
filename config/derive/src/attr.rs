@@ -1,9 +1,28 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    Attribute, Error, Field, GenericArgument, Ident, Lit, Meta, NestedMeta, Path, PathArguments,
-    Result, Type,
+    Attribute, Error, Expr, ExprLit, Field, GenericArgument, Ident, Lit, Meta, Path,
+    PathArguments, Result, Token, Type,
 };
+
+fn parse_string(expr: &Expr) -> Result<String> {
+    match expr {
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(s), ..
+        }) => Ok(s.value()),
+        _ => Err(Error::new_spanned(expr, "expected string literal")),
+    }
+}
+
+fn parse_path(expr: &Expr) -> Result<Path> {
+    match expr {
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(s), ..
+        }) => s.parse(),
+        Expr::Path(path) => Ok(path.path.clone()),
+        _ => Err(Error::new_spanned(expr, "expected string literal or path")),
+    }
+}
 
 #[allow(unused)]
 pub struct ContainerInfo {
@@ -18,40 +37,37 @@ pub fn container_info(attrs: &[Attribute]) -> Result<ContainerInfo> {
     let mut debug = false;
 
     for attr in attrs {
-        if !attr.path.is_ident("dynamic") {
+        if !attr.path().is_ident("dynamic") {
             continue;
         }
 
-        let list = match attr.parse_meta()? {
-            Meta::List(list) => list,
-            other => return Err(Error::new_spanned(other, "unsupported attribute")),
-        };
-
-        for meta in &list.nested {
-            match meta {
-                NestedMeta::Meta(Meta::Path(path)) => {
-                    if path.is_ident("debug") {
+        match &attr.meta {
+            Meta::List(_) => {
+                attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("debug") {
+                        if meta.input.peek(Token![=]) {
+                            return Err(meta.error("unsupported attribute"));
+                        }
                         debug = true;
-                        continue;
+                        return Ok(());
                     }
-                }
-                NestedMeta::Meta(Meta::NameValue(value)) => {
-                    if value.path.is_ident("into") {
-                        if let Lit::Str(s) = &value.lit {
-                            into = Some(s.parse()?);
-                            continue;
-                        }
+
+                    if meta.path.is_ident("into") {
+                        let expr: Expr = meta.value()?.parse()?;
+                        into = Some(parse_path(&expr)?);
+                        return Ok(());
                     }
-                    if value.path.is_ident("try_from") {
-                        if let Lit::Str(s) = &value.lit {
-                            try_from = Some(s.parse()?);
-                            continue;
-                        }
+
+                    if meta.path.is_ident("try_from") {
+                        let expr: Expr = meta.value()?.parse()?;
+                        try_from = Some(parse_path(&expr)?);
+                        return Ok(());
                     }
-                }
-                _ => {}
+
+                    Err(meta.error("unsupported attribute"))
+                })?;
             }
-            return Err(Error::new_spanned(meta, "unsupported attribute"));
+            other => return Err(Error::new_spanned(other, "unsupported attribute")),
         }
     }
 
@@ -181,86 +197,97 @@ pub fn field_info(field: &Field) -> Result<FieldInfo<'_>> {
     };
 
     for attr in &field.attrs {
-        if !attr.path.is_ident("dynamic") && !attr.path.is_ident("doc") {
-            continue;
-        }
-
-        let list = match attr.parse_meta()? {
-            Meta::List(list) => list,
-            Meta::NameValue(value) if value.path.is_ident("doc") => {
-                if let Lit::Str(s) = &value.lit {
+        if attr.path().is_ident("doc") {
+            match &attr.meta {
+                Meta::NameValue(value) => {
+                    let part = parse_string(&value.value)?;
                     if !doc.is_empty() {
                         doc.push('\n');
                     }
-                    doc.push_str(&s.value());
+                    doc.push_str(&part);
                 }
-                continue;
+                other => {
+                    return Err(Error::new_spanned(
+                        other,
+                        format!("unsupported attribute {other:?}"),
+                    ))
+                }
+            }
+            continue;
+        }
+
+        if !attr.path().is_ident("dynamic") {
+            continue;
+        }
+
+        match &attr.meta {
+            Meta::List(_) => {
+                attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("rename") {
+                        let expr: Expr = meta.value()?.parse()?;
+                        name = parse_string(&expr)?;
+                        return Ok(());
+                    }
+
+                    if meta.path.is_ident("default") {
+                        if meta.input.peek(Token![=]) {
+                            let expr: Expr = meta.value()?.parse()?;
+                            allow_default = DefValue::Path(parse_path(&expr)?);
+                        } else {
+                            allow_default = DefValue::Default;
+                        }
+                        return Ok(());
+                    }
+
+                    if meta.path.is_ident("deprecated") {
+                        let expr: Expr = meta.value()?.parse()?;
+                        deprecated.replace(parse_string(&expr)?);
+                        return Ok(());
+                    }
+
+                    if meta.path.is_ident("into") {
+                        let expr: Expr = meta.value()?.parse()?;
+                        into = Some(parse_path(&expr)?);
+                        return Ok(());
+                    }
+
+                    if meta.path.is_ident("try_from") {
+                        let expr: Expr = meta.value()?.parse()?;
+                        try_from = Some(parse_path(&expr)?);
+                        return Ok(());
+                    }
+
+                    if meta.path.is_ident("validate") {
+                        let expr: Expr = meta.value()?.parse()?;
+                        validate = Some(parse_path(&expr)?);
+                        return Ok(());
+                    }
+
+                    if meta.path.is_ident("skip") {
+                        if meta.input.peek(Token![=]) {
+                            return Err(meta.error("unsupported attribute"));
+                        }
+                        skip = true;
+                        return Ok(());
+                    }
+
+                    if meta.path.is_ident("flatten") {
+                        if meta.input.peek(Token![=]) {
+                            return Err(meta.error("unsupported attribute"));
+                        }
+                        flatten = true;
+                        return Ok(());
+                    }
+
+                    Err(meta.error("unsupported attribute"))
+                })?;
             }
             other => {
                 return Err(Error::new_spanned(
-                    other.clone(),
+                    other,
                     format!("unsupported attribute {other:?}"),
                 ))
             }
-        };
-
-        for meta in &list.nested {
-            match meta {
-                NestedMeta::Meta(Meta::NameValue(value)) => {
-                    if value.path.is_ident("rename") {
-                        if let Lit::Str(s) = &value.lit {
-                            name = s.value();
-                            continue;
-                        }
-                    }
-                    if value.path.is_ident("default") {
-                        if let Lit::Str(s) = &value.lit {
-                            allow_default = DefValue::Path(s.parse()?);
-                            continue;
-                        }
-                    }
-                    if value.path.is_ident("deprecated") {
-                        if let Lit::Str(s) = &value.lit {
-                            deprecated.replace(s.value());
-                            continue;
-                        }
-                    }
-                    if value.path.is_ident("into") {
-                        if let Lit::Str(s) = &value.lit {
-                            into = Some(s.parse()?);
-                            continue;
-                        }
-                    }
-                    if value.path.is_ident("try_from") {
-                        if let Lit::Str(s) = &value.lit {
-                            try_from = Some(s.parse()?);
-                            continue;
-                        }
-                    }
-                    if value.path.is_ident("validate") {
-                        if let Lit::Str(s) = &value.lit {
-                            validate = Some(s.parse()?);
-                            continue;
-                        }
-                    }
-                }
-                NestedMeta::Meta(Meta::Path(path)) => {
-                    if path.is_ident("skip") {
-                        skip = true;
-                        continue;
-                    }
-                    if path.is_ident("flatten") {
-                        flatten = true;
-                        continue;
-                    }
-                    if path.is_ident("default") {
-                        allow_default = DefValue::Default;
-                        continue;
-                    }
-                }
-                _ => {}
-            }
-            return Err(Error::new_spanned(meta, "unsupported attribute"));
         }
     }
 

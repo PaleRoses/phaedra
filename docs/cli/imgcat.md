@@ -1,6 +1,6 @@
-# `wezterm imgcat`
+# `phaedra imgcat`
 
 ```console
-{% include "../examples/cmd-synopsis-wezterm-imgcat--help.txt" %}
+{% include "../examples/cmd-synopsis-phaedra-imgcat--help.txt" %}
 ```
 

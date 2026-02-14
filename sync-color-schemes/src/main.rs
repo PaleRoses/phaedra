@@ -21,12 +21,12 @@ lazy_static::lazy_static! {
 
 fn apply_nightly_version(metadata: &mut ColorSchemeMetaData) {
     metadata
-        .wezterm_version
+        .phaedra_version
         .replace("nightly builds only".to_string());
 }
 
 fn make_cache() -> Cache {
-    let file_name = "/tmp/wezterm-sync-color-schemes.sqlite";
+    let file_name = "/tmp/phaedra-sync-color-schemes.sqlite";
     let connection = sqlite_cache::rusqlite::Connection::open(&file_name).unwrap();
     Cache::new(sqlite_cache::CacheConfig::default(), connection).unwrap()
 }
@@ -51,7 +51,7 @@ pub async fn fetch_url(url: &str) -> anyhow::Result<Vec<u8>> {
 
     println!("Going to request {url}");
     let client = reqwest::Client::builder()
-        .user_agent("wezterm-sync-color-schemes/1.0")
+        .user_agent("phaedra-sync-color-schemes/1.0")
         .build()?;
 
     let response = client
@@ -156,7 +156,7 @@ pub const SCHEMES: [(&'static str, &'static str); {count}] = [\n
     // Summarize new schemes for the changelog
     let mut new_items = vec![];
     for s in &all {
-        if s.data.metadata.wezterm_version.as_deref() == Some("nightly builds only") {
+        if s.data.metadata.phaedra_version.as_deref() == Some("nightly builds only") {
             let (prefix, _) = make_prefix(&s.name);
             let ident = make_ident(&s.name);
             new_items.push(format!(
@@ -219,12 +219,12 @@ impl SchemeSet {
             struct MetaData {
                 name: String,
                 aliases: Vec<String>,
-                wezterm_version: Option<String>,
+                phaedra_version: Option<String>,
             }
 
             let existing: Vec<Entry> = serde_json::from_str(&data)?;
             for item in existing {
-                if let Some(version) = &item.metadata.wezterm_version {
+                if let Some(version) = &item.metadata.phaedra_version {
                     let ident = serde_json::to_string(&item.colors)?;
                     version_by_color_scheme.insert(ident.to_string(), version.to_string());
                     version_by_name.insert(item.metadata.name.to_string(), version.to_string());
@@ -295,7 +295,7 @@ impl SchemeSet {
             candidate
                 .data
                 .metadata
-                .wezterm_version
+                .phaedra_version
                 .replace(version.to_string());
         }
 
@@ -391,7 +391,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     schemeses
         .sync_toml(
-            "https://github.com/Hiroya-W/wezterm-sequoia-theme",
+            "https://github.com/Hiroya-W/phaedra-sequoia-theme",
             "main",
             "",
         )
@@ -410,7 +410,7 @@ async fn main() -> anyhow::Result<()> {
         .sync_toml("https://github.com/folke/tokyonight.nvim", "main", "")
         .await?;
     schemeses
-        .sync_toml("https://codeberg.org/anhsirk0/wezterm-themes", "main", "")
+        .sync_toml("https://codeberg.org/anhsirk0/phaedra-themes", "main", "")
         .await?;
     schemeses
         .sync_toml(

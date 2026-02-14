@@ -1,4 +1,4 @@
-# `wezterm.procinfo.get_info_for_pid(pid)`
+# `phaedra.procinfo.get_info_for_pid(pid)`
 
 {{since('20220807-113146-c2fee766')}}
 
@@ -8,10 +8,10 @@ process id.
 This function may return `nil` if it was unable to return the info.
 
 ```
-> wezterm.procinfo.get_info_for_pid(wezterm.procinfo.pid())
+> phaedra.procinfo.get_info_for_pid(phaedra.procinfo.pid())
 {
     "argv": [
-        "/home/wez/wez-personal/wezterm/target/debug/wezterm-gui",
+        "/home/wez/wez-personal/phaedra/target/debug/phaedra-gui",
     ],
     "children": {
         540513: {
@@ -28,9 +28,9 @@ This function may return `nil` if it was unable to return the info.
             "status": "Sleep",
         },
     },
-    "cwd": "/home/wez/wez-personal/wezterm",
-    "executable": "/home/wez/wez-personal/wezterm/target/debug/wezterm-gui",
-    "name": "wezterm-gui",
+    "cwd": "/home/wez/wez-personal/phaedra",
+    "executable": "/home/wez/wez-personal/phaedra/target/debug/phaedra-gui",
+    "name": "phaedra-gui",
     "pid": 540450,
     "ppid": 425276,
     "start_time": 8671498240,

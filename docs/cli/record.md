@@ -1,7 +1,7 @@
-# `wezterm record`
+# `phaedra record`
 
 ```console
-{% include "../examples/cmd-synopsis-wezterm-record--help.txt" %}
+{% include "../examples/cmd-synopsis-phaedra-record--help.txt" %}
 ```
 
 

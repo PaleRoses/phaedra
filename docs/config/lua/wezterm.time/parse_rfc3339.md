@@ -1,4 +1,4 @@
-# `wezterm.time.parse_rfc3339(str)`
+# `phaedra.time.parse_rfc3339(str)`
 
 {{since('20220807-113146-c2fee766')}}
 

@@ -11,7 +11,7 @@ up, and the progression of the sun through either the day or night.
 Returns that information as a table:
 
 ```
-> wezterm.time.now():sun_times(33.44, -112)
+> phaedra.time.now():sun_times(33.44, -112)
 {
     "progression": 0.41843971631205673,
     "rise": "Time(utc: 2022-07-17T12:29:42.493449687+00:00)",

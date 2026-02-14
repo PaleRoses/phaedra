@@ -110,7 +110,7 @@ impl UserData for ScheduledEvent {
     fn add_methods<'lua, M: UserDataMethods<'lua, Self>>(_methods: &mut M) {}
 }
 
-const SCHEDULED_EVENTS: &str = "wezterm-scheduled-events";
+const SCHEDULED_EVENTS: &str = "phaedra-scheduled-events";
 
 pub fn register(lua: &Lua) -> anyhow::Result<()> {
     {
@@ -173,10 +173,10 @@ pub fn register(lua: &Lua) -> anyhow::Result<()> {
     )?;
 
     // For backwards compatibility
-    let wezterm_mod = get_or_create_module(lua, "wezterm")?;
-    wezterm_mod.set("sleep_ms", lua.create_async_function(sleep_ms)?)?;
-    wezterm_mod.set("strftime", lua.create_function(strftime)?)?;
-    wezterm_mod.set("strftime_utc", lua.create_function(strftime_utc)?)?;
+    let phaedra_mod = get_or_create_module(lua, "phaedra")?;
+    phaedra_mod.set("sleep_ms", lua.create_async_function(sleep_ms)?)?;
+    phaedra_mod.set("strftime", lua.create_function(strftime)?)?;
+    phaedra_mod.set("strftime_utc", lua.create_function(strftime_utc)?)?;
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-# `wezterm.mux.all_domains()`
+# `phaedra.mux.all_domains()`
 
 {{since('20230320-124340-559cb7b0')}}
 

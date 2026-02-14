@@ -33,8 +33,8 @@ function ghapi() {
   fi
 }
 
-[[ -f /tmp/wezterm.releases.json ]] || ghapi /repos/wezterm/wezterm/releases > /tmp/wezterm.releases.json
-[[ -f /tmp/wezterm.nightly.json ]] || ghapi /repos/wezterm/wezterm/releases/tags/nightly > /tmp/wezterm.nightly.json
+[[ -f /tmp/phaedra.releases.json ]] || ghapi /repos/phaedra/phaedra/releases > /tmp/phaedra.releases.json
+[[ -f /tmp/phaedra.nightly.json ]] || ghapi /repos/phaedra/phaedra/releases/tags/nightly > /tmp/phaedra.nightly.json
 python3 ci/subst-release-info.py || exit 1
 python3 ci/generate-docs.py || exit 1
 
@@ -46,7 +46,7 @@ if hash black 2>/dev/null ; then
 fi
 
 cp "assets/icon/terminal.png" docs/favicon.png
-cp "assets/icon/wezterm-icon.svg" docs/favicon.svg
+cp "assets/icon/phaedra-icon.svg" docs/favicon.svg
 mkdir -p docs/fonts
 cp assets/fonts/SymbolsNerdFontMono-Regular.ttf docs/fonts/
 
@@ -61,11 +61,11 @@ docker_or_podman() {
   fi
 }
 
-docker_or_podman build -t wezterm/mkdocs-material -f ci/Dockerfile.docs .
+docker_or_podman build -t phaedra/mkdocs-material -f ci/Dockerfile.docs .
 
 if [ "$SERVE" == "yes" ] ; then
-  docker_or_podman run --rm -it -p8000:8000 -v ${PWD}:/docs wezterm/mkdocs-material serve -a 0.0.0.0:8000
-  #docker_or_podman run --rm -it --network=host -v ${PWD}:/docs wezterm/mkdocs-material $@
+  docker_or_podman run --rm -it -p8000:8000 -v ${PWD}:/docs phaedra/mkdocs-material serve -a 0.0.0.0:8000
+  #docker_or_podman run --rm -it --network=host -v ${PWD}:/docs phaedra/mkdocs-material $@
 else
-  docker_or_podman run --rm -e CARDS=true -v ${PWD}:/docs wezterm/mkdocs-material build
+  docker_or_podman run --rm -e CARDS=true -v ${PWD}:/docs phaedra/mkdocs-material build
 fi

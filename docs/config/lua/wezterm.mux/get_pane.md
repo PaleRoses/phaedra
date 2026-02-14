@@ -1,4 +1,4 @@
-# `wezterm.mux.get_pane(PANE_ID)`
+# `phaedra.mux.get_pane(PANE_ID)`
 
 {{since('20220624-141144-bd1b7c5d')}}
 

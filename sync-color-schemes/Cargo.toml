@@ -15,7 +15,7 @@ futures.workspace = true
 lazy_static.workspace = true
 libflate.workspace = true
 log.workspace = true
-reqwest.workspace = true
+reqwest = "0.12"
 rusqlite = {workspace=true, features=["bundled", "blob"]}
 serde.workspace = true
 serde_json.workspace = true
@@ -25,4 +25,4 @@ tar.workspace = true
 tempfile.workspace = true
 tokio = { workspace=true, features = ["rt-multi-thread", "sync", "macros"] }
 toml.workspace = true
-wezterm-dynamic.workspace = true
+phaedra-dynamic.workspace = true

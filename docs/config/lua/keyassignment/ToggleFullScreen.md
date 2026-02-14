@@ -3,13 +3,13 @@
 Toggles full screen mode for the current window.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 config.keys = {
   {
     key = 'n',
     mods = 'SHIFT|CTRL',
-    action = wezterm.action.ToggleFullScreen,
+    action = phaedra.action.ToggleFullScreen,
   },
 }
 ```

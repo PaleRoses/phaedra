@@ -154,7 +154,7 @@ impl AgentProxy {
             // proxy entries slightly higher by adding a small Duration to
             // the actual observed value.
             // `via proxy pid` is coupled with the Pdu::SetClientId logic
-            // in wezterm-mux-server-impl/src/sessionhandler.rs
+            // in phaedra-mux-server-impl/src/sessionhandler.rs
             const PROXY_MARKER: &str = "via proxy pid";
             let a_proxy = a.client_id.hostname.contains(PROXY_MARKER);
             let b_proxy = b.client_id.hostname.contains(PROXY_MARKER);

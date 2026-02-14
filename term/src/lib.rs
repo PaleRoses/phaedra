@@ -20,8 +20,8 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut, Range};
 use std::str;
-use wezterm_dynamic::{FromDynamic, ToDynamic};
-use wezterm_surface::SequenceNo;
+use phaedra_dynamic::{FromDynamic, ToDynamic};
+use phaedra_surface::SequenceNo;
 
 pub mod config;
 pub use config::TerminalConfiguration;
@@ -29,8 +29,8 @@ pub use config::TerminalConfiguration;
 pub mod input;
 pub use crate::input::*;
 
-pub use wezterm_cell::*;
-pub use wezterm_surface::line::*;
+pub use phaedra_cell::*;
+pub use phaedra_surface::line::*;
 
 pub mod screen;
 pub use crate::screen::*;
@@ -107,8 +107,8 @@ pub enum Position {
 pub struct CursorPosition {
     pub x: usize,
     pub y: VisibleRowIndex,
-    pub shape: wezterm_surface::CursorShape,
-    pub visibility: wezterm_surface::CursorVisibility,
+    pub shape: phaedra_surface::CursorShape,
+    pub visibility: phaedra_surface::CursorVisibility,
     pub seqno: SequenceNo,
 }
 

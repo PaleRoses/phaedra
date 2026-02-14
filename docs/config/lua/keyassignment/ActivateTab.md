@@ -11,8 +11,8 @@ to its left and so on.
 
 
 ```lua
-local wezterm = require 'wezterm'
-local act = wezterm.action
+local phaedra = require 'phaedra'
+local act = phaedra.action
 local config = {}
 
 config.keys = {}

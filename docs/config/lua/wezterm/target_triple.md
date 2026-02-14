@@ -1,20 +1,20 @@
 ---
-title: wezterm.target_triple
+title: phaedra.target_triple
 tags:
  - utility
  - version
 ---
-# `wezterm.target_triple`
+# `phaedra.target_triple`
 
 This constant is set to the [Rust target
 triple](https://forge.rust-lang.org/release/platform-support.html) for the
-platform on which `wezterm` was built.  This can be useful when you wish to
+platform on which `phaedra` was built.  This can be useful when you wish to
 conditionally adjust your configuration based on the platform.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
+if phaedra.target_triple == 'x86_64-pc-windows-msvc' then
   -- We are running on Windows; maybe we emit different
   -- key assignments here?
 end

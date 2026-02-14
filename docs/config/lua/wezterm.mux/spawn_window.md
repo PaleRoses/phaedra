@@ -1,4 +1,4 @@
-## `wezterm.mux.spawn_window{}`
+## `phaedra.mux.spawn_window{}`
 
 {{since('20220624-141144-bd1b7c5d')}}
 
@@ -7,7 +7,7 @@ Spawns a program into a new window, returning the [MuxTab](../MuxTab/index.md),
 associated with it:
 
 ```lua
-local tab, pane, window = wezterm.mux.spawn_window {}
+local tab, pane, window = phaedra.mux.spawn_window {}
 ```
 
 When no arguments are passed, the default program is spawned.
@@ -20,7 +20,7 @@ Specifies the argument array for the command that should be spawned.
 If omitted the default program for the domain will be spawned.
 
 ```lua
-wezterm.mux.spawn_window { args = { 'top' } }
+phaedra.mux.spawn_window { args = { 'top' } }
 ```
 
 ### cwd
@@ -31,7 +31,7 @@ the program.
 If unspecified, follows the rules from [default_cwd](../config/default_cwd.md)
 
 ```lua
-wezterm.mux.spawn_window { cwd = '/tmp' }
+phaedra.mux.spawn_window { cwd = '/tmp' }
 ```
 
 ### set_environment_variables
@@ -40,7 +40,7 @@ Sets additional environment variables in the environment for
 this command invocation.
 
 ```lua
-wezterm.mux.spawn_window { set_environment_variables = { FOO = 'BAR' } }
+phaedra.mux.spawn_window { set_environment_variables = { FOO = 'BAR' } }
 ```
 
 ### domain
@@ -53,7 +53,7 @@ You may specify the name of one of the multiplexer domains
 defined in your configuration using the following:
 
 ```lua
-wezterm.mux.spawn_window { domain = { DomainName = 'my.name' } }
+phaedra.mux.spawn_window { domain = { DomainName = 'my.name' } }
 ```
 
 ### width and height
@@ -62,7 +62,7 @@ Only valid when width and height are used together, allows specifying
 the number of column and row cells that the window should have.
 
 ```lua
-wezterm.mux.spawn_window { width = 60, height = 30 }
+phaedra.mux.spawn_window { width = 60, height = 30 }
 ```
 
 ### workspace
@@ -72,7 +72,7 @@ will be associated with.  If omitted, the currently active workspace
 name will be used.
 
 ```lua
-wezterm.mux.spawn_window { workspace = { 'coding' } }
+phaedra.mux.spawn_window { workspace = { 'coding' } }
 ```
 
 ### position
@@ -85,7 +85,7 @@ this mux window.
 The value is a lua table:
 
 ```
-wezterm.mux.spawn_window {
+phaedra.mux.spawn_window {
   position = {
     x = 10,
     y = 300,
@@ -94,10 +94,10 @@ wezterm.mux.spawn_window {
     -- * "ScreenCoordinateSystem" (this is the default)
     -- * "MainScreen" (the primary or main screen)
     -- * "ActiveScreen" (whichever screen hosts the active/focused window)
-    -- * {Named="HDMI-1"} - uses a screen by name. See wezterm.gui.screens()
+    -- * {Named="HDMI-1"} - uses a screen by name. See phaedra.gui.screens()
     -- origin = "ScreenCoordinateSystem"
   },
 }
 ```
 
-See also [wezterm.gui.screens()](../wezterm.gui/screens.md)
+See also [phaedra.gui.screens()](../phaedra.gui/screens.md)

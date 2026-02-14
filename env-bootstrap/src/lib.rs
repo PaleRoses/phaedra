@@ -2,12 +2,12 @@ pub mod ringlog;
 pub use ringlog::setup_logger;
 use std::path::{Path, PathBuf};
 
-pub fn set_wezterm_executable() {
+pub fn set_phaedra_executable() {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            std::env::set_var("WEZTERM_EXECUTABLE_DIR", dir);
+            std::env::set_var("PHAEDRA_EXECUTABLE_DIR", dir);
         }
-        std::env::set_var("WEZTERM_EXECUTABLE", exe);
+        std::env::set_var("PHAEDRA_EXECUTABLE", exe);
     }
 }
 
@@ -46,15 +46,15 @@ pub fn fixup_appimage() {
         // AppImage exports ARGV0 into the environment and that causes
         // everything that was indirectly spawned by us to appear to
         // be the AppImage.  eg: if you `vim foo` it shows as
-        // `WezTerm.AppImage foo`, which is super confusing for everyone!
+        // `Phaedra.AppImage foo`, which is super confusing for everyone!
         // Let's just unset that from the environment!
         std::env::remove_var("ARGV0");
 
         // Since our AppImage includes multiple utilities, we want to
         // be able to use them, so add that location to the PATH!
-        // WEZTERM_EXECUTABLE_DIR is set by `set_wezterm_executable`
+        // PHAEDRA_EXECUTABLE_DIR is set by `set_phaedra_executable`
         // which is called before `fixup_appimage`
-        if let Some(dir) = std::env::var_os("WEZTERM_EXECUTABLE_DIR") {
+        if let Some(dir) = std::env::var_os("PHAEDRA_EXECUTABLE_DIR") {
             if let Some(path) = std::env::var_os("PATH") {
                 let mut paths = std::env::split_paths(&path).collect::<Vec<_>>();
                 paths.insert(0, PathBuf::from(dir));
@@ -85,9 +85,9 @@ pub fn fixup_appimage() {
         /// the correct environment when it is launched via wezterm.
         /// However, if we are using the system wezterm to spawn a portable
         /// AppImage then we want these to not take effect.
-        fn clean_wezterm_config_env() {
-            std::env::remove_var("WEZTERM_CONFIG_FILE");
-            std::env::remove_var("WEZTERM_CONFIG_DIR");
+        fn clean_phaedra_config_env() {
+            std::env::remove_var("PHAEDRA_CONFIG_FILE");
+            std::env::remove_var("PHAEDRA_CONFIG_DIR");
         }
 
         if config::HOME_DIR.starts_with(append_extra_file_name_suffix(&appimage, ".home")) {
@@ -97,7 +97,7 @@ pub fn fixup_appimage() {
                 "HOME",
                 dirs_next::home_dir().expect("can't resolve HOME dir"),
             );
-            clean_wezterm_config_env();
+            clean_phaedra_config_env();
         }
 
         if std::env::var("XDG_CONFIG_HOME")
@@ -107,7 +107,7 @@ pub fn fixup_appimage() {
             .unwrap_or_default()
         {
             std::env::remove_var("XDG_CONFIG_HOME");
-            clean_wezterm_config_env();
+            clean_phaedra_config_env();
         }
     }
 }
@@ -208,13 +208,13 @@ fn register_lua_modules() {
 
 pub fn bootstrap() {
     config::assign_version_info(
-        wezterm_version::wezterm_version(),
-        wezterm_version::wezterm_target_triple(),
+        phaedra_version::phaedra_version(),
+        phaedra_version::phaedra_target_triple(),
     );
     setup_logger();
     register_panic_hook();
 
-    set_wezterm_executable();
+    set_phaedra_executable();
 
     #[cfg(target_os = "macos")]
     set_lang_from_locale();

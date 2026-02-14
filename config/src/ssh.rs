@@ -3,7 +3,7 @@ use crate::*;
 use luahelper::impl_lua_conversion_dynamic;
 use std::fmt::Display;
 use std::str::FromStr;
-use wezterm_dynamic::{FromDynamic, ToDynamic};
+use phaedra_dynamic::{FromDynamic, ToDynamic};
 
 #[derive(Debug, Clone, Copy, FromDynamic, ToDynamic)]
 pub enum SshBackend {
@@ -19,14 +19,14 @@ impl Default for SshBackend {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromDynamic, ToDynamic)]
 pub enum SshMultiplexing {
-    WezTerm,
+    Phaedra,
     None,
     // TODO: Tmux-cc in the future?
 }
 
 impl Default for SshMultiplexing {
     fn default() -> Self {
-        Self::WezTerm
+        Self::Phaedra
     }
 }
 
@@ -82,9 +82,9 @@ pub struct SshDomain {
     pub overlay_lag_indicator: bool,
 
     /// The path to the wezterm binary on the remote host
-    pub remote_wezterm_path: Option<String>,
+    pub remote_phaedra_path: Option<String>,
     /// Override the entire `wezterm cli proxy` invocation that would otherwise
-    /// be computed from remote_wezterm_path and other information.
+    /// be computed from remote_phaedra_path and other information.
     pub override_proxy_command: Option<String>,
 
     pub ssh_backend: Option<SshBackend>,
@@ -109,7 +109,7 @@ impl_lua_conversion_dynamic!(SshDomain);
 
 impl SshDomain {
     pub fn default_domains() -> Vec<Self> {
-        let mut config = wezterm_ssh::Config::new();
+        let mut config = phaedra_ssh::Config::new();
         config.add_default_config_files();
 
         let mut plain_ssh = vec![];
@@ -126,7 +126,7 @@ impl SshDomain {
             mux_ssh.push(Self {
                 name: format!("SSHMUX:{host}"),
                 remote_address: host.to_string(),
-                multiplexing: SshMultiplexing::WezTerm,
+                multiplexing: SshMultiplexing::Phaedra,
                 local_echo_threshold_ms: default_local_echo_threshold_ms(),
                 ..SshDomain::default()
             });

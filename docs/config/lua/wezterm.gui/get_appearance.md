@@ -1,4 +1,4 @@
-# `wezterm.gui.get_appearance()`
+# `phaedra.gui.get_appearance()`
 
 {{since('20220807-113146-c2fee766')}}
 
@@ -10,20 +10,20 @@ can be one of the following 4 values:
 * `"LightHighContrast"` - light mode but with high contrast colors (not reported on all systems)
 * `"DarkHighContrast"` - dark mode but with high contrast colors (not reported on all systems)
 
-wezterm is able to detect when the appearance has changed and will reload the
+phaedra is able to detect when the appearance has changed and will reload the
 configuration when that happens.
 
 This example configuration shows how you can have your color scheme
 automatically adjust to the current appearance:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
--- wezterm.gui is not available to the mux server, so take care to
+-- phaedra.gui is not available to the mux server, so take care to
 -- do something reasonable when this config is evaluated by the mux
 function get_appearance()
-  if wezterm.gui then
-    return wezterm.gui.get_appearance()
+  if phaedra.gui then
+    return phaedra.gui.get_appearance()
   end
   return 'Dark'
 end
@@ -43,7 +43,7 @@ return {
 
 ### Wayland GNOME Appearance
 
-wezterm uses [XDG Desktop
+phaedra uses [XDG Desktop
 Portal](https://flatpak.github.io/xdg-desktop-portal/) to determine the
 appearance in a desktop-environment independent way.
 

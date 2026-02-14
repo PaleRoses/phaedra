@@ -10,7 +10,7 @@ config.keys = {
   {
     key = 'y',
     mods = 'CMD',
-    action = wezterm.action.SpawnCommandInNewTab {
+    action = phaedra.action.SpawnCommandInNewTab {
       args = { 'top' },
     },
   },

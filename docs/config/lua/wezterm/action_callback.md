@@ -1,11 +1,11 @@
 ---
-title: wezterm.action_callback
+title: phaedra.action_callback
 tags:
  - keys
  - event
 ---
 
-# `wezterm.action_callback(callback)`
+# `phaedra.action_callback(callback)`
 
 {{since('20211204-082213-a66c61ee9')}}
 
@@ -16,29 +16,29 @@ the event and use it in a different place.
 
 The implementation is essentially the same as:
 ```lua
-function wezterm.action_callback(callback)
+function phaedra.action_callback(callback)
   local event_id = '...' -- the function generates a unique event id
-  wezterm.on(event_id, callback)
-  return wezterm.action.EmitEvent(event_id)
+  phaedra.on(event_id, callback)
+  return phaedra.action.EmitEvent(event_id)
 end
 ```
 
-See [wezterm.on](./on.md) and [wezterm.action](./action.md) for more info on what you can do with these.
+See [phaedra.on](./on.md) and [phaedra.action](./action.md) for more info on what you can do with these.
 
 
 ## Usage
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
   keys = {
     {
       mods = 'CTRL|SHIFT',
       key = 'i',
-      action = wezterm.action_callback(function(win, pane)
-        wezterm.log_info 'Hello from callback!'
-        wezterm.log_info(
+      action = phaedra.action_callback(function(win, pane)
+        phaedra.log_info 'Hello from callback!'
+        phaedra.log_info(
           'WindowID:',
           win:window_id(),
           'PaneID:',

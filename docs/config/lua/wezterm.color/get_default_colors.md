@@ -1,4 +1,4 @@
-# `wezterm.color.get_default_colors()`
+# `phaedra.color.get_default_colors()`
 
 {{since('20220807-113146-c2fee766')}}
 
@@ -12,12 +12,12 @@ colors to red.  One of the schemes is the default set of colors, while the
 other is one of the many built-in schemes:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local my_gruvbox = wezterm.color.get_builtin_schemes()['Gruvbox Light']
+local my_gruvbox = phaedra.color.get_builtin_schemes()['Gruvbox Light']
 my_gruvbox.background = 'red'
 
-local my_default = wezterm.color.get_default_colors()
+local my_default = phaedra.color.get_default_colors()
 my_default.background = 'red'
 
 return {

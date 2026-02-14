@@ -10,5 +10,5 @@ Attempt to fast-forward or `pull --rebase` each of the repos in the plugin direc
 
 !!! Tip
 
-    Run the [`wezterm.reload_configuration()`](../wezterm/reload_configuration.md) function to reload the configuration.
+    Run the [`phaedra.reload_configuration()`](../phaedra/reload_configuration.md) function to reload the configuration.
 

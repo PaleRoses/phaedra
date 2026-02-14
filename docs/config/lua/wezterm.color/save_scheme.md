@@ -1,8 +1,8 @@
-# `wezterm.color.save_scheme(colors, metadata, file_name)`
+# `phaedra.color.save_scheme(colors, metadata, file_name)`
 
 {{since('20220807-113146-c2fee766')}}
 
-Saves a color scheme as a wezterm TOML file.
+Saves a color scheme as a phaedra TOML file.
 This is useful when sharing your custom color scheme with others.
 While you could share the lua representation of the scheme, the
 TOML file is recommended for sharing as it is purely declarative:
@@ -10,7 +10,7 @@ no executable logic is present in the TOML color scheme which makes
 it safe to consume "random" schemes from the internet.
 
 This example demonstrates importing a base16 scheme and exporting
-it as a wezterm scheme.
+it as a phaedra scheme.
 
 Given a yaml file with these contents:
 
@@ -38,8 +38,8 @@ base0F: "BAA58C"
 Then:
 
 ```
-> colors, metadata = wezterm.color.load_base16_scheme("/tmp/cupcake.yaml")
-> wezterm.color.save_scheme(colors, metadata, "/tmp/cupcacke.toml")
+> colors, metadata = phaedra.color.load_base16_scheme("/tmp/cupcake.yaml")
+> phaedra.color.save_scheme(colors, metadata, "/tmp/cupcacke.toml")
 ```
 
 produces a toml file with these contents:

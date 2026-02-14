@@ -1,4 +1,4 @@
-# `wezterm.gui.gui_window_for_mux_window(window_id)`
+# `phaedra.gui.gui_window_for_mux_window(window_id)`
 
 {{since('20220807-113146-c2fee766')}}
 

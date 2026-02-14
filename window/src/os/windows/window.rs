@@ -29,9 +29,9 @@ use std::path::PathBuf;
 use std::ptr::{null, null_mut};
 use std::rc::Rc;
 use std::sync::Mutex;
-use wezterm_color_types::LinearRgba;
-use wezterm_font::FontConfiguration;
-use wezterm_input_types::KeyboardLedStatus;
+use phaedra_color_types::LinearRgba;
+use phaedra_font::FontConfiguration;
+use phaedra_input_types::KeyboardLedStatus;
 use winapi::shared::minwindef::*;
 use winapi::shared::ntdef::*;
 use winapi::shared::windef::*;
@@ -108,7 +108,6 @@ pub(crate) struct WindowInner {
     /// Non-owning reference to the window handle
     hwnd: HWindow,
     events: WindowEventSender,
-    gl_state: Option<Rc<glium::backend::Context>>,
     /// Fraction of mouse scroll
     hscroll_remainder: i16,
     vscroll_remainder: i16,
@@ -191,16 +190,6 @@ fn take_rc_from_pointer(lparam: LPVOID) -> Rc<RefCell<WindowInner>> {
     unsafe { Rc::from_raw(std::mem::transmute(lparam)) }
 }
 
-fn callback_behavior() -> glium::debug::DebugCallbackBehavior {
-    if cfg!(debug_assertions) && false
-    /* https://github.com/glium/glium/issues/1885 */
-    {
-        glium::debug::DebugCallbackBehavior::DebugMessageOnError
-    } else {
-        glium::debug::DebugCallbackBehavior::Ignore
-    }
-}
-
 impl HasDisplayHandle for WindowInner {
     fn display_handle(&self) -> Result<DisplayHandle, HandleError> {
         unsafe {
@@ -221,47 +210,6 @@ impl HasWindowHandle for WindowInner {
 }
 
 impl WindowInner {
-    fn enable_opengl(&mut self) -> anyhow::Result<Rc<glium::backend::Context>> {
-        let conn = Connection::get().unwrap();
-
-        let gl_state = if self.config.prefer_egl {
-            match conn.gl_connection.borrow().as_ref() {
-                None => crate::egl::GlState::create(None, self.hwnd.0),
-                Some(glconn) => {
-                    crate::egl::GlState::create_with_existing_connection(glconn, self.hwnd.0)
-                }
-            }
-        } else {
-            Err(anyhow::anyhow!("Config says to avoid EGL"))
-        }
-        .and_then(|egl| unsafe {
-            log::trace!("Initialized EGL!");
-            conn.gl_connection
-                .borrow_mut()
-                .replace(Rc::clone(egl.get_connection()));
-            let backend = Rc::new(egl);
-            Ok(glium::backend::Context::new(
-                backend,
-                true,
-                callback_behavior(),
-            )?)
-        })
-        .or_else(|err| {
-            log::trace!("EGL init failed {:?}, fall back to WGL", err);
-            super::wgl::GlState::create(self.hwnd.0).and_then(|state| unsafe {
-                Ok(glium::backend::Context::new(
-                    Rc::new(state),
-                    true,
-                    callback_behavior(),
-                )?)
-            })
-        })?;
-
-        self.gl_state.replace(gl_state.clone());
-
-        Ok(gl_state)
-    }
-
     fn get_effective_dpi(&self) -> usize {
         let actual_dpi = unsafe { GetDpiForWindow(self.hwnd.0) } as f64;
 
@@ -290,18 +238,6 @@ impl WindowInner {
     /// Calls resize if needed.
     /// Returns true if we did.
     fn check_and_call_resize_if_needed(&mut self) -> bool {
-        /*
-        if self.gl_state.is_none() {
-            // Don't cache state or generate resize callbacks until
-            // we've set up opengl, otherwise we can miss propagating
-            // some state during the initial window setup that results
-            // in the window dimensions being out of sync with the dpi
-            // when eg: the system display settings are set to 200%
-            // scale factor.
-            return false;
-        }
-        */
-
         let mut rect = RECT {
             left: 0,
             bottom: 0,
@@ -533,7 +469,6 @@ impl Window {
             hwnd: HWindow(null_mut()),
             appearance,
             events,
-            gl_state: None,
             vscroll_remainder: 0,
             hscroll_remainder: 0,
             keyboard_info: KeyboardLayoutInfo::new(),
@@ -757,19 +692,6 @@ impl HasWindowHandle for Window {
 
 #[async_trait(?Send)]
 impl WindowOps for Window {
-    async fn enable_opengl(&self) -> anyhow::Result<Rc<glium::backend::Context>> {
-        let window = self.0;
-        promise::spawn::spawn(async move {
-            if let Some(handle) = Connection::get().unwrap().get_window(window) {
-                let mut inner = handle.borrow_mut();
-                inner.enable_opengl()
-            } else {
-                anyhow::bail!("invalid window");
-            }
-        })
-        .await
-    }
-
     fn notify<T: Any + Send + Sync>(&self, t: T)
     where
         Self: Sized,
@@ -1083,7 +1005,7 @@ unsafe fn update_title_font(hwnd: HWND) {
 
     let mut font = TITLE_FONT.lock().expect("locking title_font");
     if let Some(lf) = get_title_log_font(hwnd, hdc) {
-        *font = wezterm_font::locator::gdi::parse_log_font(&lf, hdc).ok();
+        *font = phaedra_font::locator::gdi::parse_log_font(&lf, hdc).ok();
     }
 
     ReleaseDC(hwnd, hdc);

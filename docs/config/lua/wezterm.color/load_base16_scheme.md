@@ -1,15 +1,15 @@
-# `wezterm.color.load_base16_scheme(file_name)`
+# `phaedra.color.load_base16_scheme(file_name)`
 
 {{since('20220807-113146-c2fee766')}}
 
 Loads a yaml file in [base16](https://github.com/chriskempson/base16) format
-and returns it as a wezterm color scheme.
+and returns it as a phaedra color scheme.
 
-Note that wezterm ships with the base16 color schemes that were referenced via
+Note that phaedra ships with the base16 color schemes that were referenced via
 [base16-schemes-source](https://github.com/chriskempson/base16-schemes-source)
 when the release was prepared so this function is primarily useful if you want
 to import a base16 color scheme that either isn't listed from the main list, or
-that was created after your version of wezterm was built.
+that was created after your version of phaedra was built.
 
 This function returns a tuple of the the color definitions and the metadata.
 
@@ -39,7 +39,7 @@ base0F: "BAA58C"
 Then:
 
 ```
-> colors, metadata = wezterm.color.load_base16_scheme("/tmp/cupcake.yaml")
+> colors, metadata = phaedra.color.load_base16_scheme("/tmp/cupcake.yaml")
 > print(colors)
 22:59:26.998 INFO logging > lua: {
     "ansi": [

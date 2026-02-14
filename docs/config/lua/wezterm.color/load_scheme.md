@@ -1,12 +1,12 @@
-# `wezterm.color.load_scheme(file_name)`
+# `phaedra.color.load_scheme(file_name)`
 
 {{since('20220807-113146-c2fee766')}}
 
-Loads a wezterm color scheme from a TOML file.  This function
+Loads a phaedra color scheme from a TOML file.  This function
 returns a tuple of the the color definitions and the metadata:
 
 ```
-> colors, metadata = wezterm.color.load_scheme("wezterm/assets/colors/Abernathy.toml")
+> colors, metadata = phaedra.color.load_scheme("phaedra/assets/colors/Abernathy.toml")
 > print(metadata)
 22:37:06.041 INFO logging > lua: {
     "name": "Abernathy",

@@ -1,36 +1,36 @@
 ---
-title: wezterm.nerdfonts
+title: phaedra.nerdfonts
 tags:
  - utility
  - font
  - string
 ---
-# `wezterm.nerdfonts`
+# `phaedra.nerdfonts`
 
 {{since('20220319-142410-0fcdea07')}}
 
 A special userdata value that can be used to resolve the symbolic name
 of a glyph from the [Nerd Fonts](https://www.nerdfonts.com/cheat-sheet)
 font set into a string that can be used for example when formatting
-status lines and titles in your wezterm configuration.
+status lines and titles in your phaedra configuration.
 
-WezTerm includes `Nerd Font Symbols Font` as a default font fallback
+Phaedra includes `Nerd Font Symbols Font` as a default font fallback
 which means that these special symbols are available even without 
 requiring you to use a patched font.
 
-This example shows how to lookup `wezterm.nerdfonts.fa_clock_o`, the Font
+This example shows how to lookup `phaedra.nerdfonts.fa_clock_o`, the Font
 Awesome glyph representing a clock, and use that together with the current
 date/time in the status area:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-wezterm.on('update-right-status', function(window, pane)
+phaedra.on('update-right-status', function(window, pane)
   -- "Wed Mar 3 08:14"
-  local date = wezterm.strftime '%a %b %-d %H:%M '
+  local date = phaedra.strftime '%a %b %-d %H:%M '
 
-  window:set_right_status(wezterm.format {
-    { Text = wezterm.nerdfonts.fa_clock_o .. ' ' .. date },
+  window:set_right_status(phaedra.format {
+    { Text = phaedra.nerdfonts.fa_clock_o .. ' ' .. date },
   })
 end)
 ```

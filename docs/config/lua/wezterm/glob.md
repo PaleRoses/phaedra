@@ -1,11 +1,11 @@
 ---
-title: wezterm.glob
+title: phaedra.glob
 tags:
  - utility
  - filesystem
 ---
 
-# `wezterm.glob(pattern [, relative_to])`
+# `phaedra.glob(pattern [, relative_to])`
 
 {{since('20200503-171512-b13ef15f')}}
 
@@ -19,11 +19,11 @@ to a path.  If the results have the same prefix as `relative_to` then it will
 be removed from the returned path.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 -- logs the names of all of the conf files under `/etc`
-for _, v in ipairs(wezterm.glob '/etc/*.conf') do
-  wezterm.log_error('entry: ' .. v)
+for _, v in ipairs(phaedra.glob '/etc/*.conf') do
+  phaedra.log_error('entry: ' .. v)
 end
 ```
 

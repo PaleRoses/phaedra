@@ -13,7 +13,7 @@ use objc::rc::StrongPtr;
 use objc::runtime::{Class, Object, Sel, BOOL, NO, YES};
 use objc::*;
 
-const CLS_NAME: &str = "WezTermAppDelegate";
+const CLS_NAME: &str = "PhaedraAppDelegate";
 
 extern "C" fn application_should_terminate(
     _self: &mut Object,
@@ -27,7 +27,7 @@ extern "C" fn application_should_terminate(
             WindowCloseConfirmation::AlwaysPrompt => {
                 let alert: id = msg_send![class!(NSAlert), alloc];
                 let alert: id = msg_send![alert, init];
-                let message_text = nsstring("Terminate WezTerm?");
+                let message_text = nsstring("Terminate Phaedra?");
                 let info_text = nsstring("Detach and close all panes and terminate wezterm?");
                 let cancel = nsstring("Cancel");
                 let ok = nsstring("Ok");
@@ -93,7 +93,7 @@ extern "C" fn application_open_untitled_file(
     NO
 }
 
-extern "C" fn wezterm_perform_key_assignment(
+extern "C" fn phaedra_perform_key_assignment(
     _self: &mut Object,
     _sel: Sel,
     menu_item: *mut Object,
@@ -101,7 +101,7 @@ extern "C" fn wezterm_perform_key_assignment(
     let menu_item = crate::os::macos::menu::MenuItem::with_menu_item(menu_item);
     // Safe because weztermPerformKeyAssignment: is only used with KeyAssignment
     let action = menu_item.get_represented_item();
-    log::debug!("wezterm_perform_key_assignment {action:?}",);
+    log::debug!("phaedra_perform_key_assignment {action:?}",);
     match action {
         Some(RepresentedItem::KeyAssignment(action)) => {
             if let Some(conn) = Connection::get() {
@@ -173,7 +173,7 @@ fn get_class() -> &'static Class {
             );
             cls.add_method(
                 sel!(weztermPerformKeyAssignment:),
-                wezterm_perform_key_assignment as extern "C" fn(&mut Object, Sel, *mut Object),
+                phaedra_perform_key_assignment as extern "C" fn(&mut Object, Sel, *mut Object),
             );
             cls.add_method(
                 sel!(applicationOpenUntitledFile:),

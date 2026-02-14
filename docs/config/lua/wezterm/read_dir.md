@@ -1,10 +1,10 @@
 ---
-title: wezterm.read_dir
+title: phaedra.read_dir
 tags:
  - utility
  - filesystem
 ---
-# `wezterm.read_dir(path)`
+# `phaedra.read_dir(path)`
 
 {{since('20200503-171512-b13ef15f')}}
 
@@ -14,11 +14,11 @@ must be able to be represented as UTF-8 or this function will generate an
 error.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 -- logs the names of all of the entries under `/etc`
-for _, v in ipairs(wezterm.read_dir '/etc') do
-  wezterm.log_error('entry: ' .. v)
+for _, v in ipairs(phaedra.read_dir '/etc') do
+  phaedra.log_error('entry: ' .. v)
 end
 ```
 

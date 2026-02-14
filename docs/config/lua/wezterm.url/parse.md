@@ -1,4 +1,4 @@
-# `wezterm.url.parse(URL_STRING)`
+# `phaedra.url.parse(URL_STRING)`
 
 {{since('20240127-113634-bbcac864')}}
 

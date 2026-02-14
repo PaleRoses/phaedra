@@ -1,10 +1,10 @@
 ---
-title: wezterm.split_by_newlines
+title: phaedra.split_by_newlines
 tags:
  - utility
  - string
 ---
-# `wezterm.split_by_newlines(str)`
+# `phaedra.split_by_newlines(str)`
 
 {{since('20200503-171512-b13ef15f')}}
 
@@ -13,12 +13,12 @@ are recognized as newlines) and returns the result as an array of strings that
 have the newlines removed.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 local example = 'hello\nthere\n'
 
-for _, line in ipairs(wezterm.split_by_newlines(example)) do
-  wezterm.log_error(line)
+for _, line in ipairs(phaedra.split_by_newlines(example)) do
+  phaedra.log_error(line)
 end
 ```
 

@@ -1,11 +1,11 @@
 ---
-title: wezterm.default_wsl_domains
+title: phaedra.default_wsl_domains
 tags:
  - wsl
  - multiplexing
 ---
 
-# wezterm.default_wsl_domains()
+# phaedra.default_wsl_domains()
 
 {{since('20220319-142410-0fcdea07')}}
 
@@ -42,9 +42,9 @@ The purpose of this function is to aid in situations where you might want set
 `default_prog` for the WSL distributions:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local wsl_domains = wezterm.default_wsl_domains()
+local wsl_domains = phaedra.default_wsl_domains()
 
 for idx, dom in ipairs(wsl_domains) do
   if dom.name == 'WSL:Ubuntu-18.04' then

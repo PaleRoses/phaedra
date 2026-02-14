@@ -1,10 +1,10 @@
 ---
-title: wezterm.font_with_fallback
+title: phaedra.font_with_fallback
 tags:
  - font
 ---
 
-# `wezterm.font_with_fallback(families [, attributes])`
+# `phaedra.font_with_fallback(families [, attributes])`
 
 This function constructs a lua table that configures a font with fallback processing.
 Glyphs are looked up in the first font in the list but if missing the next font is
@@ -13,16 +13,16 @@ checked and so on.
 The first parameter is a table listing the fonts in their preferred order:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
-  font = wezterm.font_with_fallback { 'JetBrains Mono', 'Noto Color Emoji' },
+  font = phaedra.font_with_fallback { 'JetBrains Mono', 'Noto Color Emoji' },
 }
 ```
 
-WezTerm implicitly adds its default fallback to the list that you specify.
+Phaedra implicitly adds its default fallback to the list that you specify.
 
-The *attributes* parameter behaves the same as that of [wezterm.font](font.md)
+The *attributes* parameter behaves the same as that of [phaedra.font](font.md)
 in that it allows you to specify font weight and style attributes that you
 want to match.
 
@@ -32,10 +32,10 @@ The attributes can now be specified per fallback font using this alternative
 form where the family and attributes are specified as part of the same lua table:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
-  font = wezterm.font_with_fallback {
+  font = phaedra.font_with_fallback {
     { family = 'JetBrains Mono', weight = 'Medium' },
     { family = 'Terminus', weight = 'Bold' },
     'Noto Color Emoji',
@@ -51,10 +51,10 @@ default ligature feature just for JetBrains Mono, but leave it on for the
 other fonts in the fallback:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
-  font = wezterm.font_with_fallback {
+  font = phaedra.font_with_fallback {
     {
       family = 'JetBrains Mono',
       harfbuzz_features = { 'calt=0', 'clig=0', 'liga=0' },
@@ -85,7 +85,7 @@ have the same size.
 
 Setting
 [use_cap_height_to_scale_fallback_fonts](../config/use_cap_height_to_scale_fallback_fonts.md)
-= `true` will cause wezterm to try to automatically scale using the
+= `true` will cause phaedra to try to automatically scale using the
 *cap-height* metric (or to compute its own idea of the *cap-height* based on the size of
 glyph(s)).
 
@@ -103,11 +103,11 @@ influence font metrics so it may be desirable to also specify
 [line_height](../config/line_height.md) to produce a more pleasing display.
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 return {
   line_height = 1.2,
-  font = wezterm.font_with_fallback {
+  font = phaedra.font_with_fallback {
     'JetBrains Mono',
     { family = 'Microsoft YaHei', scale = 1.5 },
   },

@@ -1,29 +1,29 @@
-# `wezterm.color.get_builtin_schemes()`
+# `phaedra.color.get_builtin_schemes()`
 
 {{since('20220807-113146-c2fee766')}}
 
-(In earlier releases, you can use [wezterm.get_builtin_color_schemes()](../wezterm/get_builtin_color_schemes.md))
+(In earlier releases, you can use [phaedra.get_builtin_color_schemes()](../phaedra/get_builtin_color_schemes.md))
 
 Returns a lua table keyed by color scheme name and whose values are
 the color scheme definition of the builtin color schemes.
 
 This is useful for programmatically deciding things about the scheme
 to use based on its color, or for taking a scheme and overriding a
-couple of entries just from your `wezterm.lua` configuration file.
+couple of entries just from your `phaedra.lua` configuration file.
 
-This example shows how to make wezterm pick a random color scheme for
+This example shows how to make phaedra pick a random color scheme for
 each newly created window:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 -- The set of schemes that we like and want to put in our rotation
 local schemes = {}
-for name, scheme in pairs(wezterm.color.get_builtin_schemes()) do
+for name, scheme in pairs(phaedra.color.get_builtin_schemes()) do
   table.insert(schemes, name)
 end
 
-wezterm.on('window-config-reloaded', function(window, pane)
+phaedra.on('window-config-reloaded', function(window, pane)
   -- If there are no overrides, this is our first time seeing
   -- this window, so we can pick a random scheme.
   if not window:get_config_overrides() then
@@ -42,9 +42,9 @@ This example shows how to take an existing scheme, modify a color, and
 then use that new scheme to override the default:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local scheme = wezterm.color.get_builtin_schemes()['Gruvbox Light']
+local scheme = phaedra.color.get_builtin_schemes()['Gruvbox Light']
 scheme.background = 'red'
 
 return {
@@ -65,14 +65,14 @@ use that to select just the dark schemes and then randomly pick one
 of those for each new window:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 local function dark_schemes()
-  local schemes = wezterm.color.get_builtin_schemes()
+  local schemes = phaedra.color.get_builtin_schemes()
   local dark = {}
   for name, scheme in pairs(schemes) do
     -- parse into a color object
-    local bg = wezterm.color.parse(scheme.background)
+    local bg = phaedra.color.parse(scheme.background)
     -- and extract HSLA information
     local h, s, l, a = bg:hsla()
 
@@ -89,7 +89,7 @@ end
 
 local dark = dark_schemes()
 
-wezterm.on('window-config-reloaded', function(window, pane)
+phaedra.on('window-config-reloaded', function(window, pane)
   -- If there are no overrides, this is our first time seeing
   -- this window, so we can pick a random scheme.
   if not window:get_config_overrides() then

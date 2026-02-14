@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
-use wezterm_dynamic::{FromDynamic, FromDynamicOptions, ToDynamic, Value};
-use wezterm_input_types::{KeyCode, Modifiers};
-use wezterm_term::input::MouseButton;
-use wezterm_term::SemanticType;
+use phaedra_dynamic::{FromDynamic, FromDynamicOptions, ToDynamic, Value};
+use phaedra_input_types::{KeyCode, Modifiers};
+use phaedra_term::input::MouseButton;
+use phaedra_term::SemanticType;
 
 #[derive(Default, Debug, Clone, FromDynamic, ToDynamic, PartialEq, Eq)]
 pub struct LauncherActionArgs {
@@ -23,7 +23,7 @@ pub struct LauncherActionArgs {
 }
 
 bitflags::bitflags! {
-    #[derive(Default,  FromDynamic, ToDynamic)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, FromDynamic, ToDynamic)]
     #[dynamic(try_from="String", into="String")]
     pub struct LauncherFlags :u32 {
         const ZERO = 0;

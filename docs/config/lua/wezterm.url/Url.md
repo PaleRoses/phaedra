@@ -14,14 +14,14 @@ The `Url` object represents a parsed Url.  It has the following fields:
 * `query` - the query portion of the URL
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local url = wezterm.url.parse 'file://myhost/some/path%20with%20spaces'
+local url = phaedra.url.parse 'file://myhost/some/path%20with%20spaces'
 assert(url.scheme == 'file')
 assert(url.file_path == '/some/path with spaces')
 
 local url =
-  wezterm.url.parse 'https://github.com/rust-lang/rust/issues?labels=E-easy&state=open'
+  phaedra.url.parse 'https://github.com/rust-lang/rust/issues?labels=E-easy&state=open'
 assert(url.scheme == 'https')
 assert(url.username == '')
 assert(url.password == nil)

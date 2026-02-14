@@ -1,10 +1,10 @@
 ---
-title: wezterm.default_hyperlink_rules
+title: phaedra.default_hyperlink_rules
 tags:
  - hyperlink
 ---
 
-# `wezterm.default_hyperlink_rules()`
+# `phaedra.default_hyperlink_rules()`
 
 {{since('20230320-124340-559cb7b0')}}
 

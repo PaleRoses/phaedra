@@ -1,6 +1,6 @@
-# `wezterm set-working-directory`
+# `phaedra set-working-directory`
 
 ```console
-{% include "../examples/cmd-synopsis-wezterm-set-working-directory--help.txt" %}
+{% include "../examples/cmd-synopsis-phaedra-set-working-directory--help.txt" %}
 ```
 

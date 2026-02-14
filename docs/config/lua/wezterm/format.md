@@ -1,31 +1,31 @@
 ---
-title: wezterm.format
+title: phaedra.format
 tags:
  - utility
  - string
 ---
 
-# `wezterm.format({})`
+# `phaedra.format({})`
 
 {{since('20210314-114017-04b7cedd')}}
 
-`wezterm.format` can be used to produce a formatted string
+`phaedra.format` can be used to produce a formatted string
 with terminal graphic attributes such as bold, italic and colors.
-The resultant string is rendered into a string with wezterm
+The resultant string is rendered into a string with phaedra
 compatible escape sequences embedded.
 
-`wezterm.format` accepts a single array argument, where each
+`phaedra.format` accepts a single array argument, where each
 element is a `FormatItem`.
 
 This example logs the text `Hello`, then the date/time, underlined, in purple
-text on a blue background to the stderr of the wezterm process:
+text on a blue background to the stderr of the phaedra process:
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
-local success, date, stderr = wezterm.run_child_process { 'date' }
+local success, date, stderr = phaedra.run_child_process { 'date' }
 
-wezterm.log_info(wezterm.format {
+phaedra.log_info(phaedra.format {
   { Attribute = { Underline = 'Single' } },
   { Foreground = { AnsiColor = 'Fuchsia' } },
   { Background = { Color = 'blue' } },
@@ -39,7 +39,7 @@ Possible values for the `FormatItem` elements are:
 
 * `{Text="Hello"}` - the text `Hello`. The string can be any string expression,
   including escape sequences that are not supported directly by
-  `wezterm.format`.
+  `phaedra.format`.
 * `{Attribute={Underline="None"}}` - disable underline
 * `{Attribute={Underline="Single"}}` - enable single underline
 * `{Attribute={Underline="Double"}}` - enable double underline
@@ -60,8 +60,8 @@ Possible values for the `FormatItem` elements are:
 This example shows how to use arbitrary escape sequences to change the underline color:
 
 ```lua
-local wezterm = require 'wezterm'
-wezterm.log_info(wezterm.format {
+local phaedra = require 'phaedra'
+phaedra.log_info(phaedra.format {
   -- turn on underlines
   { Attribute = { Underline = 'Single' } },
   -- make the underline red

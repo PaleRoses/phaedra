@@ -1,13 +1,13 @@
-# `wezterm.color.load_terminal_sexy_scheme(file_name)`
+# `phaedra.color.load_terminal_sexy_scheme(file_name)`
 
 {{since('20220807-113146-c2fee766')}}
 
 Loads a json file exported from [terminal.sexy](https://terminal.sexy/)
-and returns it as a wezterm color scheme.
+and returns it as a phaedra color scheme.
 
-Note that wezterm ships with all of the pre-defined terminal.sexy color
+Note that phaedra ships with all of the pre-defined terminal.sexy color
 schemes, so this function is primarily useful if you want to design a color
-scheme using terminal.sexy and then import it to wezterm.
+scheme using terminal.sexy and then import it to phaedra.
 
 This function returns a tuple of the the color definitions and the metadata.
 
@@ -43,7 +43,7 @@ For example, given a json file with these contents:
 Then:
 
 ```
-> colors, metadata = wezterm.color.load_terminal_sexy_scheme("/path/to/file.json")
+> colors, metadata = phaedra.color.load_terminal_sexy_scheme("/path/to/file.json")
 > print(colors)
 22:37:10.416 INFO logging > lua: {
     "ansi": [

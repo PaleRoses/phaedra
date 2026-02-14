@@ -1,18 +1,18 @@
 ---
-title: wezterm.executable_dir
+title: phaedra.executable_dir
 tags:
  - filesystem
  - utility
 ---
 
-# `wezterm.executable_dir`
+# `phaedra.executable_dir`
 
-This constant is set to the directory containing the `wezterm`
+This constant is set to the directory containing the `phaedra`
 executable file.
 
 ```lua
-local wezterm = require 'wezterm'
-wezterm.log_error('Exe dir ' .. wezterm.executable_dir)
+local phaedra = require 'phaedra'
+phaedra.log_error('Exe dir ' .. phaedra.executable_dir)
 ```
 
 

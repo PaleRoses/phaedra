@@ -3,7 +3,7 @@ authors = ["Wez Furlong"]
 name = "termwiz"
 version = "0.24.0"
 edition = "2018"
-repository = "https://github.com/wezterm/wezterm"
+repository = "https://github.com/PaleRoses/phaedra"
 description = "Terminal Wizardry for Unix and Windows"
 license = "MIT"
 documentation = "https://docs.rs/termwiz"
@@ -12,7 +12,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true
-bitflags = "2.0"
+bitflags.workspace = true
 cassowary = {workspace=true, optional=true}
 fancy-regex.workspace = true
 filedescriptor.workspace = true
@@ -37,23 +37,23 @@ thiserror.workspace = true
 ucd-trie.workspace = true
 unicode-segmentation.workspace = true
 vtparse.workspace = true
-wezterm-bidi.workspace = true
-wezterm-blob-leases = {workspace=true, optional=true}
-wezterm-cell = {workspace = true, features=["std"]}
-wezterm-char-props.workspace = true
-wezterm-color-types = {workspace = true, features=["std"]}
-wezterm-dynamic = {workspace = true, features=["std"]}
-wezterm-escape-parser = {workspace = true, features=["std"]}
-wezterm-input-types.workspace = true
-wezterm-surface = {workspace = true, features=["std", "appdata"]}
+phaedra-bidi.workspace = true
+phaedra-blob-leases = {workspace=true, optional=true}
+phaedra-cell = {workspace = true, features=["std"]}
+phaedra-char-props.workspace = true
+phaedra-color-types = {workspace = true, features=["std"]}
+phaedra-dynamic = {workspace = true, features=["std"]}
+phaedra-escape-parser = {workspace = true, features=["std"]}
+phaedra-input-types.workspace = true
+phaedra-surface = {workspace = true, features=["std", "appdata"]}
 
 [features]
 default = ["image", "tmux_cc"]
 widgets = ["cassowary", "fnv"]
-use_serde = ["serde", "wezterm-color-types/use_serde", "wezterm-blob-leases/serde", "bitflags/serde", "wezterm-input-types/serde", "wezterm-escape-parser/use_serde", "wezterm-cell/use_serde", "wezterm-surface/use_serde"]
-use_image = ["image", "dep:image", "wezterm-escape-parser/use_image", "wezterm-escape-parser/kitty-shm", "wezterm-cell/use_image", "wezterm-surface/use_image"]
-image = ["sha2", "wezterm-blob-leases", "wezterm-escape-parser/image"]
-tmux_cc = ["pest", "pest_derive", "wezterm-escape-parser/tmux_cc"]
+use_serde = ["serde", "phaedra-color-types/use_serde", "phaedra-blob-leases/serde", "bitflags/serde", "phaedra-input-types/serde", "phaedra-escape-parser/use_serde", "phaedra-cell/use_serde", "phaedra-surface/use_serde"]
+use_image = ["image", "dep:image", "phaedra-escape-parser/use_image", "phaedra-escape-parser/kitty-shm", "phaedra-cell/use_image", "phaedra-surface/use_image"]
+image = ["sha2", "phaedra-blob-leases", "phaedra-escape-parser/image"]
+tmux_cc = ["pest", "pest_derive", "phaedra-escape-parser/tmux_cc"]
 docs = ["widgets", "use_serde", "image", "tmux_cc"]
 
 [dev-dependencies]
@@ -89,4 +89,3 @@ rustdoc-args = ["--cfg", "feature=\"docs\""]
 [[bench]]
 name = "cell"
 harness = false
-

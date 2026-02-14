@@ -1,4 +1,4 @@
-# `wezterm.gui.default_keys()`
+# `phaedra.gui.default_keys()`
 
 {{since('20221119-145034-49b9839f')}}
 

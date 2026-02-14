@@ -20,7 +20,7 @@ use raw_window_handle::{
 };
 use std::any::Any;
 use std::rc::Rc;
-use wezterm_font::FontConfiguration;
+use phaedra_font::FontConfiguration;
 
 pub enum Connection {
     X11(Rc<XConnection>),
@@ -224,22 +224,6 @@ impl HasWindowHandle for Window {
 
 #[async_trait(?Send)]
 impl WindowOps for Window {
-    async fn enable_opengl(&self) -> anyhow::Result<Rc<glium::backend::Context>> {
-        match self {
-            Self::X11(x) => x.enable_opengl().await,
-            #[cfg(feature = "wayland")]
-            Self::Wayland(w) => w.enable_opengl().await,
-        }
-    }
-
-    fn finish_frame(&self, frame: glium::Frame) -> anyhow::Result<()> {
-        match self {
-            Self::X11(x) => x.finish_frame(frame),
-            #[cfg(feature = "wayland")]
-            Self::Wayland(w) => w.finish_frame(frame),
-        }
-    }
-
     fn close(&self) {
         match self {
             Self::X11(x) => x.close(),

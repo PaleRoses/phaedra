@@ -1,6 +1,6 @@
-# `wezterm ssh`
+# `phaedra ssh`
 
 ```console
-{% include "../examples/cmd-synopsis-wezterm-ssh--help.txt" %}
+{% include "../examples/cmd-synopsis-phaedra-ssh--help.txt" %}
 ```
 

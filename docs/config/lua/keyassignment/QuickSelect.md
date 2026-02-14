@@ -5,10 +5,10 @@
 Activates [Quick Select Mode](../../../quickselect.md).
 
 ```lua
-local wezterm = require 'wezterm'
+local phaedra = require 'phaedra'
 
 config.keys = {
-  { key = ' ', mods = 'SHIFT|CTRL', action = wezterm.action.QuickSelect },
+  { key = ' ', mods = 'SHIFT|CTRL', action = phaedra.action.QuickSelect },
 }
 ```
 

@@ -10,9 +10,9 @@ mod csi;
 use crate::color::ColorPalette;
 use k9::assert_equal as assert_eq;
 use std::sync::{Arc, Mutex};
-use wezterm_escape_parser::csi::{Edit, EraseInDisplay, EraseInLine};
-use wezterm_escape_parser::{OneBased, OperatingSystemCommand, CSI};
-use wezterm_surface::{CursorShape, CursorVisibility, SequenceNo, SEQ_ZERO};
+use phaedra_escape_parser::csi::{Edit, EraseInDisplay, EraseInLine};
+use phaedra_escape_parser::{OneBased, OperatingSystemCommand, CSI};
+use phaedra_surface::{CursorShape, CursorVisibility, SequenceNo, SEQ_ZERO};
 
 #[derive(Debug)]
 struct LocalClip {
@@ -72,7 +72,7 @@ impl TestTerm {
                 dpi: 0,
             },
             Arc::new(TestTermConfig { scrollback }),
-            "WezTerm",
+            "Phaedra",
             "O_o",
             Box::new(Vec::new()),
         );
@@ -263,6 +263,7 @@ fn assert_lines_equal(
 }
 
 bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     struct Compare : u8{
         const TEXT = 1;
         const ATTRS = 2;
@@ -312,7 +313,7 @@ fn assert_all_contents(term: &Terminal, file: &str, line: u32, expect_lines: &[&
 
 #[test]
 fn test_semantic_1539() {
-    use wezterm_escape_parser::osc::FinalTermSemanticPrompt;
+    use phaedra_escape_parser::osc::FinalTermSemanticPrompt;
     let mut term = TestTerm::new(5, 10, 0);
     term.print(format!(
         "{}prompt\r\nwoot",
@@ -348,7 +349,7 @@ fn test_semantic_1539() {
 
 #[test]
 fn test_semantic() {
-    use wezterm_escape_parser::osc::FinalTermSemanticPrompt;
+    use phaedra_escape_parser::osc::FinalTermSemanticPrompt;
     let mut term = TestTerm::new(5, 10, 0);
     term.print("hello");
     term.print(format!(
@@ -1127,7 +1128,7 @@ fn test_scroll_margins() {
     term.print("1\n2\n3\n4\n");
     assert_all_contents(&term, file!(), line!(), &["1", "2", "3", "4", ""]);
 
-    let margins = CSI::Cursor(wezterm_escape_parser::csi::Cursor::SetTopAndBottomMargins {
+    let margins = CSI::Cursor(phaedra_escape_parser::csi::Cursor::SetTopAndBottomMargins {
         top: OneBased::new(1),
         bottom: OneBased::new(2),
     });
