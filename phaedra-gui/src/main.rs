@@ -51,6 +51,7 @@ pub mod observers;
 mod overlay;
 mod quad;
 pub mod render_command;
+pub mod render_plan;
 mod renderstate;
 mod resize_increment_calculator;
 mod scripting;

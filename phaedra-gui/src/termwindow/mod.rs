@@ -6,6 +6,7 @@ use crate::colorease::ColorEase;
 use crate::frontend::{front_end, try_front_end};
 use crate::inputmap::InputMap;
 use crate::observers::{PaneLayoutObserver, TransientRenderObserver, WindowGeometryObserver};
+use crate::render_plan::RenderPlan;
 use crate::overlay::{
     confirm_close_pane, confirm_close_tab, confirm_close_window, launcher, start_overlay,
     start_overlay_pane, CopyOverlay, LauncherArgs, LauncherFlags,
@@ -24,8 +25,8 @@ use crate::termwindow::keyevent::{KeyTableArgs, KeyTableState};
 use crate::termwindow::modal::Modal;
 use crate::termwindow::render::paint::AllowImage;
 use crate::termwindow::render::{
-    CachedLineState, LineCommandCacheValue, LineQuadCacheKey, LineQuadCacheValue,
-    LineToEleShapeCacheKey, LineToElementShapeItem,
+    CachedLineState, LineCommandCacheValue, LineQuadCacheKey, LineToEleShapeCacheKey,
+    LineToElementShapeItem,
 };
 use crate::termwindow::webgpu::WebGpuState;
 use ::phaedra_term::input::{ClickPosition, MouseButton as TMB};
@@ -381,6 +382,8 @@ pub struct TermWindow {
     pub mux_window_id_for_subscriptions: Arc<Mutex<MuxWindowId>>,
     pub render_metrics: RenderMetrics,
     render_state: Option<RenderState>,
+    pub render_plan: Option<RenderPlan>,
+    prev_content_hashes: HashMap<PaneId, u64>,
     input_map: InputMap,
     /// If is_some, the LEADER modifier is active until the specified instant.
     leader_is_down: Option<std::time::Instant>,
@@ -428,7 +431,6 @@ pub struct TermWindow {
     line_state_cache: RefCell<LfuCacheU64<Arc<CachedLineState>>>,
     next_line_state_id: Cell<u64>,
 
-    line_quad_cache: RefCell<LfuCache<LineQuadCacheKey, LineQuadCacheValue>>,
     line_command_cache: RefCell<LfuCache<LineQuadCacheKey, LineCommandCacheValue>>,
 
     last_status_call: Instant,
@@ -703,6 +705,8 @@ impl TermWindow {
             pending_scale_changes: LinkedList::new(),
             terminal_size,
             render_state,
+            render_plan: None,
+            prev_content_hashes: HashMap::new(),
             input_map: InputMap::new(&config),
             leader_is_down: None,
             dead_key_status: DeadKeyStatus::None,
@@ -739,12 +743,6 @@ impl TermWindow {
                 &config,
             )),
             next_line_state_id: Cell::new(0),
-            line_quad_cache: RefCell::new(LfuCache::new(
-                "line_quad_cache.hit.rate",
-                "line_quad_cache.miss.rate",
-                |config| config.cache().line_quad_cache_size,
-                &config,
-            )),
             line_command_cache: RefCell::new(LfuCache::new(
                 "line_command_cache.hit.rate",
                 "line_command_cache.miss.rate",
@@ -1278,6 +1276,8 @@ impl TermWindow {
                 }
                 MuxNotification::TabResized(_) => {
                     // Also handled by phaedra-client
+                    self.quad_generation += 1;
+                    self.line_command_cache.borrow_mut().clear();
                     self.update_title_post_status();
                 }
                 MuxNotification::TabTitleChanged { .. } => {
@@ -1650,54 +1650,9 @@ impl TermWindow {
         }
     }
 
-    fn check_for_dirty_lines_and_invalidate_selection(&mut self, pane: &Arc<dyn Pane>) {
-        let dims = pane.get_dimensions();
-        let viewport = self
-            .get_viewport(pane.pane_id())
-            .unwrap_or(dims.physical_top);
-        let visible_range = viewport..viewport + dims.viewport_rows as StableRowIndex;
-        let seqno = self.selection(pane.pane_id()).seqno;
-        let dirty = pane.get_changed_since(visible_range, seqno);
-
-        if dirty.is_empty() {
-            return;
-        }
-        if pane.downcast_ref::<CopyOverlay>().is_none()
-            && pane.downcast_ref::<QuickSelectOverlay>().is_none()
-        {
-            // If any of the changed lines intersect with the
-            // selection, then we need to clear the selection, but not
-            // when the search overlay is active; the search overlay
-            // marks lines as dirty to force invalidate them for
-            // highlighting purpose but also manipulates the selection
-            // and we want to allow it to retain the selection it made!
-
-            let clear_selection =
-                if let Some(selection_range) = self.selection(pane.pane_id()).range.as_ref() {
-                    let selection_rows = selection_range.rows();
-                    selection_rows.into_iter().any(|row| dirty.contains(row))
-                } else {
-                    false
-                };
-
-            if clear_selection {
-                self.selection(pane.pane_id()).range.take();
-                self.selection(pane.pane_id()).origin.take();
-                self.selection(pane.pane_id()).seqno = pane.get_current_seqno();
-            }
-        }
-    }
 }
 
 impl TermWindow {
-    fn palette(&mut self) -> &ColorPalette {
-        if self.palette.is_none() {
-            self.palette
-                .replace(config::TermConfig::new().color_palette());
-        }
-        self.palette.as_ref().unwrap()
-    }
-
     pub fn config_was_reloaded(&mut self) {
         log::debug!(
             "config was reloaded, overrides: {:?}",
@@ -1759,7 +1714,6 @@ impl TermWindow {
             shape_cache.clear();
         }
         self.line_state_cache.borrow_mut().update_config(&config);
-        self.line_quad_cache.borrow_mut().update_config(&config);
         self.line_command_cache.borrow_mut().update_config(&config);
         self.line_to_ele_shape_cache
             .borrow_mut()
@@ -2925,22 +2879,6 @@ impl TermWindow {
                 .as_ref()
                 .map(|overlay| overlay.pane.clone())
                 .or_else(|| Some(pane))
-        }
-    }
-
-    fn get_splits(&mut self) -> Vec<PositionedSplit> {
-        let mux = Mux::get();
-        let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
-            Some(tab) => tab,
-            None => return vec![],
-        };
-
-        let tab_id = tab.tab_id();
-
-        if self.tab_state(tab_id).overlay.is_some() {
-            vec![]
-        } else {
-            tab.iter_splits()
         }
     }
 

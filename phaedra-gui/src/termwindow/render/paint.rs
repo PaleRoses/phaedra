@@ -3,7 +3,6 @@ use crate::execute_render::execute_frame;
 use config::observers::*;
 use ::window::bitmaps::atlas::OutOfTextureSpace;
 use ::window::WindowOps;
-use anyhow::Context;
 use smol::Timer;
 use std::time::{Duration, Instant};
 use phaedra_font::ClearShapeCache;
@@ -166,21 +165,6 @@ impl crate::TermWindow {
         }
     }
 
-    pub fn paint_modal(&mut self) -> anyhow::Result<()> {
-        if let Some(modal) = self.get_modal() {
-            for computed in modal.computed_element(self)?.iter() {
-                let mut ui_items = computed.ui_items();
-
-                let gl_state = self.render_state.as_ref().unwrap();
-                self.render_element(&computed, gl_state, None)?;
-
-                self.ui_items.append(&mut ui_items);
-            }
-        }
-
-        Ok(())
-    }
-
     pub fn paint_pass(&mut self) -> anyhow::Result<()> {
         {
             let gl_state = self.render_state.as_ref().unwrap();
@@ -191,134 +175,38 @@ impl crate::TermWindow {
 
         // Clear out UI item positions; we'll rebuild these as we render
         self.ui_items.clear();
-
-        if self.config.gpu().use_algebraic_render {
-            let panes = self.get_panes_to_render();
-            let focused = self.focused.is_some();
-            for pos in &panes {
-                if pos.is_active {
-                    self.update_text_cursor(pos);
-                    if focused {
-                        pos.pane.advise_focus();
-                        mux::Mux::get().record_focus_for_current_identity(pos.pane.pane_id());
-                    }
-                }
-            }
-
-            let frame = self.describe_frame()?;
-
-            let pixel_dims = (
-                self.dimensions.pixel_width as f32,
-                self.dimensions.pixel_height as f32,
-            );
-            execute_frame(&frame, self.render_state.as_ref().unwrap(), pixel_dims)?;
-            self.ui_items = frame.ui_items;
-            return Ok(());
-        }
+        self.render_plan = None;
 
         let panes = self.get_panes_to_render();
         let focused = self.focused.is_some();
-        let window_is_transparent = !self.window_background.is_empty();
-
-        let start = Instant::now();
-        let gl_state = self.render_state.as_ref().unwrap();
-        let layer = gl_state
-            .layer_for_zindex(0)
-            .context("layer_for_zindex(0)")?;
-        let mut layers = layer.quad_allocator();
-        log::trace!("quad map elapsed {:?}", start.elapsed());
-        metrics::histogram!("quad.map").record(start.elapsed());
-
-        let mut paint_terminal_background = false;
-
-        // Render the full window background
-        match (self.window_background.is_empty(), self.allow_images) {
-            (false, AllowImage::Yes | AllowImage::Scale(_)) => {
-                let bg_color = self.palette().background.to_linear();
-
-                let top = panes
-                    .iter()
-                    .find(|p| p.is_active)
-                    .map(|p| match self.get_viewport(p.pane.pane_id()) {
-                        Some(top) => top,
-                        None => p.pane.get_dimensions().physical_top,
-                    })
-                    .unwrap_or(0);
-
-                let loaded_any = self
-                    .render_backgrounds(bg_color, top)
-                    .context("render_backgrounds")?;
-
-                if !loaded_any {
-                    // Either there was a problem loading the background(s)
-                    // or they haven't finished loading yet.
-                    // Use the regular terminal background until that changes.
-                    paint_terminal_background = true;
-                }
-            }
-            _ if window_is_transparent => {
-                // Avoid doubling up the background color: the panes
-                // will render out through the padding so there
-                // should be no gaps that need filling in
-            }
-            _ => {
-                paint_terminal_background = true;
-            }
-        }
-
-        if paint_terminal_background {
-            // Regular window background color
-            let background = if panes.len() == 1 {
-                // If we're the only pane, use the pane's palette
-                // to draw the padding background
-                panes[0].pane.palette().background
-            } else {
-                self.palette().background
-            }
-            .to_linear()
-            .mul_alpha(1.0);
-
-            self.filled_rectangle(
-                &mut layers,
-                0,
-                euclid::rect(
-                    0.,
-                    0.,
-                    self.dimensions.pixel_width as f32,
-                    self.dimensions.pixel_height as f32,
-                ),
-                background,
-            )
-            .context("filled_rectangle for window background")?;
-        }
-
-        for pos in panes {
+        for pos in &panes {
             if pos.is_active {
-                self.update_text_cursor(&pos);
+                self.update_text_cursor(pos);
                 if focused {
                     pos.pane.advise_focus();
                     mux::Mux::get().record_focus_for_current_identity(pos.pane.pane_id());
                 }
             }
-            self.paint_pane(&pos, &mut layers).context("paint_pane")?;
         }
 
-        if let Some(pane) = self.get_active_pane_or_overlay() {
-            let splits = self.get_splits();
-            for split in &splits {
-                self.paint_split(&mut layers, split, &pane)
-                    .context("paint_split")?;
-            }
+        let frame = self.describe_frame()?;
+        let pixel_dims = (
+            self.dimensions.pixel_width as f32,
+            self.dimensions.pixel_height as f32,
+        );
+        let plan = execute_frame(
+            &frame,
+            self.render_state.as_ref().unwrap(),
+            pixel_dims,
+            &self.prev_content_hashes,
+        )?;
+        self.render_plan = Some(plan);
+        self.prev_content_hashes.clear();
+        for pane_frame in &frame.panes {
+            self.prev_content_hashes
+                .insert(pane_frame.pane_id, pane_frame.content_hash);
         }
-
-        if self.show_tab_bar {
-            self.paint_tab_bar(&mut layers).context("paint_tab_bar")?;
-        }
-
-        self.paint_window_borders(&mut layers)
-            .context("paint_window_borders")?;
-        drop(layers);
-        self.paint_modal().context("paint_modal")?;
+        self.ui_items = frame.ui_items;
 
         Ok(())
     }

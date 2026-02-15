@@ -1,6 +1,61 @@
 use crate::termwindow::webgpu::{PostProcessUniform, ShaderUniform};
 use config::observers::*;
 
+const INDICES_PER_QUAD: usize = 6;
+
+fn quad_count_for_snapshot(
+    snapshots: &[crate::render_plan::LayerQuadSnapshot],
+    zindex: i8,
+    sub_idx: usize,
+) -> usize {
+    snapshots
+        .iter()
+        .find(|snapshot| snapshot.zindex == zindex && snapshot.sub_idx == sub_idx)
+        .map(|snapshot| snapshot.quad_count)
+        .unwrap_or(0)
+}
+
+fn draw_layer_sections(
+    render_pass: &mut wgpu::RenderPass<'_>,
+    render_plan: &crate::render_plan::RenderPlan,
+    zindex: i8,
+    sub_idx: usize,
+    fallback_index_count: usize,
+) {
+    let mut drew = false;
+    let mut has_range = false;
+    for section in &render_plan.sections {
+        let start_quad = quad_count_for_snapshot(&section.quad_range.start, zindex, sub_idx);
+        let end_quad = quad_count_for_snapshot(&section.quad_range.end, zindex, sub_idx);
+        if end_quad <= start_quad {
+            continue;
+        }
+        has_range = true;
+
+        if let Some(scissor) = &section.scissor {
+            if scissor.width == 0 || scissor.height == 0 {
+                continue;
+            }
+            render_pass.set_scissor_rect(scissor.x, scissor.y, scissor.width, scissor.height);
+        } else if render_plan.viewport_width > 0 && render_plan.viewport_height > 0 {
+            render_pass.set_scissor_rect(0, 0, render_plan.viewport_width, render_plan.viewport_height);
+        } else {
+            continue;
+        }
+
+        render_pass.draw_indexed(
+            (start_quad * INDICES_PER_QUAD) as u32..(end_quad * INDICES_PER_QUAD) as u32,
+            0,
+            0..1,
+        );
+        drew = true;
+    }
+
+    if !drew && !has_range && fallback_index_count > 0 {
+        render_pass.draw_indexed(0..fallback_index_count as u32, 0, 0..1);
+    }
+}
+
 impl crate::TermWindow {
     pub fn call_draw(&mut self) -> anyhow::Result<()> {
         self.call_draw_webgpu()
@@ -11,6 +66,7 @@ impl crate::TermWindow {
 
         let webgpu = self.webgpu.as_mut().unwrap();
         let render_state = self.render_state.as_ref().unwrap();
+        let render_plan = self.render_plan.as_ref();
 
         let has_postprocess = webgpu.has_postprocess();
         let width = self.dimensions.pixel_width as u32;
@@ -150,7 +206,17 @@ impl crate::TermWindow {
                     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                     render_pass
                         .set_index_buffer(vb.indices.webgpu().slice(..), wgpu::IndexFormat::Uint32);
-                    render_pass.draw_indexed(0..index_count as _, 0, 0..1);
+                    if let Some(render_plan) = render_plan {
+                        draw_layer_sections(
+                            &mut render_pass,
+                            render_plan,
+                            layer.zindex(),
+                            idx,
+                            index_count,
+                        );
+                    } else {
+                        render_pass.draw_indexed(0..index_count as u32, 0, 0..1);
+                    }
                 }
 
                 vb.next_index();

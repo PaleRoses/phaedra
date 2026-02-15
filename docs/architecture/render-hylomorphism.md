@@ -50,7 +50,7 @@ Both caches must be migrated. A big-bang replacement would require migrating bot
 
 **Step 2:** Build `execute_frame()` / `execute_commands()` that walks `Frame` / `Vec<RenderCommand>` and writes quads. This is a mechanical translator from `RenderCommand` to `QuadTrait` mutations.
 
-**Step 3:** Add a runtime config flag `use_algebraic_render` (default `false`). In `paint_pass()`, branch between the old imperative path and the new `execute_frame(describe_frame(self))` path. Both paths go through the same `paint_impl` retry loop and the same `call_draw_webgpu()`.
+**Step 3:** Add a temporary runtime gate in `paint_pass()` to branch between the old imperative path and the new `execute_frame(describe_frame(self))` path. Both paths go through the same `paint_impl` retry loop and the same `call_draw_webgpu()`.
 
 **Step 4:** Validate. Run both paths side by side in CI or testing. Add a debug mode that runs both paths and compares quad counts per layer.
 
@@ -62,7 +62,7 @@ Because the functions are not independently replaceable. `paint_pane` calls `ren
 
 ### Why Not Big-Bang?
 
-Because the render pipeline is the single most visible system in the application. Any regression means a broken screen. The dual-path approach means the old pipeline continues to work throughout development. The config flag provides an escape hatch in production.
+Because the render pipeline is the single most visible system in the application. Any regression means a broken screen. The dual-path approach means the old pipeline continues to work throughout development. The temporary runtime gate provides an escape hatch in production.
 
 ---
 
@@ -1130,17 +1130,7 @@ Key design decisions in the executor:
 
 **File:** `src/termwindow/render/paint.rs`
 
-Add a config flag (in gpu config, via `GpuObserver`):
-
-```rust
-// In config/src/gpu_config.rs
-pub struct GpuConfig {
-    // ... existing fields ...
-    pub use_algebraic_render: bool,  // default: false
-}
-```
-
-Modify `paint_pass` to branch:
+Add a temporary runtime gate in `paint_pass` to branch:
 
 ```rust
 pub fn paint_pass(&mut self) -> anyhow::Result<()> {
@@ -1152,7 +1142,7 @@ pub fn paint_pass(&mut self) -> anyhow::Result<()> {
     }
     self.ui_items.clear();
 
-    if self.config.gpu().use_algebraic_render {
+    if enable_algebraic_path {
         let frame = self.describe_frame()?;
         let render_state = self.render_state.as_ref().unwrap();
         let pixel_dims = (
@@ -1235,9 +1225,9 @@ Also add `self.line_quad_cache.borrow_mut().clear()` to `recreate_texture_atlas(
 - `src/termwindow/render/tab_bar.rs` — remove `paint_tab_bar`, keep `describe_tab_bar`
 - `src/termwindow/box_model.rs` — remove `render_element`, keep `describe_element`
 - `src/quad.rs` — `HeapQuadAllocator` can be simplified or removed since the command cache replaces it
-- Config: remove `use_algebraic_render` flag, algebraic path is now the only path
+- Config/runtime: remove the temporary gate, algebraic path is now the only path
 
-*Depends on: Phase 5, plus sufficient validation time with `use_algebraic_render = true`*
+*Depends on: Phase 5, plus sufficient validation time with the algebraic path enabled*
 
 ---
 

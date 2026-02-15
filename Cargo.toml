@@ -11,9 +11,11 @@ members = [
   "phaedra-escape-parser",
   "phaedra-dynamic",
   "phaedra-gui",
+  "phaedra-hash-cons",
   "phaedra-unicode-data",
   "phaedra-mux-server",
   "phaedra-open-url",
+  "phaedra-render-command",
   "phaedra-ssh",
   "phaedra-surface",
 ]
@@ -232,9 +234,11 @@ phaedra-dynamic-derive = { version="0.1.1", path="phaedra-dynamic/derive" }
 phaedra-escape-parser = { version="0.1.0", path="phaedra-escape-parser" }
 phaedra-font = { path = "phaedra-font" }
 phaedra-gui-subcommands = { path = "phaedra-gui-subcommands" }
+phaedra-hash-cons = { path = "phaedra-hash-cons" }
 phaedra-input-types = { version="0.1", path = "phaedra-input-types", default-features=false }
 phaedra-mux-server-impl = { path = "phaedra-mux-server-impl" }
 phaedra-open-url = { path = "phaedra-open-url" }
+phaedra-render-command = { path = "phaedra-render-command" }
 phaedra-ssh = { path = "phaedra-ssh" }
 phaedra-surface = { path = "phaedra-surface" }
 phaedra-term = { path = "term" }

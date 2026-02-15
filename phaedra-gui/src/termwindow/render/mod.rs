@@ -3,8 +3,7 @@ use config::observers::*;
 use crate::customglyph::{BlockKey, *};
 use crate::glyphcache::{CachedGlyph, GlyphCache};
 use crate::quad::{
-    HeapQuadAllocator, QuadAllocator, QuadImpl, QuadTrait, TripleLayerQuadAllocator,
-    TripleLayerQuadAllocatorTrait,
+    QuadAllocator, QuadImpl, QuadTrait, TripleLayerQuadAllocator, TripleLayerQuadAllocatorTrait,
 };
 use crate::render_command::RenderCommand;
 use crate::shapecache::*;
@@ -44,7 +43,6 @@ pub mod fancy_tab_bar;
 pub mod paint;
 pub mod pane;
 pub mod screen_line;
-pub mod split;
 pub mod tab_bar;
 pub mod window_buttons;
 
@@ -61,6 +59,8 @@ pub struct LineQuadCacheKey {
     pub config_generation: usize,
     pub shape_generation: usize,
     pub quad_generation: usize,
+    pub pane_width: usize,
+    pub pane_left: usize,
     /// Only set if cursor.y == stable_row
     pub composing: Option<String>,
     pub selection: Range<usize>,
@@ -75,15 +75,6 @@ pub struct LineQuadCacheKey {
     pub cursor: Option<CursorProperties>,
     pub reverse_video: bool,
     pub password_input: bool,
-}
-
-pub struct LineQuadCacheValue {
-    pub expires: Option<Instant>,
-    pub layers: HeapQuadAllocator,
-    // Only set if the line contains any hyperlinks, so
-    // that we can invalidate when it changes
-    pub current_highlight: Option<Arc<Hyperlink>>,
-    pub invalidate_on_hover_change: bool,
 }
 
 pub struct LineCommandCacheValue {

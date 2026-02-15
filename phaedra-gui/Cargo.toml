@@ -95,6 +95,7 @@ phaedra-font.workspace = true
 phaedra-gui-subcommands.workspace = true
 phaedra-mux-server-impl.workspace = true
 phaedra-open-url.workspace = true
+phaedra-render-command.workspace = true
 phaedra-ssh.workspace = true
 phaedra-term.workspace = true
 phaedra-toast-notification.workspace = true

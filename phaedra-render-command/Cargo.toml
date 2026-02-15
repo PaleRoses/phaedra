@@ -1,0 +1,13 @@
+[package]
+name = "phaedra-render-command"
+version = "0.1.0"
+authors = ["PaleRoses"]
+edition = "2018"
+repository = "https://github.com/PaleRoses/phaedra"
+description = "Render command free algebra for Phaedra terminal"
+license = "MIT"
+publish = false
+
+[dependencies]
+euclid.workspace = true
+phaedra-color-types = { workspace = true, features = ["std"] }

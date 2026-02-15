@@ -4208,6 +4208,7 @@ dependencies = [
  "phaedra-gui-subcommands",
  "phaedra-mux-server-impl",
  "phaedra-open-url",
+ "phaedra-render-command",
  "phaedra-ssh",
  "phaedra-term",
  "phaedra-toast-notification",
@@ -4248,6 +4249,10 @@ dependencies = [
  "clap",
  "config",
 ]
+
+[[package]]
+name = "phaedra-hash-cons"
+version = "0.1.0"
 
 [[package]]
 name = "phaedra-input-types"
@@ -4312,6 +4317,14 @@ dependencies = [
 [[package]]
 name = "phaedra-open-url"
 version = "0.1.0"
+
+[[package]]
+name = "phaedra-render-command"
+version = "0.1.0"
+dependencies = [
+ "euclid",
+ "phaedra-color-types",
+]
 
 [[package]]
 name = "phaedra-ssh"

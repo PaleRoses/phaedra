@@ -560,6 +560,8 @@ impl crate::TermWindow {
                 let shape_hash = self.term_window.shape_hash_for_line(line);
                 let quad_key = LineQuadCacheKey {
                     pane_id: self.pos.pane.pane_id(),
+                    pane_width: self.pos.width,
+                    pane_left: self.pos.left,
                     password_input,
                     pane_is_active: self.pos.is_active,
                     config_generation: self.term_window.config.generation(),
@@ -731,10 +733,19 @@ impl crate::TermWindow {
         }
 
         commands.append(&mut line_describer.commands);
+        // DIAGNOSTIC: clip_to_rect disabled to isolate rendering bug
+        // let commands: Vec<RenderCommand> = commands
+        //     .into_iter()
+        //     .map(|cmd| cmd.clip_to_rect(&background_rect))
+        //     .filter(|cmd| !matches!(cmd, RenderCommand::Nop))
+        //     .collect();
+        let content_hash = RenderCommand::content_hash(&commands);
 
         Ok(PaneFrame {
             pane_id,
             is_active: pos.is_active,
+            bounds: background_rect,
+            content_hash,
             commands,
             ui_items,
         })

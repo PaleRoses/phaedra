@@ -1,18 +1,26 @@
 use crate::frame::{ChromeFrame, Frame, PaneFrame};
 use crate::quad::{QuadTrait, TripleLayerQuadAllocatorTrait};
 use crate::render_command::{HsbTransform as CmdHsbTransform, QuadMode, RenderCommand};
+use crate::render_plan::{snapshot_layers, QuadRange, RenderPlan, RenderSection, ScissorRect};
 use crate::renderstate::RenderState;
+use mux::pane::PaneId;
+use std::collections::HashMap;
 use ::window::bitmaps::TextureRect;
 
 pub fn execute_frame(
     frame: &Frame,
     render_state: &RenderState,
     pixel_dims: (f32, f32),
-) -> anyhow::Result<()> {
+    prev_content_hashes: &HashMap<PaneId, u64>,
+) -> anyhow::Result<RenderPlan> {
     let left_offset = pixel_dims.0 / 2.0;
     let top_offset = pixel_dims.1 / 2.0;
+    let viewport_width = pixel_dims.0.max(0.0) as u32;
+    let viewport_height = pixel_dims.1.max(0.0) as u32;
     let filled_box = render_state.util_sprites.filled_box.texture_coords();
+    let mut render_plan = RenderPlan::new(viewport_width, viewport_height);
 
+    let background_start = snapshot_layers(render_state);
     execute_commands(
         &frame.background,
         render_state,
@@ -20,11 +28,40 @@ pub fn execute_frame(
         top_offset,
         &filled_box,
     )?;
+    let background_end = snapshot_layers(render_state);
+    render_plan.sections.push(RenderSection {
+        scissor: None,
+        content_hash: 0,
+        quad_range: QuadRange {
+            start: background_start,
+            end: background_end,
+        },
+        skippable: false,
+    });
 
     for pane_frame in &frame.panes {
+        let skippable = prev_content_hashes
+            .get(&pane_frame.pane_id)
+            .map_or(false, |previous| *previous == pane_frame.content_hash);
+        let pane_start = snapshot_layers(render_state);
         execute_pane_frame(pane_frame, render_state, left_offset, top_offset, &filled_box)?;
+        let pane_end = snapshot_layers(render_state);
+        render_plan.sections.push(RenderSection {
+            scissor: Some(ScissorRect::from_pane_bounds(
+                &pane_frame.bounds,
+                viewport_width,
+                viewport_height,
+            )),
+            content_hash: pane_frame.content_hash,
+            quad_range: QuadRange {
+                start: pane_start,
+                end: pane_end,
+            },
+            skippable,
+        });
     }
 
+    let chrome_start = snapshot_layers(render_state);
     execute_chrome_frame(
         &frame.chrome,
         render_state,
@@ -32,8 +69,26 @@ pub fn execute_frame(
         top_offset,
         &filled_box,
     )?;
+    let chrome_end = snapshot_layers(render_state);
+    render_plan.sections.push(RenderSection {
+        scissor: None,
+        content_hash: 0,
+        quad_range: QuadRange {
+            start: chrome_start,
+            end: chrome_end,
+        },
+        skippable: false,
+    });
 
-    Ok(())
+    let pane_section_count = render_plan.pane_section_count();
+    let skippable_pane_section_count = render_plan.skippable_pane_section_count();
+    log::trace!(
+        "render plan: {}/{} pane sections skippable",
+        skippable_pane_section_count,
+        pane_section_count
+    );
+
+    Ok(render_plan)
 }
 
 fn execute_pane_frame(

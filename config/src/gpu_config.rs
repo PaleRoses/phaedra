@@ -19,8 +19,6 @@ pub struct GpuConfig {
     pub webgpu_shader_fps: u8,
     #[dynamic(default = "default_max_fps")]
     pub max_fps: u64,
-    #[dynamic(default)]
-    pub use_algebraic_render: bool,
 }
 
 impl Default for GpuConfig {
@@ -33,7 +31,6 @@ impl Default for GpuConfig {
             webgpu_shader: None,
             webgpu_shader_fps: default_webgpu_shader_fps(),
             max_fps: default_max_fps(),
-            use_algebraic_render: false,
         }
     }
 }

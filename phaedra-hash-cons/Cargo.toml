@@ -1,0 +1,10 @@
+[package]
+name = "phaedra-hash-cons"
+version = "0.1.0"
+authors = ["PaleRoses"]
+edition = "2018"
+repository = "https://github.com/PaleRoses/phaedra"
+license = "MIT"
+publish = false
+
+[dependencies]

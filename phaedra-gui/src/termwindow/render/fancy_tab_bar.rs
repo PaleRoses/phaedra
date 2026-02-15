@@ -5,7 +5,7 @@ use crate::termwindow::box_model::*;
 use crate::termwindow::render::corners::*;
 
 use crate::termwindow::render::window_buttons::window_button_element;
-use crate::termwindow::{UIItem, UIItemType};
+use crate::termwindow::UIItemType;
 use crate::utilsprites::RenderMetrics;
 use config::{Dimension, DimensionContext, TabBarColors};
 use std::rc::Rc;
@@ -459,17 +459,6 @@ impl crate::TermWindow {
         Ok(computed)
     }
 
-    pub fn paint_fancy_tab_bar(&self) -> anyhow::Result<Vec<UIItem>> {
-        let computed = self.fancy_tab_bar.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("paint_fancy_tab_bar called but fancy_tab_bar is None")
-        })?;
-        let ui_items = computed.ui_items();
-
-        let gl_state = self.render_state.as_ref().unwrap();
-        self.render_element(&computed, gl_state, None)?;
-
-        Ok(ui_items)
-    }
 }
 
 fn make_x_button(

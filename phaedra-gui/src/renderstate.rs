@@ -264,6 +264,10 @@ impl TripleVertexBuffer {
         *self.next_quad.borrow_mut() = 0;
     }
 
+    pub fn current_quad_count(&self) -> usize {
+        *self.next_quad.borrow()
+    }
+
     pub fn need_more_quads(&self) -> Option<usize> {
         let next = *self.next_quad.borrow();
         if next > self.capacity {
@@ -361,6 +365,10 @@ impl RenderLayer {
 
     pub fn need_more_quads(&self, vb_idx: usize) -> Option<usize> {
         self.vb.borrow()[vb_idx].need_more_quads()
+    }
+
+    pub fn zindex(&self) -> i8 {
+        self.zindex
     }
 
     pub fn reallocate_quads(&self, idx: usize, num_quads: usize) -> anyhow::Result<()> {

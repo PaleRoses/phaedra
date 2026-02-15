@@ -1,0 +1,88 @@
+use phaedra_render_command::RectF;
+
+#[derive(Debug, Clone)]
+pub struct ScissorRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl ScissorRect {
+    pub fn from_pane_bounds(bounds: &RectF, viewport_width: u32, viewport_height: u32) -> Self {
+        let x = bounds.origin.x.max(0.0) as u32;
+        let y = bounds.origin.y.max(0.0) as u32;
+        let right = (bounds.origin.x + bounds.size.width).min(viewport_width as f32) as u32;
+        let bottom = (bounds.origin.y + bounds.size.height).min(viewport_height as f32) as u32;
+        Self {
+            x,
+            y,
+            width: right.saturating_sub(x),
+            height: bottom.saturating_sub(y),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LayerQuadSnapshot {
+    pub zindex: i8,
+    pub sub_idx: usize,
+    pub quad_count: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct QuadRange {
+    pub start: Vec<LayerQuadSnapshot>,
+    pub end: Vec<LayerQuadSnapshot>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RenderSection {
+    pub scissor: Option<ScissorRect>,
+    pub content_hash: u64,
+    pub quad_range: QuadRange,
+    pub skippable: bool,
+}
+
+#[derive(Debug)]
+pub struct RenderPlan {
+    pub sections: Vec<RenderSection>,
+    pub viewport_width: u32,
+    pub viewport_height: u32,
+}
+
+impl RenderPlan {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self {
+            sections: Vec::new(),
+            viewport_width: width,
+            viewport_height: height,
+        }
+    }
+
+    pub fn pane_section_count(&self) -> usize {
+        self.sections.iter().filter(|section| section.scissor.is_some()).count()
+    }
+
+    pub fn skippable_pane_section_count(&self) -> usize {
+        self.sections
+            .iter()
+            .filter(|section| section.scissor.is_some() && section.skippable)
+            .count()
+    }
+}
+
+pub fn snapshot_layers(render_state: &crate::renderstate::RenderState) -> Vec<LayerQuadSnapshot> {
+    let layers = render_state.layers.borrow();
+    let mut snaps = Vec::new();
+    for layer in layers.iter() {
+        for sub_idx in 0..3 {
+            snaps.push(LayerQuadSnapshot {
+                zindex: layer.zindex(),
+                sub_idx,
+                quad_count: layer.vb.borrow()[sub_idx].current_quad_count(),
+            });
+        }
+    }
+    snaps
+}

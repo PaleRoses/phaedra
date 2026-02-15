@@ -12,6 +12,8 @@ pub struct PostProcessParams {
 pub struct PaneFrame {
     pub pane_id: PaneId,
     pub is_active: bool,
+    pub bounds: phaedra_render_command::RectF,
+    pub content_hash: u64,
     pub commands: Vec<RenderCommand>,
     pub ui_items: Vec<UIItem>,
 }
