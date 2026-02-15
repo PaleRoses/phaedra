@@ -385,6 +385,7 @@ pub struct TermWindow {
     render_state: Option<RenderState>,
     pub render_plan: Option<RenderPlan>,
     prev_pane_frames: HashMap<PaneId, PaneFrame>,
+    prev_pane_order: Vec<PaneId>,
     input_map: InputMap,
     /// If is_some, the LEADER modifier is active until the specified instant.
     leader_is_down: Option<std::time::Instant>,
@@ -710,6 +711,7 @@ impl TermWindow {
             render_state,
             render_plan: None,
             prev_pane_frames: HashMap::new(),
+            prev_pane_order: Vec::new(),
             input_map: InputMap::new(&config),
             leader_is_down: None,
             dead_key_status: DeadKeyStatus::None,

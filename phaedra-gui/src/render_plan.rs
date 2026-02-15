@@ -36,7 +36,7 @@ pub struct QuadRange {
     pub end: Vec<LayerQuadSnapshot>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ExecutionStats {
     pub quads_emitted: usize,
     pub fills_emitted: usize,

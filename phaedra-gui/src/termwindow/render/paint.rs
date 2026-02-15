@@ -80,6 +80,10 @@ impl crate::TermWindow {
                         }
                         self.invalidate_fancy_tab_bar();
                         self.invalidate_modal();
+                        self.prev_pane_frames.clear();
+                        if let Some(render_state) = self.render_state.as_ref() {
+                            *render_state.prev_frame_buffers.borrow_mut() = None;
+                        }
                     }
                     Err(err) => {
                         log::error!("{:#}", err);
@@ -103,6 +107,10 @@ impl crate::TermWindow {
                         };
                         self.invalidate_fancy_tab_bar();
                         self.invalidate_modal();
+                        self.prev_pane_frames.clear();
+                        if let Some(render_state) = self.render_state.as_ref() {
+                            *render_state.prev_frame_buffers.borrow_mut() = None;
+                        }
 
                         if let Err(err) = result {
                             self.allow_images = match self.allow_images {
@@ -259,7 +267,8 @@ impl crate::TermWindow {
 
         let mut new_pane_frames = std::collections::HashMap::with_capacity(panes.len());
         let previous_frame = render_state.prev_frame_buffers.borrow();
-        let mut pane_skip_chain_valid = true;
+        let current_pane_order: Vec<_> = panes.iter().map(|pane| pane.pane.pane_id()).collect();
+        let mut pane_skip_chain_valid = self.prev_pane_order == current_pane_order;
         let mut cofree = CofreeContext::new();
 
         for pos in &panes {
@@ -309,6 +318,17 @@ impl crate::TermWindow {
             let outcome = if let Some(prior_quad_range) = prior_quad_range.as_ref() {
                 advance_quad_counts_for_range(render_state, prior_quad_range)?;
                 SectionOutcome::Skipped
+            } else if candidate_skippable {
+                execute_commands(
+                    &pane_frame.commands,
+                    render_state,
+                    left_offset,
+                    top_offset,
+                    &filled_box,
+                )?;
+                SectionOutcome::Executed {
+                    stats: pane_frame.last_execution_stats.unwrap_or_default(),
+                }
             } else {
                 let history = execute_commands_with_history(
                     &pane_frame.commands,
@@ -453,6 +473,7 @@ impl crate::TermWindow {
 
         self.render_plan = Some(plan);
         self.prev_pane_frames = new_pane_frames;
+        self.prev_pane_order = current_pane_order;
         self.ui_items = ui_items;
 
         Ok(())

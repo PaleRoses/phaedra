@@ -1,4 +1,4 @@
-use crate::frame::{ChromeFrame, Frame, PaneFrame, PostProcessParams};
+use crate::frame::PaneFrame;
 use crate::render_command::{HsbTransform as CmdHsbTransform, RectF, RenderCommand};
 use crate::selection::{SelectionRange, SelectionX};
 use crate::termwindow::render::paint::AllowImage;
@@ -937,90 +937,4 @@ impl crate::TermWindow {
         Ok((commands, ui_items))
     }
 
-    pub fn describe_frame(&self) -> anyhow::Result<Frame> {
-        let panes = self.get_panes_to_render();
-        let background = self.describe_window_background(&panes)?;
-
-        let mut pane_frames = Vec::with_capacity(panes.len());
-        let mut ui_items = Vec::new();
-
-        for pos in &panes {
-            let pane_id = pos.pane.pane_id();
-            let current_viewport = self.get_viewport(pane_id);
-            let snapshot = pos.pane.snapshot_for_render(current_viewport);
-            let terminal_hash = snapshot.content_hash();
-            let cache_key = self.pane_describe_cache_key(pane_id, pos, terminal_hash);
-
-            let pane_frame = if let Some(cached) = self.prev_pane_frames.get(&pane_id) {
-                if cached.cache_key == cache_key {
-                    log::trace!("pane {pane_id}: futumorphic skip (describe seed unchanged)");
-                    cached.clone()
-                } else {
-                    self.describe_pane_with_snapshot(pos, snapshot, cache_key)?
-                }
-            } else {
-                self.describe_pane_with_snapshot(pos, snapshot, cache_key)?
-            };
-            ui_items.extend(pane_frame.ui_items.iter().cloned());
-            pane_frames.push(pane_frame);
-        }
-
-        let mut split_commands = Vec::new();
-        let mut split_ui_items = Vec::new();
-
-        if let Some(pane) = self.get_active_pane_or_overlay() {
-            let splits = {
-                let mux = mux::Mux::get();
-                match mux.get_active_tab_for_window(self.mux_window_id) {
-                    Some(tab) => {
-                        let tab_id = tab.tab_id();
-                        if self.tab_state(tab_id).overlay.is_some() {
-                            vec![]
-                        } else {
-                            tab.iter_splits()
-                        }
-                    }
-                    None => vec![],
-                }
-            };
-
-            for split in &splits {
-                let (mut commands, mut items) = self.describe_split(split, &pane);
-                split_commands.append(&mut commands);
-                split_ui_items.append(&mut items);
-            }
-        }
-
-        let (tab_bar, tab_bar_ui_items) = if self.show_tab_bar {
-            self.describe_tab_bar()?
-        } else {
-            (Vec::new(), Vec::new())
-        };
-
-        let borders = self.describe_window_borders();
-        let (modal, modal_ui_items) = self.describe_modal()?;
-
-        ui_items.extend(split_ui_items.iter().cloned());
-        ui_items.extend(tab_bar_ui_items.iter().cloned());
-        ui_items.extend(modal_ui_items.iter().cloned());
-
-        let chrome = ChromeFrame {
-            tab_bar,
-            tab_bar_ui_items,
-            splits: split_commands,
-            split_ui_items,
-            borders,
-            modal,
-            modal_ui_items,
-        };
-        let postprocess: Option<PostProcessParams> = None;
-
-        Ok(Frame {
-            background,
-            panes: pane_frames,
-            chrome,
-            postprocess,
-            ui_items,
-        })
-    }
 }
