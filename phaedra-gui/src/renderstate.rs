@@ -268,6 +268,10 @@ impl TripleVertexBuffer {
         *self.next_quad.borrow()
     }
 
+    pub fn advance_quad_count(&self, count: usize) {
+        *self.next_quad.borrow_mut() += count;
+    }
+
     pub fn need_more_quads(&self) -> Option<usize> {
         let next = *self.next_quad.borrow();
         if next > self.capacity {
@@ -442,11 +446,49 @@ impl TripleLayerQuadAllocatorTrait for BorrowedLayers {
     }
 }
 
+#[derive(Default)]
+pub struct FrameBuffers {
+    pub buffers: Vec<(i8, usize, wgpu::Buffer)>,
+    pub section_ranges: Vec<crate::render_plan::QuadRange>,
+}
+
+impl FrameBuffers {
+    pub fn buffer(&self, zindex: i8, sub_idx: usize) -> Option<&wgpu::Buffer> {
+        self.buffers
+            .iter()
+            .find(|(z, s, _)| *z == zindex && *s == sub_idx)
+            .map(|(_, _, buffer)| buffer)
+    }
+
+    pub fn section_quad_range(
+        &self,
+        section_idx: usize,
+        zindex: i8,
+        sub_idx: usize,
+    ) -> Option<(usize, usize)> {
+        let section = self.section_ranges.get(section_idx)?;
+        let start_quad = section
+            .start
+            .iter()
+            .find(|snapshot| snapshot.zindex == zindex && snapshot.sub_idx == sub_idx)
+            .map(|snapshot| snapshot.quad_count)
+            .unwrap_or(0);
+        let end_quad = section
+            .end
+            .iter()
+            .find(|snapshot| snapshot.zindex == zindex && snapshot.sub_idx == sub_idx)
+            .map(|snapshot| snapshot.quad_count)
+            .unwrap_or(0);
+        (end_quad > start_quad).then_some((start_quad, end_quad))
+    }
+}
+
 pub struct RenderState {
     pub context: RenderContext,
     pub glyph_cache: RefCell<GlyphCache>,
     pub util_sprites: UtilSprites,
     pub layers: RefCell<Vec<Rc<RenderLayer>>>,
+    pub prev_frame_buffers: RefCell<Option<FrameBuffers>>,
 }
 
 impl RenderState {
@@ -468,6 +510,7 @@ impl RenderState {
                         glyph_cache,
                         util_sprites,
                         layers: RefCell::new(vec![main_layer]),
+                        prev_frame_buffers: RefCell::new(None),
                     });
                 }
                 Err(OutOfTextureSpace {

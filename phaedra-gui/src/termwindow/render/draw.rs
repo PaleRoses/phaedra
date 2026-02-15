@@ -1,18 +1,17 @@
 use crate::termwindow::webgpu::{PostProcessUniform, ShaderUniform};
+use crate::render_plan::quad_count_for_snapshot;
 use config::observers::*;
 
 const INDICES_PER_QUAD: usize = 6;
 
-fn quad_count_for_snapshot(
-    snapshots: &[crate::render_plan::LayerQuadSnapshot],
+fn quad_range_for_section(
+    range: &crate::render_plan::QuadRange,
     zindex: i8,
     sub_idx: usize,
-) -> usize {
-    snapshots
-        .iter()
-        .find(|snapshot| snapshot.zindex == zindex && snapshot.sub_idx == sub_idx)
-        .map(|snapshot| snapshot.quad_count)
-        .unwrap_or(0)
+) -> Option<(usize, usize)> {
+    let start_quad = quad_count_for_snapshot(&range.start, zindex, sub_idx);
+    let end_quad = quad_count_for_snapshot(&range.end, zindex, sub_idx);
+    (end_quad > start_quad).then_some((start_quad, end_quad))
 }
 
 fn draw_layer_sections(
@@ -21,16 +20,47 @@ fn draw_layer_sections(
     zindex: i8,
     sub_idx: usize,
     fallback_index_count: usize,
+    current_vertex_buffer: &wgpu::Buffer,
+    previous_frame: Option<&crate::renderstate::FrameBuffers>,
 ) {
     let mut drew = false;
     let mut has_range = false;
-    for section in &render_plan.sections {
-        let start_quad = quad_count_for_snapshot(&section.quad_range.start, zindex, sub_idx);
-        let end_quad = quad_count_for_snapshot(&section.quad_range.end, zindex, sub_idx);
-        if end_quad <= start_quad {
-            continue;
+    let mut sections_drawn = 0usize;
+    let mut sections_skipped = 0usize;
+
+    for (section_idx, section) in render_plan.sections.iter().enumerate() {
+        let current_range = quad_range_for_section(&section.quad_range, zindex, sub_idx);
+        if current_range.is_some() {
+            has_range = true;
         }
-        has_range = true;
+
+        let mut use_previous_frame = false;
+        let range = if section.skippable {
+            if let Some(previous_frame) = previous_frame {
+                if let Some(range) = previous_frame.section_quad_range(section_idx, zindex, sub_idx) {
+                    if previous_frame.buffer(zindex, sub_idx).is_some() {
+                        use_previous_frame = true;
+                        sections_skipped += 1;
+                        Some(range)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            current_range
+        };
+
+        let Some((start_quad, end_quad)) = range else {
+            if section.skippable {
+                sections_skipped += 1;
+            }
+            continue;
+        };
 
         if let Some(scissor) = &section.scissor {
             if scissor.width == 0 || scissor.height == 0 {
@@ -43,17 +73,35 @@ fn draw_layer_sections(
             continue;
         }
 
+        if use_previous_frame {
+            if let Some(previous_buffer) = previous_frame.and_then(|frame| frame.buffer(zindex, sub_idx))
+            {
+                render_pass.set_vertex_buffer(0, previous_buffer.slice(..));
+            } else {
+                continue;
+            }
+        }
+
         render_pass.draw_indexed(
             (start_quad * INDICES_PER_QUAD) as u32..(end_quad * INDICES_PER_QUAD) as u32,
             0,
             0..1,
         );
+        sections_drawn += 1;
         drew = true;
+
+        if use_previous_frame {
+            render_pass.set_vertex_buffer(0, current_vertex_buffer.slice(..));
+        }
     }
 
     if !drew && !has_range && fallback_index_count > 0 {
         render_pass.draw_indexed(0..fallback_index_count as u32, 0, 0..1);
+        sections_drawn += 1;
     }
+
+    metrics::histogram!("gui.draw.sections_drawn").record(sections_drawn as f64);
+    metrics::histogram!("gui.draw.sections_skipped").record(sections_skipped as f64);
 }
 
 impl crate::TermWindow {
@@ -139,6 +187,7 @@ impl crate::TermWindow {
             });
 
         let mut cleared = false;
+        let mut next_frame_buffers = crate::renderstate::FrameBuffers::default();
         let foreground_text_hsb = self.config.color_config().foreground_text_hsb;
         let foreground_text_hsb = [
             foreground_text_hsb.hue,
@@ -162,66 +211,84 @@ impl crate::TermWindow {
             for idx in 0..3 {
                 let vb = &layer.vb.borrow()[idx];
                 let (vertex_count, index_count) = vb.vertex_index_count();
-                let vertex_buffer;
                 let uniforms;
                 if vertex_count > 0 {
-                    let mut vertices = vb.current_vb_mut();
-                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Render Pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &render_target_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: if cleared {
-                                    wgpu::LoadOp::Load
-                                } else {
-                                    wgpu::LoadOp::Clear(wgpu::Color {
-                                        r: 0.,
-                                        g: 0.,
-                                        b: 0.,
-                                        a: 0.,
-                                    })
+                    let vertex_buffer = {
+                        let mut vertices = vb.current_vb_mut();
+                        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("Render Pass"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &render_target_view,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: if cleared {
+                                        wgpu::LoadOp::Load
+                                    } else {
+                                        wgpu::LoadOp::Clear(wgpu::Color {
+                                            r: 0.,
+                                            g: 0.,
+                                            b: 0.,
+                                            a: 0.,
+                                        })
+                                    },
+                                    store: wgpu::StoreOp::Store,
                                 },
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        occlusion_query_set: None,
-                        timestamp_writes: None,
-                    });
-                    cleared = true;
+                            })],
+                            depth_stencil_attachment: None,
+                            occlusion_query_set: None,
+                            timestamp_writes: None,
+                        });
+                        cleared = true;
 
-                    uniforms = webgpu.create_uniform(ShaderUniform {
-                        foreground_text_hsb,
-                        milliseconds,
-                        projection,
-                    });
+                        uniforms = webgpu.create_uniform(ShaderUniform {
+                            foreground_text_hsb,
+                            milliseconds,
+                            projection,
+                        });
 
-                    render_pass.set_pipeline(&webgpu.render_pipeline);
-                    render_pass.set_bind_group(0, &uniforms, &[]);
-                    render_pass.set_bind_group(1, &texture_linear_bind_group, &[]);
-                    render_pass.set_bind_group(2, &texture_nearest_bind_group, &[]);
-                    vertex_buffer = vertices.webgpu_mut().recreate();
-                    vertex_buffer.unmap();
-                    render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                    render_pass
-                        .set_index_buffer(vb.indices.webgpu().slice(..), wgpu::IndexFormat::Uint32);
-                    if let Some(render_plan) = render_plan {
-                        draw_layer_sections(
-                            &mut render_pass,
-                            render_plan,
-                            layer.zindex(),
-                            idx,
-                            index_count,
-                        );
-                    } else {
-                        render_pass.draw_indexed(0..index_count as u32, 0, 0..1);
-                    }
+                        render_pass.set_pipeline(&webgpu.render_pipeline);
+                        render_pass.set_bind_group(0, &uniforms, &[]);
+                        render_pass.set_bind_group(1, &texture_linear_bind_group, &[]);
+                        render_pass.set_bind_group(2, &texture_nearest_bind_group, &[]);
+                        let vertex_buffer = vertices.webgpu_mut().recreate();
+                        vertex_buffer.unmap();
+                        render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                        render_pass
+                            .set_index_buffer(vb.indices.webgpu().slice(..), wgpu::IndexFormat::Uint32);
+                        if let Some(render_plan) = render_plan {
+                            let previous_frame = render_state.prev_frame_buffers.borrow();
+                            draw_layer_sections(
+                                &mut render_pass,
+                                render_plan,
+                                layer.zindex(),
+                                idx,
+                                index_count,
+                                &vertex_buffer,
+                                previous_frame.as_ref(),
+                            );
+                        } else {
+                            render_pass.draw_indexed(0..index_count as u32, 0, 0..1);
+                        }
+                        vertex_buffer
+                    };
+
+                    next_frame_buffers
+                        .buffers
+                        .push((layer.zindex(), idx, vertex_buffer));
                 }
 
                 vb.next_index();
             }
         }
+
+        if let Some(render_plan) = render_plan {
+            next_frame_buffers.section_ranges = render_plan
+                .sections
+                .iter()
+                .map(|section| section.quad_range.clone())
+                .collect();
+        }
+        *render_state.prev_frame_buffers.borrow_mut() = Some(next_frame_buffers);
 
         // Second pass: apply post-processing shader if enabled
         if has_postprocess {

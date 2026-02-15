@@ -10,7 +10,7 @@ use config::observers::*;
 use mux::domain::DomainId;
 use mux::pane::{
     alloc_pane_id, CachePolicy, CloseReason, ForEachPaneLogicalLine, LogicalLine, Pane, PaneId,
-    Pattern, SearchResult, WithPaneLines,
+    PaneRenderSnapshot, Pattern, SearchResult, WithPaneLines,
 };
 use mux::renderable::{RenderableDimensions, StableCursorPosition};
 use mux::tab::TabId;
@@ -282,6 +282,34 @@ impl Pane for ClientPane {
 
     fn get_dimensions(&self) -> RenderableDimensions {
         self.renderable.lock().get_dimensions()
+    }
+
+    fn snapshot_for_render(&self, viewport: Option<StableRowIndex>) -> PaneRenderSnapshot {
+        let (cursor, dims, seqno, title, first_row, lines) = {
+            let renderable = self.renderable.lock();
+            let cursor = renderable.get_cursor_position();
+            let dims = renderable.get_dimensions();
+            let stable_range = match viewport {
+                Some(top) => top..top + dims.viewport_rows as StableRowIndex,
+                None => dims.physical_top..dims.physical_top + dims.viewport_rows as StableRowIndex,
+            };
+            let seqno = renderable.get_current_seqno();
+            let (first_row, lines) = renderable.get_lines(stable_range);
+            let title = renderable.inner.borrow().title.clone();
+            (cursor, dims, seqno, title, first_row, lines)
+        };
+
+        PaneRenderSnapshot::new(
+            lines,
+            first_row,
+            cursor,
+            dims,
+            seqno,
+            title,
+            *self.mouse_grabbed.lock(),
+            false,
+            self.palette.lock().clone(),
+        )
     }
 
     fn with_lines_mut(&self, lines: Range<StableRowIndex>, with_lines: &mut dyn WithPaneLines) {

@@ -1,7 +1,7 @@
 use crate::domain::DomainId;
 use crate::pane::{
-    CachePolicy, CloseReason, ForEachPaneLogicalLine, LogicalLine, Pane, PaneId, Pattern,
-    SearchResult, WithPaneLines,
+    CachePolicy, CloseReason, ForEachPaneLogicalLine, LogicalLine, Pane, PaneId,
+    PaneRenderSnapshot, Pattern, SearchResult, WithPaneLines,
 };
 use crate::renderable::*;
 use crate::tmux::{TmuxDomain, TmuxDomainState};
@@ -218,6 +218,46 @@ impl Pane for LocalPane {
 
     fn get_dimensions(&self) -> RenderableDimensions {
         terminal_get_dimensions(&mut self.terminal.lock())
+    }
+
+    fn snapshot_for_render(&self, viewport: Option<StableRowIndex>) -> PaneRenderSnapshot {
+        let tmux_mode = self.tmux_domain.lock().is_some();
+        let mut terminal = self.terminal.lock();
+        let mut cursor = terminal_get_cursor_position(&mut terminal);
+        if tmux_mode {
+            cursor.visibility = termwiz::surface::CursorVisibility::Hidden;
+        }
+        let dims = terminal_get_dimensions(&mut terminal);
+        let stable_range = match viewport {
+            Some(top) => top..top + dims.viewport_rows as StableRowIndex,
+            None => dims.physical_top..dims.physical_top + dims.viewport_rows as StableRowIndex,
+        };
+        let seqno = terminal.current_seqno();
+        let title = terminal.get_title().to_string();
+        let is_mouse_grabbed = if tmux_mode {
+            false
+        } else {
+            terminal.is_mouse_grabbed()
+        };
+        let is_alt_screen_active = if tmux_mode {
+            false
+        } else {
+            terminal.is_alt_screen_active()
+        };
+        let palette = terminal.palette();
+        let (first_row, lines) = terminal_get_lines(&mut terminal, stable_range);
+
+        PaneRenderSnapshot::new(
+            lines,
+            first_row,
+            cursor,
+            dims,
+            seqno,
+            title,
+            is_mouse_grabbed,
+            is_alt_screen_active,
+            palette,
+        )
     }
 
     fn copy_user_vars(&self) -> HashMap<String, String> {

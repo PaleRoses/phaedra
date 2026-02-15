@@ -162,6 +162,133 @@ impl LogicalLine {
     }
 }
 
+pub trait TerminalView {
+    fn visible_lines(&self) -> &[Line];
+    fn first_visible_row(&self) -> StableRowIndex;
+    fn cursor(&self) -> StableCursorPosition;
+    fn dimensions(&self) -> RenderableDimensions;
+    fn sequence_number(&self) -> SequenceNo;
+    fn title(&self) -> &str;
+    fn mouse_grabbed(&self) -> bool;
+    fn alt_screen_active(&self) -> bool;
+    fn palette(&self) -> &ColorPalette;
+    fn content_hash(&self) -> u64;
+}
+
+pub struct PaneRenderSnapshot {
+    lines: Vec<Line>,
+    first_row: StableRowIndex,
+    cursor: StableCursorPosition,
+    dims: RenderableDimensions,
+    seqno: SequenceNo,
+    title: String,
+    is_mouse_grabbed: bool,
+    is_alt_screen_active: bool,
+    palette: ColorPalette,
+    hash: u64,
+}
+
+impl PaneRenderSnapshot {
+    pub fn new(
+        lines: Vec<Line>,
+        first_row: StableRowIndex,
+        cursor: StableCursorPosition,
+        dims: RenderableDimensions,
+        seqno: SequenceNo,
+        title: String,
+        is_mouse_grabbed: bool,
+        is_alt_screen_active: bool,
+        palette: ColorPalette,
+    ) -> Self {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        seqno.hash(&mut hasher);
+        cursor.hash(&mut hasher);
+        dims.cols.hash(&mut hasher);
+        dims.viewport_rows.hash(&mut hasher);
+        is_alt_screen_active.hash(&mut hasher);
+        first_row.hash(&mut hasher);
+        for line in &lines {
+            line.current_seqno().hash(&mut hasher);
+        }
+        let hash = hasher.finish();
+
+        Self {
+            lines,
+            first_row,
+            cursor,
+            dims,
+            seqno,
+            title,
+            is_mouse_grabbed,
+            is_alt_screen_active,
+            palette,
+            hash,
+        }
+    }
+
+    pub fn apply_hyperlink_rules(&mut self, rules: &[Rule]) {
+        if rules.is_empty() {
+            return;
+        }
+
+        let mut idx = 0;
+        while idx < self.lines.len() {
+            let mut end = idx + 1;
+            while end < self.lines.len() && self.lines[end - 1].last_cell_was_wrapped() {
+                end += 1;
+            }
+            let mut line_refs: Vec<&mut Line> = self.lines[idx..end].iter_mut().collect();
+            Line::apply_hyperlink_rules(rules, &mut line_refs);
+            idx = end;
+        }
+    }
+}
+
+impl TerminalView for PaneRenderSnapshot {
+    fn visible_lines(&self) -> &[Line] {
+        &self.lines
+    }
+
+    fn first_visible_row(&self) -> StableRowIndex {
+        self.first_row
+    }
+
+    fn cursor(&self) -> StableCursorPosition {
+        self.cursor
+    }
+
+    fn dimensions(&self) -> RenderableDimensions {
+        self.dims
+    }
+
+    fn sequence_number(&self) -> SequenceNo {
+        self.seqno
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn mouse_grabbed(&self) -> bool {
+        self.is_mouse_grabbed
+    }
+
+    fn alt_screen_active(&self) -> bool {
+        self.is_alt_screen_active
+    }
+
+    fn palette(&self) -> &ColorPalette {
+        &self.palette
+    }
+
+    fn content_hash(&self) -> u64 {
+        self.hash
+    }
+}
+
 /// A Pane represents a view on a terminal
 #[async_trait(?Send)]
 pub trait Pane: Downcast + Send + Sync {
@@ -230,6 +357,26 @@ pub trait Pane: Downcast + Send + Sync {
 
     /// Returns render related dimensions
     fn get_dimensions(&self) -> RenderableDimensions;
+
+    fn snapshot_for_render(&self, viewport: Option<StableRowIndex>) -> PaneRenderSnapshot {
+        let dims = self.get_dimensions();
+        let stable_range = match viewport {
+            Some(top) => top..top + dims.viewport_rows as StableRowIndex,
+            None => dims.physical_top..dims.physical_top + dims.viewport_rows as StableRowIndex,
+        };
+        let (first_row, lines) = self.get_lines(stable_range);
+        PaneRenderSnapshot::new(
+            lines,
+            first_row,
+            self.get_cursor_position(),
+            dims,
+            self.get_current_seqno(),
+            self.get_title(),
+            self.is_mouse_grabbed(),
+            self.is_alt_screen_active(),
+            self.palette(),
+        )
+    }
 
     fn get_title(&self) -> String;
     fn get_progress(&self) -> Progress {

@@ -79,9 +79,14 @@ pub struct LineQuadCacheKey {
 
 pub struct LineCommandCacheValue {
     pub expires: Option<Instant>,
-    pub commands: Vec<RenderCommand>,
+    pub commands: Arc<[RenderCommand]>,
     pub current_highlight: Option<Arc<Hyperlink>>,
     pub invalidate_on_hover_change: bool,
+}
+
+pub enum LineSeed {
+    Cached(Arc<[RenderCommand]>),
+    Fresh,
 }
 
 pub struct LineToElementParams<'a> {

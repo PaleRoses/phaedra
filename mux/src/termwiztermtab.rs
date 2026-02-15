@@ -6,7 +6,7 @@
 use crate::domain::{alloc_domain_id, Domain, DomainId, DomainState};
 use crate::pane::{
     alloc_pane_id, CachePolicy, CloseReason, ForEachPaneLogicalLine, LogicalLine, Pane, PaneId,
-    WithPaneLines,
+    PaneRenderSnapshot, WithPaneLines,
 };
 use crate::renderable::*;
 use crate::tab::Tab;
@@ -172,6 +172,34 @@ impl Pane for TermWizTerminalPane {
 
     fn get_dimensions(&self) -> RenderableDimensions {
         terminal_get_dimensions(&mut self.terminal.lock())
+    }
+
+    fn snapshot_for_render(&self, viewport: Option<StableRowIndex>) -> PaneRenderSnapshot {
+        let mut terminal = self.terminal.lock();
+        let cursor = terminal_get_cursor_position(&mut terminal);
+        let dims = terminal_get_dimensions(&mut terminal);
+        let stable_range = match viewport {
+            Some(top) => top..top + dims.viewport_rows as StableRowIndex,
+            None => dims.physical_top..dims.physical_top + dims.viewport_rows as StableRowIndex,
+        };
+        let seqno = terminal.current_seqno();
+        let title = terminal.get_title().to_string();
+        let is_mouse_grabbed = terminal.is_mouse_grabbed();
+        let is_alt_screen_active = terminal.is_alt_screen_active();
+        let palette = terminal.palette();
+        let (first_row, lines) = terminal_get_lines(&mut terminal, stable_range);
+
+        PaneRenderSnapshot::new(
+            lines,
+            first_row,
+            cursor,
+            dims,
+            seqno,
+            title,
+            is_mouse_grabbed,
+            is_alt_screen_active,
+            palette,
+        )
     }
 
     fn get_title(&self) -> String {

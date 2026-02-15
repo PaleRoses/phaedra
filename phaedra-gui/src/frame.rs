@@ -1,6 +1,7 @@
 use crate::render_command::RenderCommand;
 use crate::termwindow::UIItem;
 use mux::pane::PaneId;
+use std::sync::Arc;
 
 #[derive(Debug, Default)]
 pub struct PostProcessParams {
@@ -8,13 +9,14 @@ pub struct PostProcessParams {
     pub time: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PaneFrame {
     pub pane_id: PaneId,
     pub is_active: bool,
     pub bounds: phaedra_render_command::RectF,
-    pub content_hash: u64,
-    pub commands: Vec<RenderCommand>,
+    pub command_hash: u64,
+    pub cache_key: u64,
+    pub commands: Arc<[RenderCommand]>,
     pub ui_items: Vec<UIItem>,
 }
 

@@ -1,6 +1,10 @@
 use crate::termwindow::TermWindowNotif;
-use crate::execute_render::execute_frame;
+use crate::execute_render::execute_commands;
+use crate::render_plan::{
+    quad_count_for_snapshot, snapshot_layers, QuadRange, RenderPlan, RenderSection, ScissorRect,
+};
 use config::observers::*;
+use mux::pane::TerminalView;
 use ::window::bitmaps::atlas::OutOfTextureSpace;
 use ::window::WindowOps;
 use smol::Timer;
@@ -12,6 +16,37 @@ pub enum AllowImage {
     Yes,
     Scale(usize),
     No,
+}
+
+fn frame_has_buffers_for_range(
+    frame: &crate::renderstate::FrameBuffers,
+    quad_range: &QuadRange,
+) -> bool {
+    quad_range.end.iter().all(|end_snapshot| {
+        let start_quad =
+            quad_count_for_snapshot(&quad_range.start, end_snapshot.zindex, end_snapshot.sub_idx);
+        end_snapshot.quad_count <= start_quad
+            || frame
+                .buffer(end_snapshot.zindex, end_snapshot.sub_idx)
+                .is_some()
+    })
+}
+
+fn advance_quad_counts_for_range(
+    render_state: &crate::renderstate::RenderState,
+    quad_range: &QuadRange,
+) -> anyhow::Result<()> {
+    for end_snapshot in &quad_range.end {
+        let start_quad =
+            quad_count_for_snapshot(&quad_range.start, end_snapshot.zindex, end_snapshot.sub_idx);
+        if end_snapshot.quad_count <= start_quad {
+            continue;
+        }
+        let quad_delta = end_snapshot.quad_count - start_quad;
+        let render_layer = render_state.layer_for_zindex(end_snapshot.zindex)?;
+        render_layer.vb.borrow()[end_snapshot.sub_idx].advance_quad_count(quad_delta);
+    }
+    Ok(())
 }
 
 impl crate::TermWindow {
@@ -172,8 +207,6 @@ impl crate::TermWindow {
                 layer.clear_quad_allocation();
             }
         }
-
-        // Clear out UI item positions; we'll rebuild these as we render
         self.ui_items.clear();
         self.render_plan = None;
 
@@ -189,24 +222,199 @@ impl crate::TermWindow {
             }
         }
 
-        let frame = self.describe_frame()?;
+        let render_state = self.render_state.as_ref().unwrap();
         let pixel_dims = (
             self.dimensions.pixel_width as f32,
             self.dimensions.pixel_height as f32,
         );
-        let plan = execute_frame(
-            &frame,
-            self.render_state.as_ref().unwrap(),
-            pixel_dims,
-            &self.prev_content_hashes,
+        let left_offset = pixel_dims.0 / 2.0;
+        let top_offset = pixel_dims.1 / 2.0;
+        let viewport_width = pixel_dims.0.max(0.0) as u32;
+        let viewport_height = pixel_dims.1.max(0.0) as u32;
+        let filled_box = render_state.util_sprites.filled_box.texture_coords();
+        let mut plan = RenderPlan::new(viewport_width, viewport_height);
+        let mut ui_items = Vec::new();
+
+        let background = self.describe_window_background(&panes)?;
+        let background_start = snapshot_layers(render_state);
+        execute_commands(
+            &background,
+            render_state,
+            left_offset,
+            top_offset,
+            &filled_box,
         )?;
-        self.render_plan = Some(plan);
-        self.prev_content_hashes.clear();
-        for pane_frame in &frame.panes {
-            self.prev_content_hashes
-                .insert(pane_frame.pane_id, pane_frame.content_hash);
+        let background_end = snapshot_layers(render_state);
+        plan.sections.push(RenderSection {
+            scissor: None,
+            content_hash: 0,
+            quad_range: QuadRange {
+                start: background_start,
+                end: background_end,
+            },
+            skippable: false,
+            stats: None,
+        });
+
+        let mut new_pane_frames = std::collections::HashMap::with_capacity(panes.len());
+        let previous_frame = render_state.prev_frame_buffers.borrow();
+        let mut pane_skip_chain_valid = true;
+
+        for pos in &panes {
+            let pane_id = pos.pane.pane_id();
+            let snapshot = pos.pane.snapshot_for_render(self.get_viewport(pane_id));
+            let terminal_hash = snapshot.content_hash();
+            let cache_key = self.pane_describe_cache_key(pane_id, pos, terminal_hash);
+
+            let (pane_frame, candidate_skippable) = match self.prev_pane_frames.get(&pane_id) {
+                Some(cached) if cached.cache_key == cache_key => {
+                    log::trace!("pane {pane_id}: chrono skip (seed unchanged, commands reused)");
+                    (cached.clone(), true)
+                }
+                _ => (self.describe_pane_with_snapshot(pos, snapshot, cache_key)?, false),
+            };
+
+            let prior_quad_range = if candidate_skippable && pane_skip_chain_valid {
+                previous_frame
+                    .as_ref()
+                    .and_then(|frame| frame.section_ranges.get(plan.sections.len()).cloned())
+                    .filter(|range| {
+                        previous_frame
+                            .as_ref()
+                            .map(|frame| frame_has_buffers_for_range(frame, range))
+                            .unwrap_or(false)
+                    })
+            } else {
+                None
+            };
+
+            let pane_start = snapshot_layers(render_state);
+            if let Some(prior_quad_range) = prior_quad_range.as_ref() {
+                advance_quad_counts_for_range(render_state, prior_quad_range)?;
+            } else {
+                execute_commands(
+                    &pane_frame.commands,
+                    render_state,
+                    left_offset,
+                    top_offset,
+                    &filled_box,
+                )?;
+            }
+            let pane_end = snapshot_layers(render_state);
+            let skippable = prior_quad_range.is_some();
+            if !skippable {
+                pane_skip_chain_valid = false;
+            }
+
+            plan.sections.push(RenderSection {
+                scissor: Some(ScissorRect::from_pane_bounds(
+                    &pane_frame.bounds,
+                    viewport_width,
+                    viewport_height,
+                )),
+                content_hash: pane_frame.command_hash,
+                quad_range: QuadRange {
+                    start: pane_start,
+                    end: pane_end,
+                },
+                skippable,
+                stats: None,
+            });
+
+            ui_items.extend(pane_frame.ui_items.iter().cloned());
+            new_pane_frames.insert(pane_id, pane_frame);
         }
-        self.ui_items = frame.ui_items;
+
+        let chrome_start = snapshot_layers(render_state);
+
+        if self.show_tab_bar {
+            let (tab_bar, tab_bar_ui_items) = self.describe_tab_bar()?;
+            execute_commands(
+                &tab_bar,
+                render_state,
+                left_offset,
+                top_offset,
+                &filled_box,
+            )?;
+            ui_items.extend(tab_bar_ui_items);
+        }
+
+        if let Some(pane) = self.get_active_pane_or_overlay() {
+            let splits = {
+                let mux = mux::Mux::get();
+                match mux.get_active_tab_for_window(self.mux_window_id) {
+                    Some(tab) => {
+                        let tab_id = tab.tab_id();
+                        if self.tab_state(tab_id).overlay.is_some() {
+                            vec![]
+                        } else {
+                            tab.iter_splits()
+                        }
+                    }
+                    None => vec![],
+                }
+            };
+
+            for split in &splits {
+                let (commands, items) = self.describe_split(split, &pane);
+                execute_commands(
+                    &commands,
+                    render_state,
+                    left_offset,
+                    top_offset,
+                    &filled_box,
+                )?;
+                ui_items.extend(items);
+            }
+        }
+
+        let borders = self.describe_window_borders();
+        execute_commands(
+            &borders,
+            render_state,
+            left_offset,
+            top_offset,
+            &filled_box,
+        )?;
+
+        let (modal, modal_ui_items) = self.describe_modal()?;
+        execute_commands(
+            &modal,
+            render_state,
+            left_offset,
+            top_offset,
+            &filled_box,
+        )?;
+        ui_items.extend(modal_ui_items);
+
+        let chrome_end = snapshot_layers(render_state);
+        plan.sections.push(RenderSection {
+            scissor: None,
+            content_hash: 0,
+            quad_range: QuadRange {
+                start: chrome_start,
+                end: chrome_end,
+            },
+            skippable: false,
+            stats: None,
+        });
+
+        let pane_section_count = plan.pane_section_count();
+        let skippable_pane_section_count = plan.skippable_pane_section_count();
+        log::trace!(
+            "chrono render plan: {}/{} pane sections skippable",
+            skippable_pane_section_count,
+            pane_section_count
+        );
+        metrics::histogram!("gui.paint.pane_skip_rate").record(if pane_section_count > 0 {
+            skippable_pane_section_count as f64 / pane_section_count as f64
+        } else {
+            0.0
+        });
+
+        self.render_plan = Some(plan);
+        self.prev_pane_frames = new_pane_frames;
+        self.ui_items = ui_items;
 
         Ok(())
     }

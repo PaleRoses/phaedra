@@ -36,12 +36,21 @@ pub struct QuadRange {
     pub end: Vec<LayerQuadSnapshot>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ExecutionStats {
+    pub quads_emitted: usize,
+    pub fills_emitted: usize,
+    pub draws_emitted: usize,
+    pub overdraw_positions: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct RenderSection {
     pub scissor: Option<ScissorRect>,
     pub content_hash: u64,
     pub quad_range: QuadRange,
     pub skippable: bool,
+    pub stats: Option<ExecutionStats>,
 }
 
 #[derive(Debug)]
@@ -70,6 +79,18 @@ impl RenderPlan {
             .filter(|section| section.scissor.is_some() && section.skippable)
             .count()
     }
+}
+
+pub fn quad_count_for_snapshot(
+    snapshots: &[LayerQuadSnapshot],
+    zindex: i8,
+    sub_idx: usize,
+) -> usize {
+    snapshots
+        .iter()
+        .find(|snapshot| snapshot.zindex == zindex && snapshot.sub_idx == sub_idx)
+        .map(|snapshot| snapshot.quad_count)
+        .unwrap_or(0)
 }
 
 pub fn snapshot_layers(render_state: &crate::renderstate::RenderState) -> Vec<LayerQuadSnapshot> {

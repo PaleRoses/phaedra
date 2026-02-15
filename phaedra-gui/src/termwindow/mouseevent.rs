@@ -17,7 +17,7 @@ use std::convert::TryInto;
 use std::ops::Sub;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use termwiz::hyperlink::Hyperlink;
 use termwiz::surface::Line;
 use phaedra_dynamic::ToDynamic;
@@ -272,10 +272,35 @@ impl super::TermWindow {
         };
 
         if delta != 0 {
-            tab.resize_split_by(split.index, delta);
-            if let Some(split) = tab.iter_splits().into_iter().nth(split.index) {
-                item.item_type = UIItemType::Split(split);
-                context.invalidate();
+            let should_resize = self
+                .last_split_resize
+                .map_or(true, |t| t.elapsed() >= Duration::from_millis(8));
+            if should_resize {
+                let total_delta =
+                    if let Some((pending_idx, pending_delta)) = self.pending_split_resize.take() {
+                        if pending_idx == split.index {
+                            delta + pending_delta
+                        } else {
+                            tab.resize_split_by(pending_idx, pending_delta);
+                            delta
+                        }
+                    } else {
+                        delta
+                    };
+                tab.resize_split_by(split.index, total_delta);
+                self.last_split_resize = Some(Instant::now());
+                if let Some(split) = tab.iter_splits().into_iter().nth(split.index) {
+                    item.item_type = UIItemType::Split(split);
+                    context.invalidate();
+                }
+            } else {
+                let pending = self.pending_split_resize.get_or_insert((split.index, 0));
+                if pending.0 == split.index {
+                    pending.1 += delta;
+                } else {
+                    tab.resize_split_by(pending.0, pending.1);
+                    *pending = (split.index, delta);
+                }
             }
         }
         self.dragging.replace((item, start_event));

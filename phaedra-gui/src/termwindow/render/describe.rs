@@ -1,9 +1,9 @@
 use crate::frame::{ChromeFrame, Frame, PaneFrame, PostProcessParams};
 use crate::render_command::{HsbTransform as CmdHsbTransform, RectF, RenderCommand};
-use crate::selection::SelectionRange;
+use crate::selection::{SelectionRange, SelectionX};
 use crate::termwindow::render::paint::AllowImage;
 use crate::termwindow::render::{
-    same_hyperlink, CursorProperties, LineCommandCacheValue, LineQuadCacheKey,
+    same_hyperlink, CursorProperties, LineCommandCacheValue, LineQuadCacheKey, LineSeed,
     LineToEleShapeCacheKey, RenderScreenLineParams, RenderScreenLineResult,
 };
 use crate::termwindow::{ScrollHit, UIItem, UIItemType};
@@ -11,7 +11,7 @@ use anyhow::Context;
 use ::window::DeadKeyStatus;
 use config::observers::*;
 use config::{TermConfig, VisualBellTarget};
-use mux::pane::{Pane, WithPaneLines};
+use mux::pane::{Pane, PaneId, PaneRenderSnapshot, TerminalView};
 use mux::renderable::{RenderableDimensions, StableCursorPosition};
 use mux::tab::{PositionedPane, PositionedSplit, SplitDirection};
 use ordered_float::NotNan;
@@ -260,8 +260,64 @@ impl crate::TermWindow {
     }
 
     pub fn describe_pane(&self, pos: &PositionedPane) -> anyhow::Result<PaneFrame> {
+        let pane_id = pos.pane.pane_id();
+        let current_viewport = self.get_viewport(pane_id);
+        let snapshot = pos.pane.snapshot_for_render(current_viewport);
+        let cache_key = self.pane_describe_cache_key(pane_id, pos, snapshot.content_hash());
+        self.describe_pane_with_snapshot(pos, snapshot, cache_key)
+    }
+
+    pub(crate) fn pane_describe_cache_key(
+        &self,
+        pane_id: PaneId,
+        pos: &PositionedPane,
+        terminal_hash: u64,
+    ) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        fn hash_selection_x<H: Hasher>(selection_x: SelectionX, hasher: &mut H) {
+            match selection_x {
+                SelectionX::Cell(x) => {
+                    0u8.hash(hasher);
+                    x.hash(hasher);
+                }
+                SelectionX::BeforeZero => {
+                    1u8.hash(hasher);
+                }
+            }
+        }
+
+        let mut key_hasher = DefaultHasher::new();
+        terminal_hash.hash(&mut key_hasher);
+        pos.left.hash(&mut key_hasher);
+        pos.top.hash(&mut key_hasher);
+        pos.width.hash(&mut key_hasher);
+        pos.height.hash(&mut key_hasher);
+        pos.is_active.hash(&mut key_hasher);
+
+        {
+            let sel = self.selection(pane_id);
+            sel.range.is_some().hash(&mut key_hasher);
+            if let Some(range) = &sel.range {
+                hash_selection_x(range.start.x, &mut key_hasher);
+                range.start.y.hash(&mut key_hasher);
+                hash_selection_x(range.end.x, &mut key_hasher);
+                range.end.y.hash(&mut key_hasher);
+            }
+            sel.rectangular.hash(&mut key_hasher);
+        }
+
+        key_hasher.finish()
+    }
+
+    pub fn describe_pane_with_snapshot(
+        &self,
+        pos: &PositionedPane,
+        mut snapshot: PaneRenderSnapshot,
+        cache_key: u64,
+    ) -> anyhow::Result<PaneFrame> {
         let config = &self.config;
-        let palette = pos.pane.palette();
         let pane_id = pos.pane.pane_id();
 
         let (padding_left, padding_top) = self.padding_left_top();
@@ -278,10 +334,9 @@ impl crate::TermWindow {
 
         let border = self.get_os_border();
         let top_pixel_y = top_bar_height + padding_top + border.top.get() as f32;
-
-        let cursor = pos.pane.get_cursor_position();
-        let current_viewport = self.get_viewport(pane_id);
-        let dims = pos.pane.get_dimensions();
+        snapshot.apply_hyperlink_rules(&self.config.terminal_features().hyperlink_rules);
+        let cursor = snapshot.cursor();
+        let dims = snapshot.dimensions();
 
         let gl_state = self.render_state.as_ref().unwrap();
         let white_space = gl_state.util_sprites.white_space.texture_coords();
@@ -289,7 +344,8 @@ impl crate::TermWindow {
 
         let window_is_transparent = !self.window_background.is_empty();
 
-        let default_bg = palette
+        let default_bg = snapshot
+            .palette()
             .resolve_bg(ColorAttribute::Default)
             .to_linear()
             .mul_alpha(if window_is_transparent {
@@ -358,7 +414,7 @@ impl crate::TermWindow {
                 layer: 0,
                 zindex: 0,
                 rect: background_rect,
-                color: palette.background.to_linear().mul_alpha(1.0),
+                color: snapshot.palette().background.to_linear().mul_alpha(1.0),
                 hsv: inactive_hsv.clone(),
             });
         }
@@ -373,13 +429,13 @@ impl crate::TermWindow {
                 .resolved_palette
                 .visual_bell
                 .as_deref()
-                .unwrap_or(&palette.foreground)
+                .unwrap_or(&snapshot.palette().foreground)
                 .to_linear();
 
             let background = if window_is_transparent {
                 LinearRgba::with_components(r, g, b, intensity)
             } else {
-                let (r1, g1, b1, a) = palette.background.to_linear().mul_alpha(1.0).tuple();
+                let (r1, g1, b1, a) = snapshot.palette().background.to_linear().mul_alpha(1.0).tuple();
                 LinearRgba::with_components(
                     r1 + (r - r1) * intensity,
                     g1 + (g - g1) * intensity,
@@ -402,7 +458,7 @@ impl crate::TermWindow {
             let min_height = self.min_scroll_bar_height();
             let info = ScrollHit::thumb(
                 &*pos.pane,
-                current_viewport,
+                self.get_viewport(pane_id),
                 self.dimensions.pixel_height.saturating_sub(
                     thumb_y_offset + border.bottom.get() + bottom_bar_height as usize,
                 ),
@@ -411,7 +467,7 @@ impl crate::TermWindow {
 
             let abs_thumb_top = thumb_y_offset + info.top;
             let thumb_size = info.height;
-            let color = palette.scrollbar_thumb.to_linear();
+            let color = snapshot.palette().scrollbar_thumb.to_linear();
             let padding = self.effective_right_padding(config) as f32;
             let thumb_x = self.dimensions.pixel_width - padding as usize - border.right.get();
 
@@ -459,28 +515,20 @@ impl crate::TermWindow {
             (sel.range.clone(), sel.rectangular)
         };
 
-        let selection_fg = palette.selection_fg.to_linear();
-        let selection_bg = palette.selection_bg.to_linear();
-        let cursor_fg = palette.cursor_fg.to_linear();
-        let cursor_bg = palette.cursor_bg.to_linear();
+        let selection_fg = snapshot.palette().selection_fg.to_linear();
+        let selection_bg = snapshot.palette().selection_bg.to_linear();
+        let cursor_fg = snapshot.palette().cursor_fg.to_linear();
+        let cursor_bg = snapshot.palette().cursor_bg.to_linear();
         let global_palette = self
             .palette
             .as_ref()
             .cloned()
             .unwrap_or_else(|| TermConfig::new().color_palette());
         let cursor_is_default_color =
-            palette.cursor_fg == global_palette.cursor_fg && palette.cursor_bg == global_palette.cursor_bg;
-        let cursor_border_color = palette.cursor_border.to_linear();
-        let foreground = palette.foreground.to_linear();
-
-        let stable_range = match current_viewport {
-            Some(top) => top..top + dims.viewport_rows as StableRowIndex,
-            None => dims.physical_top..dims.physical_top + dims.viewport_rows as StableRowIndex,
-        };
-        pos.pane.apply_hyperlinks(
-            stable_range.clone(),
-            &self.config.terminal_features().hyperlink_rules,
-        );
+            snapshot.palette().cursor_fg == global_palette.cursor_fg
+                && snapshot.palette().cursor_bg == global_palette.cursor_bg;
+        let cursor_border_color = snapshot.palette().cursor_border.to_linear();
+        let foreground = snapshot.palette().foreground.to_linear();
 
         struct LineDescriber<'a> {
             term_window: &'a crate::TermWindow,
@@ -504,7 +552,8 @@ impl crate::TermWindow {
             filled_box: TextureRect,
             window_is_transparent: bool,
             commands: Vec<RenderCommand>,
-            error: Option<anyhow::Error>,
+            line_cache_hits: usize,
+            line_cache_total: usize,
         }
 
         impl<'a> LineDescriber<'a> {
@@ -579,30 +628,38 @@ impl crate::TermWindow {
                     reverse_video: self.dims.reverse_video,
                 };
 
-                let cached_commands = {
+                let seed = {
                     let mut cache = self.term_window.line_command_cache.borrow_mut();
-                    cache.get(&quad_key).and_then(|cached| {
-                        let expired = cached.expires.map(|i| Instant::now() >= i).unwrap_or(false);
-                        let hover_changed = if cached.invalidate_on_hover_change {
-                            !same_hyperlink(
-                                cached.current_highlight.as_ref(),
-                                self.term_window.current_highlight.as_ref(),
-                            )
-                        } else {
-                            false
-                        };
-                        if expired || hover_changed {
-                            None
-                        } else {
-                            self.term_window.update_next_frame_time(cached.expires);
-                            Some(cached.commands.clone())
+                    match cache.get(&quad_key) {
+                        Some(cached) => {
+                            let expired = cached.expires.map(|i| Instant::now() >= i).unwrap_or(false);
+                            let hover_changed = if cached.invalidate_on_hover_change {
+                                !same_hyperlink(
+                                    cached.current_highlight.as_ref(),
+                                    self.term_window.current_highlight.as_ref(),
+                                )
+                            } else {
+                                false
+                            };
+                            if expired || hover_changed {
+                                LineSeed::Fresh
+                            } else {
+                                self.term_window.update_next_frame_time(cached.expires);
+                                LineSeed::Cached(Arc::clone(&cached.commands))
+                            }
                         }
-                    })
+                        None => LineSeed::Fresh,
+                    }
                 };
 
-                if let Some(mut commands) = cached_commands {
-                    self.commands.append(&mut commands);
-                    return Ok(());
+                self.line_cache_total += 1;
+                match seed {
+                    LineSeed::Cached(commands) => {
+                        self.line_cache_hits += 1;
+                        self.commands.extend_from_slice(&commands);
+                        return Ok(());
+                    }
+                    LineSeed::Fresh => {}
                 }
 
                 let next_due = self.term_window.has_animation.borrow_mut().take();
@@ -620,7 +677,7 @@ impl crate::TermWindow {
                     },
                 };
 
-                let (mut line_commands, line_result): (
+                let (line_commands, line_result): (
                     Vec<RenderCommand>,
                     RenderScreenLineResult,
                 ) = self
@@ -665,6 +722,7 @@ impl crate::TermWindow {
 
                 let expires = self.term_window.has_animation.borrow().as_ref().cloned();
                 self.term_window.update_next_frame_time(next_due);
+                let line_commands: Arc<[RenderCommand]> = line_commands.into();
 
                 self.term_window
                     .line_command_cache
@@ -673,7 +731,7 @@ impl crate::TermWindow {
                         quad_key,
                         LineCommandCacheValue {
                             expires,
-                            commands: line_commands.clone(),
+                            commands: Arc::clone(&line_commands),
                             invalidate_on_hover_change: line_result.invalidate_on_hover_change,
                             current_highlight: if line_result.invalidate_on_hover_change {
                                 self.term_window.current_highlight.clone()
@@ -683,18 +741,26 @@ impl crate::TermWindow {
                         },
                     );
 
-                self.commands.append(&mut line_commands);
+                self.commands.extend_from_slice(&line_commands);
                 Ok(())
             }
-        }
 
-        impl<'a> WithPaneLines for LineDescriber<'a> {
-            fn with_lines_mut(&mut self, stable_top: StableRowIndex, lines: &mut [&mut Line]) {
+            fn describe_lines(
+                &mut self,
+                stable_top: StableRowIndex,
+                lines: &[Line],
+            ) -> anyhow::Result<()> {
                 for (line_idx, line) in lines.iter().enumerate() {
-                    if let Err(err) = self.describe_line(stable_top, line_idx, &**line) {
-                        self.error.replace(err);
-                        return;
-                    }
+                    self.describe_line(stable_top, line_idx, line)?;
+                }
+                Ok(())
+            }
+
+            fn line_cache_hit_rate(&self) -> f64 {
+                if self.line_cache_total == 0 {
+                    0.0
+                } else {
+                    self.line_cache_hits as f64 / self.line_cache_total as f64
                 }
             }
         }
@@ -711,7 +777,7 @@ impl crate::TermWindow {
             left_pixel_x,
             pos,
             cursor: &cursor,
-            palette: &palette,
+            palette: snapshot.palette(),
             default_bg,
             cursor_border_color,
             selection_fg,
@@ -724,13 +790,14 @@ impl crate::TermWindow {
             filled_box,
             window_is_transparent,
             commands: Vec::new(),
-            error: None,
+            line_cache_hits: 0,
+            line_cache_total: 0,
         };
 
-        pos.pane.with_lines_mut(stable_range, &mut line_describer);
-        if let Some(error) = line_describer.error.take() {
-            return Err(error).context("error while calling with_lines_mut");
-        }
+        line_describer
+            .describe_lines(snapshot.first_visible_row(), snapshot.visible_lines())
+            .context("error while describing pane lines")?;
+        metrics::histogram!("gui.describe.line_cache_hit_rate").record(line_describer.line_cache_hit_rate());
 
         commands.append(&mut line_describer.commands);
         // DIAGNOSTIC: clip_to_rect disabled to isolate rendering bug
@@ -739,13 +806,15 @@ impl crate::TermWindow {
         //     .map(|cmd| cmd.clip_to_rect(&background_rect))
         //     .filter(|cmd| !matches!(cmd, RenderCommand::Nop))
         //     .collect();
-        let content_hash = RenderCommand::content_hash(&commands);
+        let command_hash = RenderCommand::content_hash(&commands);
+        let commands: Arc<[RenderCommand]> = commands.into();
 
         Ok(PaneFrame {
             pane_id,
             is_active: pos.is_active,
             bounds: background_rect,
-            content_hash,
+            command_hash,
+            cache_key,
             commands,
             ui_items,
         })
@@ -874,7 +943,22 @@ impl crate::TermWindow {
         let mut ui_items = Vec::new();
 
         for pos in &panes {
-            let pane_frame = self.describe_pane(pos)?;
+            let pane_id = pos.pane.pane_id();
+            let current_viewport = self.get_viewport(pane_id);
+            let snapshot = pos.pane.snapshot_for_render(current_viewport);
+            let terminal_hash = snapshot.content_hash();
+            let cache_key = self.pane_describe_cache_key(pane_id, pos, terminal_hash);
+
+            let pane_frame = if let Some(cached) = self.prev_pane_frames.get(&pane_id) {
+                if cached.cache_key == cache_key {
+                    log::trace!("pane {pane_id}: futumorphic skip (describe seed unchanged)");
+                    cached.clone()
+                } else {
+                    self.describe_pane_with_snapshot(pos, snapshot, cache_key)?
+                }
+            } else {
+                self.describe_pane_with_snapshot(pos, snapshot, cache_key)?
+            };
             ui_items.extend(pane_frame.ui_items.iter().cloned());
             pane_frames.push(pane_frame);
         }

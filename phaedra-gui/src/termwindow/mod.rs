@@ -3,6 +3,7 @@ use super::renderstate::*;
 use config::observers::*;
 use super::utilsprites::RenderMetrics;
 use crate::colorease::ColorEase;
+use crate::frame::PaneFrame;
 use crate::frontend::{front_end, try_front_end};
 use crate::inputmap::InputMap;
 use crate::observers::{PaneLayoutObserver, TransientRenderObserver, WindowGeometryObserver};
@@ -383,7 +384,7 @@ pub struct TermWindow {
     pub render_metrics: RenderMetrics,
     render_state: Option<RenderState>,
     pub render_plan: Option<RenderPlan>,
-    prev_content_hashes: HashMap<PaneId, u64>,
+    prev_pane_frames: HashMap<PaneId, PaneFrame>,
     input_map: InputMap,
     /// If is_some, the LEADER modifier is active until the specified instant.
     leader_is_down: Option<std::time::Instant>,
@@ -442,6 +443,8 @@ pub struct TermWindow {
 
     ui_items: Vec<UIItem>,
     dragging: Option<(UIItem, MouseEvent)>,
+    last_split_resize: Option<Instant>,
+    pending_split_resize: Option<(usize, isize)>,
 
     modal: RefCell<Option<Rc<dyn Modal>>>,
 
@@ -706,7 +709,7 @@ impl TermWindow {
             terminal_size,
             render_state,
             render_plan: None,
-            prev_content_hashes: HashMap::new(),
+            prev_pane_frames: HashMap::new(),
             input_map: InputMap::new(&config),
             leader_is_down: None,
             dead_key_status: DeadKeyStatus::None,
@@ -785,6 +788,8 @@ impl TermWindow {
             semantic_zones: HashMap::new(),
             ui_items: vec![],
             dragging: None,
+            last_split_resize: None,
+            pending_split_resize: None,
             last_ui_item: None,
             is_click_to_focus_window: false,
             key_table_state: KeyTableState::default(),
