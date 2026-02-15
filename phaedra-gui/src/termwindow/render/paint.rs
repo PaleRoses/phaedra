@@ -1,7 +1,8 @@
 use crate::termwindow::TermWindowNotif;
-use crate::execute_render::execute_commands;
+use crate::execute_render::{execute_commands, execute_commands_with_history};
 use crate::render_plan::{
-    quad_count_for_snapshot, snapshot_layers, QuadRange, RenderPlan, RenderSection, ScissorRect,
+    quad_count_for_snapshot, snapshot_layers, CofreeContext, QuadRange, RenderPlan, RenderSection,
+    ScissorRect, SectionOutcome,
 };
 use config::observers::*;
 use mux::pane::TerminalView;
@@ -259,19 +260,35 @@ impl crate::TermWindow {
         let mut new_pane_frames = std::collections::HashMap::with_capacity(panes.len());
         let previous_frame = render_state.prev_frame_buffers.borrow();
         let mut pane_skip_chain_valid = true;
+        let mut cofree = CofreeContext::new();
 
         for pos in &panes {
             let pane_id = pos.pane.pane_id();
             let snapshot = pos.pane.snapshot_for_render(self.get_viewport(pane_id));
             let terminal_hash = snapshot.content_hash();
             let cache_key = self.pane_describe_cache_key(pane_id, pos, terminal_hash);
+            let prior = self.prev_pane_frames.get(&pane_id);
+            let prior_skip_streak = prior.map_or(0, |frame| frame.skip_streak);
 
-            let (pane_frame, candidate_skippable) = match self.prev_pane_frames.get(&pane_id) {
+            let (mut pane_frame, candidate_skippable) = match prior {
                 Some(cached) if cached.cache_key == cache_key => {
-                    log::trace!("pane {pane_id}: chrono skip (seed unchanged, commands reused)");
-                    (cached.clone(), true)
+                    let mut frame = cached.clone();
+                    frame.skip_streak = prior_skip_streak.saturating_add(1);
+                    log::trace!(
+                        "pane {pane_id}: chrono skip (seed unchanged, skip_streak={}, intra_skip_streak={})",
+                        frame.skip_streak,
+                        cofree.skip_streak
+                    );
+                    (frame, true)
                 }
-                _ => (self.describe_pane_with_snapshot(pos, snapshot, cache_key)?, false),
+                _ => {
+                    log::trace!(
+                        "pane {pane_id}: chrono describe (prior_skip_streak={}, intra_skip_streak={})",
+                        prior_skip_streak,
+                        cofree.skip_streak
+                    );
+                    (self.describe_pane_with_snapshot(pos, snapshot, cache_key)?, false)
+                }
             };
 
             let prior_quad_range = if candidate_skippable && pane_skip_chain_valid {
@@ -289,22 +306,28 @@ impl crate::TermWindow {
             };
 
             let pane_start = snapshot_layers(render_state);
-            if let Some(prior_quad_range) = prior_quad_range.as_ref() {
+            let outcome = if let Some(prior_quad_range) = prior_quad_range.as_ref() {
                 advance_quad_counts_for_range(render_state, prior_quad_range)?;
+                SectionOutcome::Skipped
             } else {
-                execute_commands(
+                let history = execute_commands_with_history(
                     &pane_frame.commands,
                     render_state,
                     left_offset,
                     top_offset,
                     &filled_box,
                 )?;
-            }
+                let stats = history.stats();
+                pane_frame.last_execution_stats = Some(stats);
+                pane_frame.skip_streak = 0;
+                SectionOutcome::Executed { stats }
+            };
             let pane_end = snapshot_layers(render_state);
             let skippable = prior_quad_range.is_some();
             if !skippable {
                 pane_skip_chain_valid = false;
             }
+            cofree.advance(outcome);
 
             plan.sections.push(RenderSection {
                 scissor: Some(ScissorRect::from_pane_bounds(
@@ -318,12 +341,28 @@ impl crate::TermWindow {
                     end: pane_end,
                 },
                 skippable,
-                stats: None,
+                stats: pane_frame.last_execution_stats,
             });
 
             ui_items.extend(pane_frame.ui_items.iter().cloned());
             new_pane_frames.insert(pane_id, pane_frame);
         }
+
+        let chrono_skip_streak_max = cofree
+            .prior_outcomes
+            .iter()
+            .scan(0usize, |streak, outcome| {
+                match outcome {
+                    SectionOutcome::Skipped => *streak += 1,
+                    SectionOutcome::Executed { .. } => *streak = 0,
+                }
+                Some(*streak)
+            })
+            .max()
+            .unwrap_or(0);
+        metrics::histogram!("gui.chrono.skip_streak_max").record(chrono_skip_streak_max as f64);
+        metrics::histogram!("gui.chrono.total_quads").record(cofree.total_quads_emitted as f64);
+        metrics::histogram!("gui.chrono.skip_rate").record(cofree.skip_rate());
 
         let chrome_start = snapshot_layers(render_state);
 

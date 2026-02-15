@@ -57,6 +57,8 @@ impl Lens<PaneFrame, RectF> for PaneBounds {
             cache_key,
             commands,
             ui_items,
+            last_execution_stats,
+            skip_streak,
         } = source;
         PaneFrame {
             pane_id,
@@ -66,6 +68,8 @@ impl Lens<PaneFrame, RectF> for PaneBounds {
             cache_key,
             commands,
             ui_items,
+            last_execution_stats,
+            skip_streak,
         }
     }
 }
@@ -90,6 +94,8 @@ impl Lens<PaneFrame, Arc<[RenderCommand]>> for PaneCommands {
             cache_key,
             commands,
             ui_items,
+            last_execution_stats,
+            skip_streak,
         } = source;
         PaneFrame {
             pane_id,
@@ -99,6 +105,8 @@ impl Lens<PaneFrame, Arc<[RenderCommand]>> for PaneCommands {
             cache_key,
             commands: f(commands),
             ui_items,
+            last_execution_stats,
+            skip_streak,
         }
     }
 }
@@ -398,6 +406,8 @@ mod tests {
             cache_key: 0,
             commands: Arc::from(commands.into_boxed_slice()),
             ui_items: Vec::new(),
+            last_execution_stats: None,
+            skip_streak: 0,
         }
     }
 

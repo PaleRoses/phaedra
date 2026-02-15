@@ -1,4 +1,5 @@
 use crate::render_command::RenderCommand;
+use crate::render_plan::ExecutionStats;
 use crate::termwindow::UIItem;
 use mux::pane::PaneId;
 use std::sync::Arc;
@@ -18,6 +19,8 @@ pub struct PaneFrame {
     pub cache_key: u64,
     pub commands: Arc<[RenderCommand]>,
     pub ui_items: Vec<UIItem>,
+    pub last_execution_stats: Option<ExecutionStats>,
+    pub skip_streak: u32,
 }
 
 #[derive(Debug, Default)]

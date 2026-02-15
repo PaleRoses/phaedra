@@ -817,6 +817,8 @@ impl crate::TermWindow {
             cache_key,
             commands,
             ui_items,
+            last_execution_stats: None,
+            skip_streak: 0,
         })
     }
 
