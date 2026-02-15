@@ -6,7 +6,11 @@ use ::window::bitmaps::atlas::OutOfTextureSpace;
 use ::window::bitmaps::Texture2d;
 use anyhow::Context;
 use std::cell::{Ref, RefCell, RefMut};
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::ops::Range;
 use std::rc::Rc;
+use std::iter::FromIterator;
 use phaedra_font::FontConfiguration;
 use wgpu::util::DeviceExt;
 
@@ -446,18 +450,50 @@ impl TripleLayerQuadAllocatorTrait for BorrowedLayers {
     }
 }
 
+type LayerKey = (i8, usize);
+type SectionLayerRange = (usize, usize);
+const INDICES_PER_QUAD: u32 = 6;
+
 #[derive(Default)]
-pub struct FrameBuffers {
-    pub buffers: Vec<(i8, usize, wgpu::Buffer)>,
-    pub section_ranges: Vec<crate::render_plan::QuadRange>,
+pub struct LayerBuffers {
+    by_layer: HashMap<LayerKey, wgpu::Buffer>,
 }
 
-impl FrameBuffers {
-    pub fn buffer(&self, zindex: i8, sub_idx: usize) -> Option<&wgpu::Buffer> {
-        self.buffers
-            .iter()
-            .find(|(z, s, _)| *z == zindex && *s == sub_idx)
-            .map(|(_, _, buffer)| buffer)
+impl LayerBuffers {
+    pub fn push(&mut self, (zindex, sub_idx, buffer): (i8, usize, wgpu::Buffer)) {
+        self.insert(zindex, sub_idx, buffer);
+    }
+
+    pub fn insert(&mut self, zindex: i8, sub_idx: usize, buffer: wgpu::Buffer) {
+        self.by_layer.insert((zindex, sub_idx), buffer);
+    }
+
+    pub fn get(&self, zindex: i8, sub_idx: usize) -> Option<&wgpu::Buffer> {
+        self.by_layer.get(&(zindex, sub_idx))
+    }
+}
+
+#[derive(Default)]
+pub struct SectionRanges {
+    sections: Vec<crate::render_plan::QuadRange>,
+    indexed_ranges: Vec<HashMap<LayerKey, SectionLayerRange>>,
+}
+
+impl SectionRanges {
+    fn from_sections(sections: Vec<crate::render_plan::QuadRange>) -> Self {
+        let indexed_ranges = sections.iter().map(index_section_quad_ranges).collect();
+        Self {
+            sections,
+            indexed_ranges,
+        }
+    }
+
+    fn ranges_for_section(&self, section_idx: usize) -> Option<&HashMap<LayerKey, SectionLayerRange>> {
+        self.indexed_ranges.get(section_idx)
+    }
+
+    pub fn get(&self, section_idx: usize) -> Option<&crate::render_plan::QuadRange> {
+        self.sections.get(section_idx)
     }
 
     pub fn section_quad_range(
@@ -466,20 +502,129 @@ impl FrameBuffers {
         zindex: i8,
         sub_idx: usize,
     ) -> Option<(usize, usize)> {
-        let section = self.section_ranges.get(section_idx)?;
-        let start_quad = section
-            .start
-            .iter()
-            .find(|snapshot| snapshot.zindex == zindex && snapshot.sub_idx == sub_idx)
-            .map(|snapshot| snapshot.quad_count)
-            .unwrap_or(0);
-        let end_quad = section
-            .end
-            .iter()
-            .find(|snapshot| snapshot.zindex == zindex && snapshot.sub_idx == sub_idx)
-            .map(|snapshot| snapshot.quad_count)
-            .unwrap_or(0);
-        (end_quad > start_quad).then_some((start_quad, end_quad))
+        self.indexed_ranges
+            .get(section_idx)?
+            .get(&(zindex, sub_idx))
+            .copied()
+    }
+}
+
+impl FromIterator<crate::render_plan::QuadRange> for SectionRanges {
+    fn from_iter<T: IntoIterator<Item = crate::render_plan::QuadRange>>(iter: T) -> Self {
+        Self::from_sections(iter.into_iter().collect())
+    }
+}
+
+fn index_section_quad_ranges(
+    section: &crate::render_plan::QuadRange,
+) -> HashMap<LayerKey, SectionLayerRange> {
+    let mut start_quads = HashMap::with_capacity(section.start.len());
+    for snapshot in &section.start {
+        start_quads
+            .entry((snapshot.zindex, snapshot.sub_idx))
+            .or_insert(snapshot.quad_count);
+    }
+
+    let mut ranges = HashMap::with_capacity(section.end.len());
+    for snapshot in &section.end {
+        let key = (snapshot.zindex, snapshot.sub_idx);
+        let start_quad = start_quads.get(&key).copied().unwrap_or(0);
+        if snapshot.quad_count > start_quad {
+            ranges.entry(key).or_insert((start_quad, snapshot.quad_count));
+        }
+    }
+    ranges
+}
+
+#[derive(Default)]
+pub struct FrameBuffers {
+    pub buffers: LayerBuffers,
+    pub section_ranges: SectionRanges,
+}
+
+pub struct FrameBuffersBuilder {
+    frame_buffers: FrameBuffers,
+}
+
+impl FrameBuffersBuilder {
+    pub fn with_buffer(mut self, zindex: i8, sub_idx: usize, buffer: wgpu::Buffer) -> Self {
+        self.frame_buffers.buffers.insert(zindex, sub_idx, buffer);
+        self
+    }
+
+    pub fn with_section_ranges<I>(mut self, section_ranges: I) -> Self
+    where
+        I: IntoIterator<Item = crate::render_plan::QuadRange>,
+    {
+        self.frame_buffers.section_ranges = section_ranges.into_iter().collect();
+        self
+    }
+
+    pub fn build(self) -> FrameBuffers {
+        self.frame_buffers
+    }
+}
+
+impl FrameBuffers {
+    pub fn builder() -> FrameBuffersBuilder {
+        FrameBuffersBuilder {
+            frame_buffers: Self::default(),
+        }
+    }
+
+    pub fn with_buffer(mut self, zindex: i8, sub_idx: usize, buffer: wgpu::Buffer) -> Self {
+        self.buffers.insert(zindex, sub_idx, buffer);
+        self
+    }
+
+    pub fn with_section_ranges<I>(mut self, section_ranges: I) -> Self
+    where
+        I: IntoIterator<Item = crate::render_plan::QuadRange>,
+    {
+        self.section_ranges = section_ranges.into_iter().collect();
+        self
+    }
+
+    pub fn buffer(&self, zindex: i8, sub_idx: usize) -> Option<&wgpu::Buffer> {
+        self.buffers.get(zindex, sub_idx)
+    }
+
+    pub fn section_quad_range(
+        &self,
+        section_idx: usize,
+        zindex: i8,
+        sub_idx: usize,
+    ) -> Option<(usize, usize)> {
+        self.section_ranges
+            .section_quad_range(section_idx, zindex, sub_idx)
+    }
+
+    pub fn can_skip_section(&self, section_idx: usize) -> bool {
+        self.section_ranges
+            .ranges_for_section(section_idx)
+            .map(|ranges| {
+                ranges
+                    .keys()
+                    .any(|(zindex, sub_idx)| self.buffer(*zindex, *sub_idx).is_some())
+            })
+            .unwrap_or(false)
+    }
+
+    pub fn section_draw_source(
+        &self,
+        section_idx: usize,
+        zindex: i8,
+        sub_idx: usize,
+    ) -> Option<(&wgpu::Buffer, Range<u32>)> {
+        let (start_quad, end_quad) = self.section_quad_range(section_idx, zindex, sub_idx)?;
+        let buffer = self.buffer(zindex, sub_idx)?;
+        let start = u32::try_from(start_quad)
+            .ok()?
+            .checked_mul(INDICES_PER_QUAD)?;
+        let end = u32::try_from(end_quad)
+            .ok()?
+            .checked_mul(INDICES_PER_QUAD)?;
+        Some((buffer, start..end))
     }
 }
 
